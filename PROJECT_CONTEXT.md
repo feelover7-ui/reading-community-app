@@ -50,3 +50,17 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 ```text
 https://github.com/feelover7-ui/reading-community-app.git
 ```
+
+## Public URLs
+
+Vercel preview URL:
+
+```text
+https://goal-windows-codex-mvp-node-js-2-6jnvt74d2-ami18.vercel.app
+```
+
+Vercel production URL was created during the first CLI deployment:
+
+```text
+https://goal-windows-codex-mvp-node-js-2.vercel.app
+```

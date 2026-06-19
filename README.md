@@ -58,6 +58,22 @@ https://github.com/feelover7-ui/reading-community-app.git
 - Build Command: `npm run build`
 - Output Directory: `dist`
 
+## Vercel Preview 배포
+
+현재 preview 배포 주소:
+
+```text
+https://goal-windows-codex-mvp-node-js-2-6jnvt74d2-ami18.vercel.app
+```
+
+Vercel CLI 대체 배포 명령:
+
+```powershell
+npx vercel --target preview
+```
+
+Production 배포는 별도 승인 후에만 진행합니다.
+
 ## 이번 단계에서 제외한 것
 
 - Supabase 연동
