@@ -84,8 +84,10 @@ https://github.com/feelover7-ui/reading-community-app.git
 현재 preview 배포 주소:
 
 ```text
-https://goal-windows-codex-mvp-node-js-2-6jnvt74d2-ami18.vercel.app
+https://goal-windows-codex-mvp-node-js-2-iwctrypmu-ami18.vercel.app
 ```
+
+Preview 환경에는 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`가 등록되어 있습니다.
 
 Preview 배포는 Vercel 인증 보호가 켜져 있으면 브라우저에서 Vercel 로그인이 필요할 수 있습니다.
 

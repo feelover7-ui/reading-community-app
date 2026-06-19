@@ -47,6 +47,7 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 - RLS: enabled
 - Current policy: temporary public MVP access for `anon` and `authenticated`
 - Frontend key type: publishable key only
+- Vercel preview env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` configured
 - `service_role`, secret key, database password: not used
 
 ## Not Included Yet
@@ -67,7 +68,7 @@ https://github.com/feelover7-ui/reading-community-app.git
 Vercel preview URL:
 
 ```text
-https://goal-windows-codex-mvp-node-js-2-6jnvt74d2-ami18.vercel.app
+https://goal-windows-codex-mvp-node-js-2-iwctrypmu-ami18.vercel.app
 ```
 
 Vercel production URL was created during the first CLI deployment:
