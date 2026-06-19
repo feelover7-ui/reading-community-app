@@ -18,6 +18,8 @@
 - 기본 샘플 책 5권
 - Open Library 도서 검색
 - 검색 결과에서 내 서재에 추가
+- Supabase `public.books` 테이블 동기화
+- Supabase 미설정 시 localStorage fallback
 
 ## External API
 
@@ -35,15 +37,24 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 
 ## Storage
 
-현재 데이터는 브라우저 `localStorage`에 저장합니다.
+현재 데이터는 브라우저 `localStorage`에 먼저 저장합니다. Supabase 환경변수가 설정되어 있으면 `public.books` 테이블과 동기화합니다.
+
+## Supabase
+
+- Project ref: `vsnbzwofscqeeewscozp`
+- API URL: `https://vsnbzwofscqeeewscozp.supabase.co`
+- Table: `public.books`
+- RLS: enabled
+- Current policy: temporary public MVP access for `anon` and `authenticated`
+- Frontend key type: publishable key only
+- `service_role`, secret key, database password: not used
 
 ## Not Included Yet
 
-- Supabase 연결
 - Kakao 로그인
 - 서버 사이드 인증
 - `.env.local`
-- 배포 설정
+- 사용자별 Supabase RLS
 
 ## GitHub Repository
 

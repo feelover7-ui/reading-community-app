@@ -1,5 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { deleteBookFromSupabase, fetchBooksFromSupabase, saveBookToSupabase } from './lib/booksApi'
 import { searchBooks } from './lib/bookSearchApi'
+import { isSupabaseConfigured } from './lib/supabaseClient'
 
 const STORAGE_KEY = 'reading-community-books'
 
@@ -132,6 +134,7 @@ function SearchResultCard({ book, onAdd }) {
 
 export default function App() {
   const [books, setBooks] = useState(loadBooks)
+  const [syncStatus, setSyncStatus] = useState(isSupabaseConfigured ? 'Supabase 연결 확인 중' : 'localStorage 저장 중')
   const [query, setQuery] = useState('')
   const [libraryQuery, setLibraryQuery] = useState('')
   const [libraryResults, setLibraryResults] = useState([])
@@ -161,12 +164,58 @@ export default function App() {
   const averageProgress =
     books.length === 0 ? 0 : Math.round(books.reduce((sum, book) => sum + book.progress, 0) / books.length)
 
+  useEffect(() => {
+    let ignore = false
+
+    async function loadRemoteBooks() {
+      if (!isSupabaseConfigured) {
+        return
+      }
+
+      try {
+        const remoteBooks = await fetchBooksFromSupabase()
+        if (ignore) {
+          return
+        }
+
+        if (remoteBooks.length > 0) {
+          setBooks(remoteBooks)
+          saveBooks(remoteBooks)
+        }
+        setSyncStatus('Supabase와 동기화됨')
+      } catch {
+        if (!ignore) {
+          setSyncStatus('Supabase 연결 실패, localStorage 사용 중')
+        }
+      }
+    }
+
+    loadRemoteBooks()
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
   function updateBooks(nextBooks) {
     setBooks(nextBooks)
     saveBooks(nextBooks)
   }
 
-  function handleSubmit(event) {
+  async function addBook(nextBook) {
+    updateBooks([nextBook, ...books])
+
+    try {
+      await saveBookToSupabase(nextBook)
+      if (isSupabaseConfigured) {
+        setSyncStatus('Supabase와 동기화됨')
+      }
+    } catch {
+      setSyncStatus('Supabase 저장 실패, localStorage에 보관됨')
+    }
+  }
+
+  async function handleSubmit(event) {
     event.preventDefault()
     const title = form.title.trim()
     const author = form.author.trim()
@@ -182,9 +231,10 @@ export default function App() {
       author,
       status: form.status,
       progress,
+      source: 'manual',
     }
 
-    updateBooks([nextBook, ...books])
+    await addBook(nextBook)
     setForm({
       title: '',
       author: '',
@@ -193,8 +243,17 @@ export default function App() {
     })
   }
 
-  function deleteBook(id) {
+  async function deleteBook(id) {
     updateBooks(books.filter((book) => book.id !== id))
+
+    try {
+      await deleteBookFromSupabase(id)
+      if (isSupabaseConfigured) {
+        setSyncStatus('Supabase와 동기화됨')
+      }
+    } catch {
+      setSyncStatus('Supabase 삭제 실패, localStorage만 변경됨')
+    }
   }
 
   async function handleLibrarySearch(event) {
@@ -223,16 +282,21 @@ export default function App() {
     }
   }
 
-  function addLibraryBook(book) {
+  async function addLibraryBook(book) {
     const nextBook = {
       id: `open-library-${book.key}-${Date.now()}`,
       title: book.title,
       author: book.author,
       status: 'reading',
       progress: 0,
+      source: 'open-library',
+      coverUrl: book.coverId ? `https://covers.openlibrary.org/b/id/${book.coverId}-M.jpg` : null,
+      openLibraryKey: book.key,
+      firstPublishYear: typeof book.firstPublishYear === 'number' ? book.firstPublishYear : null,
+      isbn: book.isbn === '정보 없음' ? null : book.isbn,
     }
 
-    updateBooks([nextBook, ...books])
+    await addBook(nextBook)
   }
 
   return (
@@ -241,6 +305,7 @@ export default function App() {
         <p className="eyebrow">함께 읽고 기록하는 작은 서재</p>
         <h1>독서 커뮤니티</h1>
         <p className="hero-copy">읽는 중인 책과 완독한 책을 나누어 관리하고, 새로고침 후에도 기록을 유지합니다.</p>
+        <p className="sync-status">{syncStatus}</p>
         <div className="stats">
           <div>
             <strong>{books.length}</strong>

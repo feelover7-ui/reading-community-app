@@ -75,6 +75,17 @@ h1 {
   line-height: 1.6;
 }
 
+.sync-status {
+  display: inline-flex;
+  margin-bottom: 18px;
+  border-radius: 999px;
+  background: #e8f7f5;
+  color: #0f766e;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

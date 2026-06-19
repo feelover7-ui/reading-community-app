@@ -15,6 +15,8 @@
 - 기본 샘플 책 5권 포함
 - Open Library 도서 검색
 - 검색 결과에서 내 서재에 추가
+- Supabase `books` 테이블 동기화
+- Supabase 미설정 시 localStorage fallback
 
 ## 실행 방법
 
@@ -28,6 +30,25 @@ npm run dev
 ```text
 http://localhost:5173/
 ```
+
+## Supabase 설정
+
+`.env.local`은 커밋하지 않습니다. 로컬에서 Supabase 동기화를 켜려면 `.env.example`을 참고해 직접 `.env.local`을 만들고 아래 값을 채웁니다.
+
+```text
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+```
+
+현재 앱은 Supabase 환경변수가 없으면 기존처럼 localStorage만 사용합니다.
+
+현재 Supabase 테이블:
+
+```text
+public.books
+```
+
+주의: 지금은 로그인 전 MVP 단계라 `anon`/`authenticated`가 읽기/쓰기 가능한 임시 공개 정책입니다. Kakao 로그인 단계에서 사용자별 RLS 정책으로 바꿔야 합니다.
 
 ## 테스트 방법
 
@@ -84,6 +105,5 @@ Production 배포는 별도 승인 후에만 진행합니다.
 
 ## 이번 단계에서 제외한 것
 
-- Supabase 연동
 - Kakao 로그인
 - `.env.local` 생성
