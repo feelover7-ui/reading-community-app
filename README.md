@@ -66,6 +66,14 @@ https://github.com/feelover7-ui/reading-community-app.git
 https://goal-windows-codex-mvp-node-js-2-6jnvt74d2-ami18.vercel.app
 ```
 
+Preview 배포는 Vercel 인증 보호가 켜져 있으면 브라우저에서 Vercel 로그인이 필요할 수 있습니다.
+
+현재 공개 접근이 확인된 Vercel 주소:
+
+```text
+https://goal-windows-codex-mvp-node-js-2.vercel.app
+```
+
 Vercel CLI 대체 배포 명령:
 
 ```powershell

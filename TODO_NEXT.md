@@ -10,6 +10,12 @@ Preview 배포 주소:
 https://goal-windows-codex-mvp-node-js-2-6jnvt74d2-ami18.vercel.app
 ```
 
+공개 접근 확인 주소:
+
+```text
+https://goal-windows-codex-mvp-node-js-2.vercel.app
+```
+
 ## Suggested Tasks
 
 - Vercel preview URL에서 화면 확인
@@ -21,7 +27,7 @@ https://goal-windows-codex-mvp-node-js-2-6jnvt74d2-ami18.vercel.app
 
 - Supabase 프로젝트 생성
 - 책 목록을 localStorage에서 Supabase 테이블로 이전
-- Supabase Redirect URL에 Vercel 공개 URL 사용
-- Kakao Redirect URL에 Vercel 공개 URL 사용
+- Supabase Redirect URL에 공개 접근이 확인된 Vercel URL 사용
+- Kakao Redirect URL에 공개 접근이 확인된 Vercel URL 사용
 - 사용자별 서재 저장
 - Kakao 로그인 검토

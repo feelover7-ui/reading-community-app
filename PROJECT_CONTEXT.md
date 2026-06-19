@@ -64,3 +64,5 @@ Vercel production URL was created during the first CLI deployment:
 ```text
 https://goal-windows-codex-mvp-node-js-2.vercel.app
 ```
+
+The preview deployment is ready, but preview deployment protection may require Vercel authentication before viewing it.
