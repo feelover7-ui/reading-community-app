@@ -5,8 +5,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "DeepSeek",
       "options": {
-        "baseURL": "https://api.deepseek.com/v1",
-        "apiKey": "{file:~/.secrets/deepseek-api-key}"
+        "baseURL": "https://api.deepseek.com/v1"
       },
       "models": {
         "deepseek-flash": {
@@ -18,8 +17,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "Meta",
       "options": {
-        "baseURL": "https://api.meta.ai/v1",
-        "apiKey": "{file:~/.secrets/meta-api-key}"
+        "baseURL": "https://api.meta.ai/v1"
       },
       "models": {
         "muse-spark-1.3": {
