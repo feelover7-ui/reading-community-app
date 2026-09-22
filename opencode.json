@@ -12,18 +12,6 @@
           "name": "DeepSeek V4.1 Flash"
         }
       }
-    },
-    "meta": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Meta",
-      "options": {
-        "baseURL": "https://api.meta.ai/v1"
-      },
-      "models": {
-        "muse-spark-1.3": {
-          "name": "Muse Spark 1.3"
-        }
-      }
     }
   }
 }
