@@ -536,13 +536,14 @@ const hereEl=document.getElementById('here');
 function updateHere(){
   hereDirty=false;
   if(!hereEl)return;
-  if(!shared||!yard||!yard.joined||!started){hereEl.style.display='none';return;}
+  if(!started){hereEl.style.display='none';return;}
   hereEl.style.display='block';
   hereEl.innerHTML='';
-  hereEl.append(el('div',null,`지금 마당에 ${peers.size+1}명`));
+  const live=!!(shared&&yard&&yard.joined);
+  hereEl.append(el('div',null,live?`지금 마당에 ${peers.size+1}명`:'지금은 혼자 보는 마당'));
   const row=el('div');
   row.append(el('span','me',nickNow()||'나'));
-  for(const p of peers.values()){row.append(document.createTextNode(' · '));row.append(el('span',null,p.nick||'법우'));}
+  if(live)for(const p of peers.values()){row.append(document.createTextNode(' · '));row.append(el('span',null,p.nick||'법우'));}
   hereEl.append(row);
 }
 function applyPose(id,pose){
@@ -594,7 +595,10 @@ function stopYard(){
   peers.clear();
   updateHere();
 }
+let lastJoined=false;
 function updatePeers(dt){
+  const nowJoined=!!(yard&&yard.joined);
+  if(nowJoined!==lastJoined){lastJoined=nowJoined;hereDirty=true;}
   if(hereDirty)updateHere();
   const now=Date.now();
   for(const [id,p] of peers){
@@ -605,14 +609,21 @@ function updatePeers(dt){
     else{p.x=p.tx;p.y=p.ty;p.moving=false;}
   }
 }
+// 머리 위 이름표. 내 것은 붉은색이라 한눈에 구분된다.
+const TAG_Y=62;      // 이름표 윗변
+const CARRY_Y=88;    // 들고 있는 소원등 (이름표 위로 올린다)
+function nameTag(px,py,name,night,mine){
+  const t=(name||'법우').slice(0,12);
+  ctx.font='700 11px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  const w=ctx.measureText(t).width+14;
+  ctx.fillStyle=mine?(night?'rgba(150,45,34,.92)':'rgba(200,64,47,.92)'):(night?'rgba(20,16,38,.8)':'rgba(43,29,20,.72)');
+  rr(ctx,px-w/2,py-TAG_Y,w,17,8);ctx.fill();
+  ctx.fillStyle=night?'#ffe7a8':'#fbf4e4';ctx.fillText(t,px,py-TAG_Y+8.5);
+}
 function drawPeer(p,night){
   const px=p.x*T,py=p.y*T;
   drawPerson(px,py,{body:p.color,hair:'#2b1d14',pants:'#3b3b48'},p.dir,p.moving,p.walk);
-  const name=(p.nick||'법우').slice(0,12);
-  ctx.font='700 11px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  const w=ctx.measureText(name).width+14;
-  ctx.fillStyle=night?'rgba(20,16,38,.8)':'rgba(43,29,20,.72)';rr(ctx,px-w/2,py-62,w,17,8);ctx.fill();
-  ctx.fillStyle=night?'#ffe7a8':'#fbf4e4';ctx.fillText(name,px,py-53.5);
+  nameTag(px,py,p.nick,night,false);
 }
 function sayStyle(night){
   return {font:'500 13px "Noto Sans KR",sans-serif',bg:night?'rgba(30,24,48,.94)':'rgba(251,244,228,.97)',color:night?'#ffe7a8':'#2b1d14',stroke:night?'#d9a531':'#6b4a2f'};
@@ -862,7 +873,7 @@ function render(t){
   const dr=objects.map(o=>({y:o.sortY,f:()=>{if(o.kind==='table')drawTable(o,t);else if(o.kind==='shelf')drawShelf(o);else if(o.kind==='rack')drawRack(o);else if(o.kind==='dragon')drawDragon();else if(o.kind==='big')drawBig(ctx,night,t);else if(o.kind==='stone')drawStone(o,night);else if(o.kind==='sign')drawSign(o);else if(o.kind==='board')drawBoardSign(o);else if(o.kind==='tree')drawTree(o);}}));
   NPCS.forEach(n=>dr.push({y:n.y*T,f:()=>drawPerson(n.x*T,n.y*T,n.o,n.dir,false,t)}));
   peers.forEach(p=>dr.push({y:p.y*T,f:()=>drawPeer(p,night)}));
-  dr.push({y:player.y*T,f:()=>{drawPerson(player.x*T,player.y*T,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48'},player.dir,player.moving,player.walk);if(state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-62,26,state.craft,{lit:state.stage>=4,wire:1,paper:state.stage>=2?1:0});}});
+  dr.push({y:player.y*T,f:()=>{drawPerson(player.x*T,player.y*T,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48'},player.dir,player.moving,player.walk);if(started)nameTag(player.x*T,player.y*T,nickNow()||'나',night,true);if(state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-CARRY_Y,26,state.craft,{lit:state.stage>=4,wire:1,paper:state.stage>=2?1:0});}});
   dr.sort((a,b)=>a.y-b.y).forEach(d=>d.f());
   const hung=hungList();
   drawRopes(false,t,hung);
@@ -874,13 +885,13 @@ function render(t){
     glow(18*T,12.9*T,2.6*T,'255,200,120',.35);
     hung.forEach(h=>{const[r,g,b]=hexRgb(h.L.color||'#ffcc66');glow(h.slot.x*T,(ropeY(h.slot.r,h.slot.x)+.55)*T,1.7*T,`${(r+255)/2|0},${(g+200)/2|0},${(b+120)/2|0}`,.4);});
     [[14.5,13.1],[21.5,13.1]].forEach(([x,y])=>glow(x*T,y*T,1.8*T,'255,200,110',.4));
-    if(state.stage>=4)glow(player.x*T,player.y*T-62,1.4*T,'255,210,130',.4);
+    if(state.stage>=4)glow(player.x*T,player.y*T-CARRY_Y,1.4*T,'255,210,130',.4);
     particles.forEach(p=>{const a=Math.max(0,1-p.age/p.life);ctx.fillStyle=`rgba(255,${180+(p.age*20|0)},90,${a*.9})`;circ(ctx,p.x,p.y,2);});
     ctx.globalCompositeOperation='source-over';
     drawBig(ctx,true,t);
     objects.filter(o=>o.kind==='stone').forEach(o=>drawStone(o,true));
     drawRopes(true,t,hung);
-    if(player.y>12.6&&state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-62,26,state.craft,{lit:state.stage>=4,paper:state.stage>=2?1:0});
+    if(player.y>12.6&&state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-CARRY_Y,26,state.craft,{lit:state.stage>=4,paper:state.stage>=2?1:0});
   }
   // NPC names
   NPCS.forEach(n=>{if(Math.hypot(n.x-player.x,n.y-player.y)<3.2&&!dialog){ctx.font='700 12px "Noto Sans KR",sans-serif';const w=ctx.measureText(n.name).width+14;ctx.fillStyle='rgba(43,29,20,.82)';rr(ctx,n.x*T-w/2,n.y*T-64,w,19,9);ctx.fill();ctx.fillStyle='#fbf4e4';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(n.name,n.x*T,n.y*T-54.5);}});
@@ -890,11 +901,11 @@ function render(t){
   const sayNow=Date.now(),sst=sayStyle(night);
   peers.forEach(p=>{if(p.say&&p.sayUntil>sayNow)drawBubble(p.x*T,p.y*T-64,wrap(p.say,14),sst);});
   const myBubble=myLine&&myLineUntil>sayNow;
-  if(myBubble)drawBubble(player.x*T,player.y*T-(state.stage>=1?92:64),wrap(myLine,14),sst);
+  if(myBubble)drawBubble(player.x*T,player.y*T-(state.stage>=1?110:72),wrap(myLine,14),sst);
   // target marker
   const tk=targetKey();if(tk&&started){const it=INTERACT.find(i=>i.key===tk);if(it){const mx=it.mark[0]*T,my=it.mark[1]*T+Math.sin(t*4)*5;ctx.fillStyle='#f2c037';ctx.strokeStyle='#5a3b26';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(mx-9,my-12);ctx.lineTo(mx+9,my-12);ctx.lineTo(mx,my);ctx.closePath();ctx.fill();ctx.stroke();}}
   // prompt
-  if(started&&!dialog&&!modalOpen&&!myBubble){const it=nearest();if(it){const label=(isTouch?'작업 버튼 · ':'Space · ')+it.name;ctx.font='700 13px "Noto Sans KR",sans-serif';const w=ctx.measureText(label).width+22;const px=player.x*T,py=player.y*T-(state.stage>=1?90:66);ctx.fillStyle='rgba(200,64,47,.95)';rr(ctx,px-w/2,py-13,w,26,13);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,px,py);}}
+  if(started&&!dialog&&!modalOpen&&!myBubble){const it=nearest();if(it){const label=(isTouch?'작업 버튼 · ':'Space · ')+it.name;ctx.font='700 13px "Noto Sans KR",sans-serif';const w=ctx.measureText(label).width+22;const px=player.x*T,py=player.y*T-(state.stage>=1?118:82);ctx.fillStyle='rgba(200,64,47,.95)';rr(ctx,px-w/2,py-13,w,26,13);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,px,py);}}
 }
 
 /* ---------- loop ---------- */
