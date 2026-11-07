@@ -123,7 +123,9 @@ body.touch #joy,body.touch #act{display:block}
 .card{touch-action:pan-y;overscroll-behavior:contain}
 #toast{max-width:calc(100vw - 24px);white-space:normal;text-align:center;overflow-wrap:anywhere}
 #hud .here{overflow-wrap:anywhere}
-#title.hide{visibility:hidden}
+/* visibility 는 전환이 안 되는 속성이라, 그냥 숨기면 0.6초 페이드가 통째로 날아간다.
+   페이드가 끝난 뒤에 숨도록 지연을 준다. */
+#title.hide{visibility:hidden;transition:opacity .6s,visibility 0s linear .6s}
 @media (max-width:420px){#hud{width:calc(100vw - 178px)}#hud h3{font-size:12px;gap:4px}#hud h3 small{font-size:10px}#chatbar{gap:5px}#chatbar button{padding:0 10px}#chatbar #chatnick{flex:0 0 70px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
