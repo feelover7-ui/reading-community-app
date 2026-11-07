@@ -48,16 +48,22 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 - Supabase client: `src/deungbul/supabaseClient.js` (소원등·방명록이 하나를 공유)
 - Lanterns: `src/deungbul/lanternsApi.js` -> `public.lanterns` (`supabase/lanterns.sql`)
 - Board/chat: `src/deungbul/boardApi.js` -> `public.posts`, `public.messages` (`supabase/board.sql`)
-- 시작 화면에서 이름을 받고(`#namein`, 필수) 저장한 뒤에 마당 채널에 합류한다. 이름 없이 presence 에 올라가지 않게 하려는 것이다.
+- 시작 화면에서 이름(`#namein`)과 남/여를 받고(둘 다 필수) 저장한 뒤에 마당 채널에 합류한다. 이름 없이 presence 에 올라가지 않게 하려는 것이다.
 - 지금 마당에 있는 사람 명단은 HUD 의 `#here` 에 그린다.
 - Live presence: `src/deungbul/presence.js` -> Realtime 채널 `deungbul-yard` (DB 사용 안 함)
   - presence: 입장/퇴장, 닉네임
   - broadcast `pos`: 위치 (움직일 때만, 최소 220ms 간격)
   - broadcast `say`: 말풍선 (기록은 `public.messages` 가 따로 맡음)
   - sync 목록을 기준으로 사라진 사람을 지운다. 채팅할 때 track 을 다시 부르지 않는다 (presence 항목이 중복되면 퇴장 처리가 꼬인다)
-- 걸이줄 칸 42개, 최신 42개만 표시
+- 사용자 소원등은 최신 92개만 표시합니다. 기본 장식등 6개를 포함하면 걸이줄 전체는 98칸입니다.
+- 점등은 `lit` broadcast와 위치 상태로 마당 전체에 공유합니다. 낮으로 돌아가기는 본인 화면에만 적용됩니다.
 - 방명록 글 최근 50개, 채팅 최근 50줄
 - 환경변수나 테이블이 없으면 localStorage 폴백 (게임은 그대로 동작)
+- 환경변수가 있으면 로컬 모드에서도 20초마다 조회를 재시도하고 온라인/화면 복귀 때도 확인합니다. 조회 성공 시 공유 구독과 입장한 사용자의 presence를 복구합니다.
+- 연결 중단 중 만든 등은 자동 업로드하지 않습니다. 복구 후에도 이번 방문 동안에는 로컬 전용 등을 함께 표시하며 브라우저 저장소에 백업합니다. 새로고침 후 공유 모드에서는 서버 등만 표시합니다.
+- presence 등록 실패는 1초부터 최대 15초 간격으로 재시도합니다. 성공한 등록은 반복하지 않으며 재연결과 퇴장 때 이전 요청을 무효화합니다.
+- 빠른 채팅은 저장 성공 후 입력을 지우고 말풍선을 보냅니다. 실패 시 입력 내용을 유지합니다.
+- 방명록 갱신은 글 id에 해당하는 DOM을 유지하므로 삭제 비밀번호와 초점을 보존합니다.
 - 방명록 글 삭제: 닉네임+비밀번호를 SHA-256 으로 해시해서 저장하고, `delete_post` 함수가 서버에서 비교
 
 ## Supabase

@@ -1,57 +1,72 @@
-# Security Check
+# 보안 개선 현황과 적용 순서
 
-## Current Status
+기준: main `cf24eca57c12a532955bf6378ab9b78cb46df57b` 및 PR #2.
+이번 변경은 소스와 설정 변경안입니다. 배포·운영 DB 적용·실제 권한 검증은 하지 않았습니다.
 
-- `.env.local` is not committed.
-- `.env`, `.env.*` are ignored except `.env.example`.
-- `node_modules/`, `dist/`, `.vercel/`, `work/`, `outputs/` are ignored.
-- Supabase `service_role` key is not used.
-- Supabase secret key is not used.
-- Database password is not used.
-- Frontend uses only Supabase URL and publishable key through Vite environment variables.
+## PR에 포함된 개선
 
-## Supabase
+| 항목 | 변경 | 적용 시점 |
+| --- | --- | --- |
+| 브라우저 보안 헤더 | CSP, 프레임 삽입 차단, MIME 추측 차단, Referrer/Permissions 정책 | PR 병합 후 Vercel 배포 |
+| 외부 리소스 제한 | 스크립트는 동일 출처, 연결은 현재 Supabase 프로젝트와 Open Library, 글꼴·표지는 사용하는 출처로 제한 | Vercel 배포 |
+| 소원등 입력 | 모양·색·무늬·길이를 클라이언트에서 정규화 | 프런트엔드 배포 |
+| DB 입력 제약 | 소원등 색·무늬, 글/대화 길이·빈 값, 해시 형식 CHECK | input_hardening.sql 별도 실행 |
+| 소원등 권한 | 공개 INSERT는 내용 컬럼만 허용, id/created_at은 서버 기본값 | SQL 별도 실행 |
+| 신규 글 삭제 비밀번호 | 작성 화면에서 8~20자 요구, 다른 사이트 비밀번호 재사용 금지 안내 | 프런트엔드 배포 |
+| 저장 실패 | 독서 기록의 저장·삭제 대기를 브라우저에 보관하고 명시적으로 재시도 | 프런트엔드 배포 |
 
-- Project ref: `vsnbzwofscqeeewscozp`
-- Table: `public.books`
-- RLS: enabled
-- Temporary MVP policies allow `anon` and `authenticated` users to select, insert, update, and delete rows.
+CSP의 style-src는 기존 inline style과 동적 Canvas UI 스타일 때문에 unsafe-inline을 허용합니다. script-src에는 unsafe-inline/unsafe-eval을 허용하지 않습니다. Supabase 사용자 지정 도메인 등 외부 출처를 바꾸면 vercel.json의 허용 목록도 함께 바꿔야 합니다. Vercel 미리보기 도구 삽입 스크립트가 정책에 의해 차단될 수 있으므로 서비스 본문과 별도로 확인합니다.
 
-### `public.lanterns` (등불사장 소원등)
+## DB 변경 적용
 
-- RLS: enabled
-- `select`: public
-- `insert`: public, with a check on wish length (24자), owner length, and allowed shape values
-- `update`, `delete`: no public policy
+1. 기존 supabase/board.sql 및 supabase/lanterns.sql이 적용된 DB에서 supabase/input_hardening.sql을 실행합니다.
+2. 기존 기록을 삭제하거나 일괄 수정하지 않습니다. NOT VALID 제약은 새로 작성·수정하는 행부터 검사합니다.
+3. 기존 행의 제약 위반 여부를 확인하고 필요한 기록을 정리한 뒤 VALIDATE CONSTRAINT를 별도로 실행합니다.
+4. 익명 역할로 소원등 조회·추가가 되고, id/created_at 직접 지정 및 공개 수정·삭제가 거절되는지 확인합니다.
+5. 방명록 pw_hash 조회가 거절되고, 올바른 기존 비밀번호로 삭제되는지 확인합니다.
 
-### `public.posts` (방명록 글)
+추가 SQL은 조회 권한을 열거나 posts.pw_hash를 공개하지 않습니다. 새 CHECK 제약은 RLS와 별도로 적용됩니다. 이 SQL은 스팸 차단·로그인·요청 횟수 제한을 구현하지 않습니다.
 
-- RLS: enabled
-- `select`: public, but only on `id, nick, body, created_at`
-- `pw_hash`: no select grant for `anon` or `authenticated`, so nobody can read it back
-- `insert`: public, with a check on nick length (12자), body length (500자), and hash length (64)
-- `update`, `delete`: no public policy
-- Deleting goes through `public.delete_post(uuid, text)`, a security definer function that compares the hash server side
+## 우선순위 1: 인증과 소유권
 
-비밀번호는 브라우저에서 `SHA-256(닉네임:비밀번호:deungbul-v1)` 로 바꾼 뒤에 보냅니다. 평문 비밀번호는 저장되지 않고, 해시도 다시 읽어 갈 수 없습니다.
+가장 큰 위험은 public.books의 임시 공개 읽기·쓰기·삭제입니다. 현재 공개 MVP는 개인 서재의 접근 통제를 제공하지 않습니다.
 
-### `public.messages` (이야기 나누기)
+- Supabase Auth 사용자 또는 익명 Auth 세션을 먼저 도입하고, 로그인 성공 후 개인 데이터 요청을 시작합니다. Kakao 로그인은 현재 프로젝트 지침에 따라 추가하지 않았습니다.
+- books에 user_id를 추가하고 SELECT/INSERT/UPDATE/DELETE 정책을 auth.uid()와 user_id 일치 조건으로 제한합니다.
+- 기존 책의 소유자 매핑과 이관 정책을 정한 뒤 공개 정책을 제거합니다. 소유자를 알 수 없는 자료를 임의 사용자에게 배정하면 안 됩니다.
+- 공유 소원등·방명록·대화는 공개 읽기를 유지할 수 있지만, 작성자는 서버가 Auth 사용자로 기록하도록 합니다.
+- presence와 broadcast도 인증된 비공개 채널 및 Realtime 접근 정책으로 분리합니다. 현재 탭 id와 닉네임은 인증 정보가 아닙니다.
 
-- RLS: enabled
-- `select`, `insert`: public, with a check on nick length (12자) and body length (200자)
-- `update`, `delete`: no public policy, and no in-app delete
+기존 DB와 프런트엔드를 함께 바꿔야 하므로 이번 PR에서 공개 정책만 갑자기 제거하지 않았습니다.
 
-소원등, 방명록 글, 채팅 모두 로그인 없이 누구나 올릴 수 있습니다. 공개 링크를 아는 사람만 들어오는 행사용 공유를 전제로 합니다. 링크가 널리 퍼지면 원치 않는 글이 올라올 수 있습니다. 방명록 글은 쓴 사람이 비밀번호로 지울 수 있지만, 소원등과 채팅은 화면에서 지우는 수단이 없어서 Supabase 대시보드에서 직접 지워야 합니다.
+## 우선순위 2: 서버에서 남용 차단
 
-## Important Note
+- 작성·삭제 요청을 검증된 API/Edge Function 또는 제한된 RPC로 모읍니다.
+- JWT 사용자와 신뢰할 수 있는 서버 측 IP를 기준으로 전송·삭제 시도 횟수를 제한합니다. 브라우저가 보내는 owner/id/IP는 신뢰하지 않습니다.
+- 익명 세션 생성과 반복 작성에는 CAPTCHA를 결합합니다.
+- API로 우회하는 직접 INSERT 경로도 막아야 합니다. 서비스 키로 대리 쓰기하는 엔드포인트는 반드시 토큰 검증·입력 검증·최소 권한 처리를 포함해야 합니다.
+- 게시글·대화 작성에 요청 id를 두고 서버에서 중복 처리를 막습니다. 시간 초과는 쓰기 실패의 증거가 아닙니다.
 
-The current Supabase policy is intentionally permissive for a no-login MVP. Before adding personal accounts or Kakao login, replace the temporary public policies with user-owned row policies using `auth.uid()`.
+프런트엔드 버튼 비활성화와 15초 시간 제한은 사용성 개선이며 서버 측 전송 제한이 아닙니다.
 
-## Do Not Commit
+## 우선순위 3: 삭제 비밀번호와 관리자 처리
 
-- `.env.local`
-- Supabase `service_role` key
-- Supabase secret key
-- Database password
-- Kakao Client Secret
-- Vercel token
+- 현행 SHA-256(닉네임:비밀번호:deungbul-v1)은 호환성을 위해 유지됩니다. 같은 닉네임과 비밀번호는 같은 해시가 됩니다.
+- 8자 최소 길이는 신규 작성 화면의 제한입니다. DB는 원문 비밀번호를 받지 않으므로 이 길이를 검증하지 못합니다.
+- Auth 사용자 소유권에 따른 삭제가 우선입니다. 비밀번호 삭제를 유지한다면 서버에서 게시글별 salt와 느린 KDF(Argon2id/bcrypt 등)를 사용하고, 기존 글은 별도 버전으로 호환해야 합니다.
+- 서버 측 삭제 시도 횟수 제한이 필요합니다. 단순히 공개 글 전체를 잠그는 방식은 다른 사람의 삭제를 방해할 수 있습니다.
+- 신고 접수와 관리자 숨김·삭제 화면을 추가하고 관리자 역할은 서버에서 확인합니다. service_role 키는 브라우저에 넣지 않습니다.
+- 공개 글에는 민감한 개인정보를 쓰지 않도록 안내하고 보관 기간·삭제 정책을 정합니다.
+
+## 키·권한 원칙
+
+- 프런트엔드는 Supabase URL과 publishable key만 사용합니다.
+- service_role, secret key, DB 비밀번호, Vercel 토큰을 프런트엔드·저장소·로그에 넣지 않습니다.
+- .env 파일은 .env.example 외에는 커밋하지 않습니다.
+- publishable key 노출 자체가 접근 통제를 대신하지 않습니다. RLS, 역할 권한, RPC 및 Realtime 정책이 실제 경계입니다.
+
+## 검증 상태
+
+검증 못 했음
+
+의존성 취약점 감사, 실제 배포 헤더, 브라우저 CSP 위반, 익명/인증 역할의 DB 접근, SQL 실행, CAPTCHA/전송 제한, 실제 서버는 검증하지 않았습니다.

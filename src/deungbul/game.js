@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, fetchLanterns, insertLantern, subscribeLanterns, disconnectRealtime } from './lanternsApi.js'
+import { normalizeLantern, isSupabaseConfigured, fetchLanterns, insertLantern, subscribeLanterns } from './lanternsApi.js'
 import { canHash, hashPassword, fetchPosts, insertPost, deletePost, fetchMessages, insertMessage, subscribeBoard } from './boardApi.js'
 import { joinYard } from './presence.js'
 
@@ -8,6 +8,14 @@ const T=40,W=36,H=26;
 const cv=document.getElementById('game'),ctx=cv.getContext('2d');
 const isTouch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
 if(isTouch){document.body.classList.add('touch');document.getElementById('ctlhint').textContent='왼쪽 조이스틱으로 이동 · 오른쪽 버튼으로 작업 · 위쪽 💬 로 이야기';}
+const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
+let reducedMotion=motionPreference.matches;
+motionPreference.addEventListener?.('change',e=>{reducedMotion=e.matches;if(reducedMotion)particles.length=0;});
+function fitVisibleHeight(){
+  document.documentElement.style.setProperty('--visible-height',(window.visualViewport?.height||window.innerHeight)+'px');
+}
+window.visualViewport?.addEventListener('resize',fitVisibleHeight);
+fitVisibleHeight();
 let vw=0,vh=0,dpr=1,zoom=1;
 function resize(){dpr=Math.min(window.devicePixelRatio||1,2);vw=window.innerWidth;vh=window.innerHeight;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);cv.style.width=vw+'px';cv.style.height=vh+'px';zoom=Math.min(1.35,Math.max(.55,Math.min(vw/(15*T),vh/(10.5*T))));}
 addEventListener('resize',resize);resize();
@@ -27,7 +35,10 @@ const COLORS=[{c:'#d8352f',n:'진홍'},{c:'#f29bb5',n:'연분홍'},{c:'#f2c037',
 const PATTERNS=[{id:'none',n:'무늬 없음'},{id:'dots',n:'꽃점'},{id:'wave',n:'물결'},{id:'dancheong',n:'단청띠'},{id:'gold',n:'금테'}];
 const BOTTOM={lotus:.36,wheel:.49,fish:.19,elephant:.3};
 
+const shapeCache=new Map();
 function shapePath(shape,s){
+  const key=shape+':'+s;
+  if(shapeCache.has(key))return shapeCache.get(key);
   const p=new Path2D();const add=f=>{const q=new Path2D();f(q);p.addPath(q);};
   if(shape==='lotus'){
     const by=s*.28;
@@ -47,6 +58,8 @@ function shapePath(shape,s){
     add(q=>{q.moveTo(-s*.33,-s*.05);q.quadraticCurveTo(-s*.43,s*.12,-s*.35,s*.27);q.lineTo(-s*.27,s*.26);q.quadraticCurveTo(-s*.33,s*.1,-s*.24,0);q.closePath();});
     add(q=>q.rect(-s*.13,s*.12,s*.09,s*.18));add(q=>q.rect(s*.15,s*.12,s*.09,s*.18));
   }
+  if(shapeCache.size>=128)shapeCache.delete(shapeCache.keys().next().value);
+  shapeCache.set(key,p);
   return p;
 }
 function drawDetails(c,shape,s,col){
@@ -64,6 +77,8 @@ function drawPattern(c,pat,s){
 }
 function drawLantern(c,x,y,s,L,o={}){
   if(!L||!L.shape)return;
+  // 로컬 저장소나 공개 테이블의 잘못된 색이 Canvas 그리기 전체를 중단하지 않게 한다.
+  if(L.color&&!/^#[0-9a-f]{6}$/i.test(L.color))L={...L,color:'#f2c037'};
   const p=shapePath(L.shape,s);
   c.save();c.translate(x,y);if(o.rot)c.rotate(o.rot);
   const paper=L.color?(o.paper??1):0;
@@ -154,8 +169,9 @@ let shared=isSupabaseConfigured;
 let hungTotal=0;   // 서버에 올라온 소원등 전체 개수 (걸이줄보다 많을 수 있다)
 const rid=()=>Math.random().toString(36).slice(2,10);
 const OWNER=(()=>{try{let v=localStorage.getItem(OWNER_KEY);if(!v){v='beopu-'+rid()+rid();localStorage.setItem(OWNER_KEY,v);}return v;}catch(e){return 'beopu-'+rid()+rid();}})();
+const YARD_ID=OWNER+'-'+rid(); // 소원등 소유자는 유지하되 탭마다 다른 접속자로 등록한다.
 let localLanterns=[];
-try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){localLanterns=Array.isArray(d.lanterns)?d.lanterns.map(L=>({shape:L.shape,color:L.color,pattern:L.pattern,wish:L.wish,owner:OWNER})):[];state.litOnce=!!d.litOnce;state.talked=!!d.talked;state.myHungOnce=!!d.myHungOnce||localLanterns.length>0;}}catch(e){}
+try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){localLanterns=Array.isArray(d.lanterns)?d.lanterns.filter(L=>L&&typeof L==='object').map(L=>({...normalizeLantern(L),owner:OWNER})):[];state.litOnce=!!d.litOnce;state.talked=!!d.talked;state.myHungOnce=!!d.myHungOnce||localLanterns.length>0;}}catch(e){}
 if(!shared)state.lanterns=localLanterns.slice();
 function myCount(){let n=0;for(const L of state.lanterns)if(L.owner===OWNER)n++;return n;}
 function syncHasHung(){state.hasHung=state.myHungOnce||myCount()>0;}
@@ -164,8 +180,21 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify({lanterns:localLante
 function hungList(){const out=SEEDS.map((L,i)=>({L,slot:slots[SEED_IDX[i]],i}));state.lanterns.forEach((L,i)=>{const s=slots[USER_ORDER[i]];if(s)out.push({L,slot:s,i:100+i,mine:L.owner===OWNER});});return out;}
 function trimHung(){if(state.lanterns.length>MAX_HUNG)state.lanterns=state.lanterns.slice(-MAX_HUNG);}
 const seenIds=new Set();
-let unsub=null,boardSub=null,boardUI=null,boardTimer=0;
-function goLocal(msg){if(!shared)return;shared=false;setTimeout(renderChatLog,0);if(unsub){unsub();unsub=null;}if(boardSub){boardSub();boardSub=null;}stopYard();updateHere();disconnectRealtime();state.lanterns=localLanterns.slice();syncHasHung();updateHUD();if(msg&&started)toast(msg);}
+let unsub=null,boardSub=null,boardUI=null,boardTimer=0,sharingEpoch=0;
+const offlineHung=[];
+function goLocal(msg){
+  if(!shared)return;
+  for(const L of state.lanterns)if(L.owner===OWNER&&!L.id&&!offlineHung.includes(L))offlineHung.push(L);
+  shared=false;sharingEpoch++;setTimeout(renderChatLog,0);
+  if(unsub){unsub();unsub=null;}if(boardSub){boardSub();boardSub=null;}
+  stopYard();updateHere();
+  // 채널은 정리하되 클라이언트를 영구 중단하지 않는다. 다음 조회 성공 시 다시 구독한다.
+  state.lanterns=localLanterns.slice();syncHasHung();updateHUD();if(msg&&started)toast(msg);
+}
+function subscribeShared(){
+  if(!unsub)unsub=subscribeLanterns(addRemote);
+  if(!boardSub)boardSub=subscribeBoard({onPost:addRemotePost,onMessage:addRemoteMessage});
+}
 function addRemote(row){
   if(!shared||!row)return;
   if(row.id&&seenIds.has(row.id))return;
@@ -174,23 +203,36 @@ function addRemote(row){
   state.lanterns.push(row);hungTotal++;trimHung();syncHasHung();updateHUD();
   if(started&&row.owner!==OWNER)toast('다른 법우가 소원등을 걸었어요');
 }
-let loadedOnce=false,misses=0;
+let loadedOnce=false,misses=0,refreshBusy=false,lastCountAt=0;
 async function refresh(){
-  if(!shared)return;
+  if(!isSupabaseConfigured||refreshBusy)return;
+  refreshBusy=true;
   try{
-    const {rows,total}=await fetchLanterns(MAX_HUNG);
-    hungTotal=total;
-    const pending=state.lanterns.filter(L=>L.owner===OWNER&&!L.id);
-    seenIds.clear();rows.forEach(r=>seenIds.add(r.id));
-    state.lanterns=rows.concat(pending);trimHung();syncHasHung();updateHUD();
+    const knownIds=new Set(state.lanterns.filter(L=>L.id).map(L=>L.id));
+    const withCount=Date.now()-lastCountAt>=60000;
+    const {rows,total}=await fetchLanterns(MAX_HUNG,{withCount});
+    if(total!==null)lastCountAt=Date.now();
+    const arriving=shared?state.lanterns.filter(L=>L.id&&!knownIds.has(L.id)&&!rows.some(r=>r.id===L.id)):[];
+    const recovering=!shared;
+    const pending=recovering?offlineHung.filter(L=>!L.id):state.lanterns.filter(L=>L.owner===OWNER&&!L.id);
+    hungTotal=Math.max(total===null?hungTotal:total,rows.length+arriving.length);
+    seenIds.clear();rows.concat(arriving).forEach(r=>seenIds.add(r.id));
+    shared=true;
+    state.lanterns=rows.concat(arriving,pending);trimHung();syncHasHung();updateHUD();
     loadedOnce=true;misses=0;
+    subscribeShared();
+    if(recovering){
+      sharingEpoch++;
+      if(started)startYard();
+      renderChatLog();
+      if(boardUI)loadBoard();
+      if(started)toast(offlineHung.some(L=>!L.id)?'공유 연결이 돌아왔어요. 연결 중단 중 만든 등은 이 기기에만 남아요':'함께 보는 마당으로 돌아왔어요');
+    }
   }catch(e){
     misses++;
     console.warn('[등불사장] 소원등 불러오기 실패',e);
-    // 첫 시도가 실패하면 테이블이나 설정이 없는 것이니 바로 혼자 쓰기로 돌아간다.
-    // 한 번이라도 불러온 뒤라면 잠깐 끊긴 것일 수 있어 몇 번 더 기다려 본다.
-    if(!loadedOnce||misses>=3)goLocal('지금은 내 등만 보여요');
-  }
+    if(shared&&(!loadedOnce||misses>=3))goLocal('지금은 내 등만 보여요. 연결되면 다시 함께 봐요');
+  }finally{refreshBusy=false;}
 }
 async function pushLantern(L){
   try{
@@ -207,16 +249,15 @@ async function pushLantern(L){
   }
 }
 function startShared(){
-  if(!shared)return;
+  if(!isSupabaseConfigured)return;
   refresh();
-  unsub=subscribeLanterns(addRemote);
-  boardSub=subscribeBoard({onPost:addRemotePost,onMessage:addRemoteMessage});
-  setInterval(refresh,20000);
+  setInterval(()=>{if(!document.hidden)refresh();},20000);
+  addEventListener('online',refresh);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 }
 
 /* ---------- entities ---------- */
-const player={x:17.5,y:11,dir:'up',moving:false,walk:0};
+const player={x:17.5,y:11,vx:0,vy:0,dir:'up',moving:false,walk:0};
 const NPCS=[
   {id:'banjang',name:'등불사장 반장 법우',x:17.5,y:9.6,dir:'down',o:{body:'#3f7a5c',apron:'#e9dcc4',hair:'#2b1d14'}},
   {id:'worker',name:'용등 만드는 법우',x:21.5,y:8.6,dir:'right',o:{body:'#5d7fb8',apron:'#e9dcc4',hair:'#4a3020'}},
@@ -236,9 +277,9 @@ const bell=()=>{[[98,7,.28],[196,6,.16],[247,5,.07],[294,5.5,.1],[392,4,.05]].fo
 const toastEl=document.getElementById('toast');let toastTimer=0;
 function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2600);}
 const dlg=document.getElementById('dialog'),dname=document.getElementById('dname'),dtext=document.getElementById('dtext');
-let dialog=null,modalOpen=false,started=false;
-function say(name,lines,onEnd){dialog={name,lines,i:0,onEnd};dname.textContent=name;dtext.textContent=lines[0];dlg.style.display='block';}
-function advance(){if(!dialog)return;dialog.i++;if(dialog.i>=dialog.lines.length){const f=dialog.onEnd;dialog=null;dlg.style.display='none';f&&f();}else dtext.textContent=dialog.lines[dialog.i];}
+let dialog=null,dialogReturnFocus=null,modalOpen=false,started=false;
+function say(name,lines,onEnd){if(!dialog)dialogReturnFocus=document.activeElement;dialog={name,lines,i:0,onEnd};dname.textContent=name;dtext.textContent=lines[0];dlg.style.display='block';dlg.focus({preventScroll:true});}
+function advance(){if(!dialog)return;dialog.i++;if(dialog.i>=dialog.lines.length){const f=dialog.onEnd;dialog=null;dlg.style.display='none';const target=dialogReturnFocus&&dialogReturnFocus.isConnected&&!dialogReturnFocus.closest('#title.hide')?dialogReturnFocus:cv;target.focus({preventScroll:true});dialogReturnFocus=null;f&&f();}else dtext.textContent=dialog.lines[dialog.i];}
 dlg.addEventListener('click',advance);
 const modalWrap=document.getElementById('modal'),card=document.getElementById('card');
 let modalReturnFocus=null;
@@ -260,6 +301,7 @@ function closeModal(){
   target.focus({preventScroll:true});modalReturnFocus=null;
 }
 modalWrap.addEventListener('keydown',e=>{
+  if(e.isComposing||e.keyCode===229)return;
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeModal();return;}
   if(e.key!=='Tab')return;
   const items=[...card.querySelectorAll('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(n=>n.getClientRects().length);
@@ -349,6 +391,7 @@ function hangSign(){
   if(state.stage===4){
     if(!shared&&!slots[USER_ORDER[state.lanterns.length]]){say('소원등 걸이대',['걸이줄이 가득 찼어요!','마음으로 한 등 더 밝혀 두어요.']);return;}
     const L={...state.craft,owner:OWNER};state.lanterns.push(L);trimHung();
+    if(!shared){offlineHung.push(L);if(offlineHung.length>MAX_HUNG)offlineHung.shift();}
     const willPush=shared&&hungTotal>=MAX_HUNG;
     localLanterns.push({shape:L.shape,color:L.color,pattern:L.pattern,wish:L.wish,owner:OWNER});
     if(localLanterns.length>MAX_HUNG)localLanterns=localLanterns.slice(-MAX_HUNG);
@@ -384,11 +427,13 @@ const SEX_KEY='hanmaum-deungbul-sex';
 const POST_LIMIT=50,MSG_LIMIT=50;
 let myNick='';try{myNick=localStorage.getItem(NICK_KEY)||'';}catch(e){}
 let mySex='';try{mySex=localStorage.getItem(SEX_KEY)||'';}catch(e){}
+if(mySex!=='m'&&mySex!=='f')mySex='';
 function setSex(v){mySex=v==='f'?'f':'m';try{localStorage.setItem(SEX_KEY,mySex);}catch(e){}}
 const isLong=v=>v==='f';
 function setNick(v){myNick=(v||'').slice(0,12);try{localStorage.setItem(NICK_KEY,myNick);}catch(e){}}
 const nickNow=()=>(myNick||'').trim();
 const posts=[],msgs=[];
+const deletedPosts=new Set();
 const trimTail=(a,n)=>{if(a.length>n)a.length=n;};
 const trimHead=(a,n)=>{if(a.length>n)a.splice(0,a.length-n);};
 
@@ -408,12 +453,14 @@ function boardErr(e){
 }
 
 function addRemotePost(p){
+  if(!shared||deletedPosts.has(p.id))return;
   if(posts.some(x=>x.id===p.id))return;
   posts.unshift(p);trimTail(posts,POST_LIMIT);
   if(boardUI)renderList();
   else if(started&&p.nick!==nickNow())toast(`${p.nick} 법우가 방명록에 글을 남겼어요`);
 }
 function addRemoteMessage(m){
+  if(!shared)return;
   if(msgs.some(x=>x.id===m.id))return;
   msgs.push(m);trimHead(msgs,MSG_LIMIT);
   renderChatLog();
@@ -422,22 +469,30 @@ function addRemoteMessage(m){
 }
 
 async function loadBoard(){
-  if(!boardUI||!shared)return;
+  const ui=boardUI,epoch=sharingEpoch;
+  if(!ui||!shared||ui.fetching)return;
+  const knownPosts=new Set(posts.map(p=>p.id)),knownMessages=new Set(msgs.map(m=>m.id));
+  ui.fetching=true;
   try{
     const [ps,ms]=await Promise.all([fetchPosts(POST_LIMIT),fetchMessages(MSG_LIMIT)]);
-    posts.length=0;posts.push(...ps);
-    msgs.length=0;msgs.push(...ms);
+    if(boardUI!==ui||!shared||sharingEpoch!==epoch)return;
+    // 조회 도중 도착한 실시간 글과 대화, 완료된 삭제를 이전 스냅샷으로 덮지 않는다.
+    const freshPosts=posts.filter(p=>!knownPosts.has(p.id)&&!ps.some(row=>row.id===p.id));
+    const freshMessages=msgs.filter(m=>!knownMessages.has(m.id)&&!ms.some(row=>row.id===m.id));
+    const removed=deletedPosts;
+    posts.length=0;posts.push(...freshPosts,...ps.filter(p=>!removed.has(p.id)));trimTail(posts,POST_LIMIT);
+    msgs.length=0;msgs.push(...ms,...freshMessages);trimHead(msgs,MSG_LIMIT);
     if(boardUI){boardUI.loading=false;boardUI.error='';renderList();}
     renderChatLog();
   }catch(e){
     console.warn('[등불사장] 방명록 불러오기 실패',e);
-    if(boardUI){boardUI.loading=false;boardUI.error=boardErr(e);renderList();}
-  }
+    if(boardUI===ui){ui.loading=false;ui.error=boardErr(e);renderList();}
+  }finally{ui.fetching=false;}
 }
 
 function nickInput(){
   const i=el('input');i.type='text';i.maxLength=12;i.placeholder='닉네임 (12자까지)';i.value=myNick;
-  i.setAttribute('aria-label','닉네임');
+  i.setAttribute('aria-label','닉네임');i.dataset.nick='true';
   i.oninput=()=>setNick(i.value);
   return i;
 }
@@ -446,11 +501,12 @@ function postCard(p){
   const d=el('div','post'),meta=el('div','meta');
   meta.append(el('b',null,p.nick),el('span',null,stamp(p.createdAt)),el('span','sp'));
   const del=el('button','linkbtn','지우기');meta.append(del);
+  d.dataset.postId=p.id;
   d.append(meta,el('div','body',p.body));
   del.onclick=()=>{
     if(d.querySelector('.delrow'))return;
     const row=el('div','delrow');
-    const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='글 쓸 때 정한 비밀번호';pw.setAttribute('aria-label','글 삭제 비밀번호');
+    const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='글 쓸 때 정한 비밀번호';pw.autocomplete='current-password';pw.setAttribute('aria-label','글 삭제 비밀번호');
     const ok=el('button','linkbtn warn','확인'),no=el('button','linkbtn','취소');
     row.append(pw,ok,no);d.append(row);try{pw.focus();}catch(e){}
     no.onclick=()=>row.remove();
@@ -460,7 +516,7 @@ function postCard(p){
       ok.disabled=true;
       try{
         const done=await deletePost(p.id,await hashPassword(pw.value,p.nick));
-        if(done){const i=posts.findIndex(x=>x.id===p.id);if(i>=0)posts.splice(i,1);renderList();toast('글을 지웠어요');}
+        if(done){deletedPosts.add(p.id);const i=posts.findIndex(x=>x.id===p.id);if(i>=0)posts.splice(i,1);renderList();toast('글을 지웠어요');}
         else{ok.disabled=false;toast('비밀번호가 달라요');}
       }catch(e){ok.disabled=false;console.warn('[등불사장] 글 지우기 실패',e);toast(boardErr(e));}
     };
@@ -479,34 +535,48 @@ function msgRow(m){
 function renderList(){
   if(!boardUI)return;
   const {list,tab}=boardUI;
-  list.innerHTML='';
   const rows=tab==='board'?posts:msgs;
   if(!rows.length){
-    list.append(el('div','empty',boardUI.error?boardUI.error:(boardUI.loading?'불러오는 중…':(tab==='board'?'아직 남긴 글이 없어요. 첫 글을 남겨 보세요.':'아직 오간 이야기가 없어요. 먼저 인사해 보세요.'))));
+    list.replaceChildren(el('div','empty',boardUI.error?boardUI.error:(boardUI.loading?'불러오는 중…':(tab==='board'?'아직 남긴 글이 없어요. 첫 글을 남겨 보세요.':'아직 오간 이야기가 없어요. 먼저 인사해 보세요.'))));
     return;
   }
-  if(tab==='board')rows.forEach(p=>list.append(postCard(p)));
-  else{rows.forEach(m=>list.append(msgRow(m)));list.scrollTop=list.scrollHeight;}
+  if(tab==='board'){
+    // 바뀌지 않은 글의 DOM을 유지해 삭제 비밀번호, 처리 중 상태, 초점을 보존한다.
+    const scroll=list.scrollTop;
+    const existing=new Map([...list.children].filter(n=>n.dataset.postId).map(n=>[n.dataset.postId,n]));
+    const ids=new Set(rows.map(p=>String(p.id)));
+    for(const node of [...list.children])if(!ids.has(node.dataset.postId))node.remove();
+    rows.forEach((p,i)=>{
+      const node=existing.get(String(p.id))||postCard(p);
+      if(list.children[i]!==node)list.insertBefore(node,list.children[i]||null);
+    });
+    list.scrollTop=scroll;
+  }else{
+    list.replaceChildren(...rows.map(msgRow));list.scrollTop=list.scrollHeight;
+  }
 }
 
 function buildPostForm(form){
   const nick=nickInput();
   const ta=el('textarea');ta.rows=3;ta.maxLength=500;ta.placeholder='마당에 남길 글 (500자까지)';ta.setAttribute('aria-label','방명록 내용');
-  const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='지울 때 쓸 비밀번호 (2자 이상)';pw.setAttribute('aria-label','글 삭제 비밀번호');
+  const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='지울 때 쓸 비밀번호 (8~20자)';pw.minLength=8;pw.autocomplete='new-password';pw.setAttribute('aria-label','글 삭제 비밀번호');
   const go=el('button','btn','글 남기기');
-  form.append(el('p','note','닉네임과 비밀번호를 적어 두면 나중에 본인이 글을 지울 수 있어요. 비밀번호는 그대로 보내지 않고 암호로 바꿔서 보관합니다.'),nick,ta,pw,go);
+  form.append(el('p','note','닉네임과 비밀번호를 적어 두면 나중에 본인이 글을 지울 수 있어요. 다른 사이트에서 쓰는 비밀번호는 사용하지 마세요.'),nick,ta,pw,go);
   if(!canHash){go.disabled=true;go.textContent='안전한 주소(https)에서만 글을 쓸 수 있어요';return;}
   go.onclick=async()=>{
     if(go.disabled)return;
+    if(!shared){toast('연결이 돌아오면 다시 보내 주세요');return;}
     const n=nickNow(),b=ta.value.trim();
+    const bodyDraft=ta.value,passwordDraft=pw.value;
     if(!n){toast('닉네임을 적어 주세요');try{nick.focus();}catch(e){}return;}
     if(!b){toast('내용을 적어 주세요');try{ta.focus();}catch(e){}return;}
-    if(pw.value.length<2){toast('비밀번호를 2자 이상 적어 주세요');try{pw.focus();}catch(e){}return;}
+    if(pw.value.length<8){toast('비밀번호를 8자 이상 적어 주세요');try{pw.focus();}catch(e){}return;}
     go.disabled=true;go.textContent='남기는 중…';
     try{
       const row=await insertPost({nick:n,body:b,pwHash:await hashPassword(pw.value,n)});
-      if(row&&!posts.some(x=>x.id===row.id)){posts.unshift(row);trimTail(posts,POST_LIMIT);}
-      ta.value='';pw.value='';renderList();toast('마당에 글을 남겼어요');chime();
+      if(!row)throw new Error('방명록 저장 응답이 없습니다');
+      if(!posts.some(x=>x.id===row.id)){posts.unshift(row);trimTail(posts,POST_LIMIT);}
+      if(ta.value===bodyDraft)ta.value='';if(pw.value===passwordDraft)pw.value='';renderList();toast('마당에 글을 남겼어요');chime();
     }catch(e){console.warn('[등불사장] 글 남기기 실패',e);toast(boardErr(e));}
     go.disabled=false;go.textContent='글 남기기';
   };
@@ -521,16 +591,18 @@ function buildChatForm(form){
   form.append(el('p','note','지금 들어와 있는 법우들과 주고받는 이야기예요. 최근 50줄만 남고, 지우는 기능은 없어요.'),nick,row);
   const send=async()=>{
     if(go.disabled)return;
-    const n=nickNow(),b=inp.value.trim();
+    if(!shared){toast('연결이 돌아오면 다시 보내 주세요');return;}
+    const n=nickNow(),b=inp.value.trim(),draft=inp.value;
     if(!n){toast('닉네임을 적어 주세요');try{nick.focus();}catch(e){}return;}
     if(!b)return;
     go.disabled=true;
     try{
       const m=await insertMessage({nick:n,body:b});
-      if(m&&!msgs.some(x=>x.id===m.id)){msgs.push(m);trimHead(msgs,MSG_LIMIT);renderChatLog();}
-      inp.value='';renderList();
+      if(!m)throw new Error('대화 저장 응답이 없습니다');
+      if(!msgs.some(x=>x.id===m.id)){msgs.push(m);trimHead(msgs,MSG_LIMIT);renderChatLog();}
+      if(inp.value===draft)inp.value='';renderList();
     }catch(e){console.warn('[등불사장] 이야기 보내기 실패',e);toast(boardErr(e));}
-    go.disabled=false;try{inp.focus();}catch(e){}
+    go.disabled=false;if(inp.isConnected)try{inp.focus();}catch(e){}
   };
   go.onclick=send;
   inp.onkeydown=e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();send();}};
@@ -541,9 +613,15 @@ function showTab(t){
   boardUI.tab=t;
   boardUI.tb.classList.toggle('sel',t==='board');
   boardUI.tc.classList.toggle('sel',t==='chat');
-  boardUI.form.innerHTML='';
+  const ui=boardUI;
+  if(!ui.forms)ui.forms={};
+  if(!ui.forms[t]){
+    ui.forms[t]=el('div');
+    (t==='board'?buildPostForm:buildChatForm)(ui.forms[t]);
+  }
+  ui.form.replaceChildren(ui.forms[t]);
+  for(const input of ui.forms[t].querySelectorAll('[data-nick]'))input.value=myNick;
   renderList();
-  (t==='board'?buildPostForm:buildChatForm)(boardUI.form);
 }
 
 function openBoard(){
@@ -563,7 +641,7 @@ function openBoard(){
   showTab('board');
   loadBoard();
   clearInterval(boardTimer);
-  boardTimer=setInterval(()=>{if(boardUI)loadBoard();else{clearInterval(boardTimer);boardTimer=0;}},20000);
+  boardTimer=setInterval(()=>{if(boardUI){if(!document.hidden)loadBoard();}else{clearInterval(boardTimer);boardTimer=0;}},20000);
 }
 
 /* ---------- 같은 마당에 들어와 있는 법우들 ---------- */
@@ -681,7 +759,7 @@ function pushPose(force){
 function startYard(){
   if(!shared||yard)return;
   yard=joinYard({
-    ownerId:OWNER,
+    ownerId:YARD_ID,
     onReady:()=>{pushPose(true);updateHere();},
     onJoin:(id,meta)=>{seat(id,meta);updateHere();setTimeout(()=>pushPose(true),120);},
     onLeave:id=>{peers.delete(id);updateHere();},
@@ -761,7 +839,8 @@ function renderChatLog(){
 const chatbar=document.getElementById('chatbar');
 const chatnick=document.getElementById('chatnick');
 const chatmsg=document.getElementById('chatmsg');
-let chatOpen=false;
+let chatOpen=false,chatSending=false;
+const chatsend=document.getElementById('chatsend');
 function openChat(){
   if(!started||dialog||modalOpen||chatOpen)return;
   if(!shared){toast('지금은 혼자 보는 마당이라 이야기를 나눌 수 없어요');return;}
@@ -776,16 +855,25 @@ function closeChat(){
 }
 function showMyLine(text){myLine=text;myLineUntil=Date.now()+SAY_MS;}
 async function sendChatLine(){
+  if(chatSending)return;
   const n=nickNow(),b=chatmsg.value.trim();
   if(!n){toast('닉네임을 먼저 적어 주세요');try{chatnick.focus();}catch(e){}return;}
   if(!b){closeChat();return;}
-  chatmsg.value='';closeChat();
-  showMyLine(b);
-  if(yard)yard.sendSay(b,n);
+  if(!shared){toast('연결이 돌아오면 다시 보내 주세요. 입력한 내용은 남겨 두었어요');return;}
+  chatSending=true;chatsend.disabled=true;chatmsg.readOnly=true;chatnick.readOnly=true;
   try{
     const m=await insertMessage({nick:n,body:b});
-    if(m&&!msgs.some(x=>x.id===m.id)){msgs.push(m);trimHead(msgs,MSG_LIMIT);renderChatLog();if(boardUI)renderList();}
-  }catch(e){console.warn('[등불사장] 이야기 보내기 실패',e);toast(boardErr(e));}
+    if(!m)throw new Error('대화 저장 응답이 없습니다');
+    if(!msgs.some(x=>x.id===m.id)){msgs.push(m);trimHead(msgs,MSG_LIMIT);renderChatLog();if(boardUI)renderList();}
+    chatmsg.value='';closeChat();
+    showMyLine(b);
+    if(yard)yard.sendSay(b,n);
+  }catch(e){
+    console.warn('[등불사장] 이야기 보내기 실패',e);
+    toast('이야기를 보내지 못했어요. 입력한 내용은 남겨 두었으니 다시 보내 주세요');
+  }finally{
+    chatSending=false;chatsend.disabled=false;chatmsg.readOnly=false;chatnick.readOnly=false;
+  }
 }
 if(chatnick){
   chatnick.oninput=()=>{setNick(chatnick.value);updateHere();};
@@ -821,6 +909,34 @@ const INTERACT=[
 function nearest(){let best=null,bd=1.25;for(const it of INTERACT){const d=Math.hypot(it.x-player.x,it.y-player.y);if(d<bd){bd=d;best=it;}}return best;}
 function targetKey(){if(state.stage>0)return['frame','paper','paint','light','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';return null;}
 function action(){if(!started)return;if(dialog){advance();return;}if(modalOpen)return;const it=nearest();if(it){it.fn();updateHUD();}}
+
+/* ---------- 지도 없이 이용하는 마당 메뉴 ---------- */
+function openYardMenu(){
+  if(!started||dialog)return;
+  closeChat();
+  const m=modalShell('마당 메뉴','방향키나 조이스틱 없이도 작업하고, 법우들의 소원을 읽을 수 있어요.');
+  m.append(el('p','note',shared?'법우들과 함께 보는 마당입니다.':'지금은 이 기기에 저장하는 마당입니다.'));
+  const next=targetKey();
+  const heading=el('h3',null,'작업과 대화'),places=el('div','yard-places');
+  INTERACT.forEach(it=>{
+    const button=el('button','btn ghost',(it.key===next?'다음 소임 · ':'')+it.name);
+    button.onclick=()=>{
+      const spots=[[it.x,it.y],[it.x,it.y+.65],[it.x+.8,it.y],[it.x-.8,it.y],[it.x,it.y-.8]];
+      const spot=spots.find(([x,y])=>canStand(x,y));
+      if(spot){player.x=spot[0];player.y=spot[1];player.vx=0;player.vy=0;player.moving=false;}
+      closeModal();it.fn();updateHUD();pushPose(true);
+    };
+    places.append(button);
+  });
+  m.append(heading,places,el('h3',null,'마당에 걸린 소원'));
+  const wishes=el('ul','wish-list');
+  hungList().forEach(({L,mine})=>{
+    const shape=SHAPES.find(s=>s.id===L.shape)?.name||'소원등';
+    wishes.append(el('li',null,(mine?'내 '+shape:shape)+' · '+(L.wish||'소원을 담은 등')));
+  });
+  m.append(wishes);
+}
+document.getElementById('yardmenub').onclick=openYardMenu;
 
 /* ---------- input ---------- */
 const keys=new Set();
@@ -869,7 +985,7 @@ function update(dt,t){
   if(dt>0){player.vx=(player.x-wasX)/dt;player.vy=(player.y-wasY)/dt;}
   updatePeers(dt);
   pushPose();
-  if(state.night&&particles.length<80&&Math.random()<.5){const a=Math.random()*Math.PI*2;particles.push({x:18*T+Math.cos(a)*2.4*T,y:16.3*T+Math.sin(a)*2.4*T,vx:(Math.random()-.5)*12,vy:-18-Math.random()*26,age:0,life:2+Math.random()*2.5});}
+  if(!reducedMotion&&state.night&&particles.length<80&&Math.random()<.5){const a=Math.random()*Math.PI*2;particles.push({x:18*T+Math.cos(a)*2.4*T,y:16.3*T+Math.sin(a)*2.4*T,vx:(Math.random()-.5)*12,vy:-18-Math.random()*26,age:0,life:2+Math.random()*2.5});}
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.age+=dt;p.x+=p.vx*dt+Math.sin(t*2+i)*.3;p.y+=p.vy*dt;if(p.age>p.life)particles.splice(i,1);}
 }
 
@@ -1044,7 +1160,7 @@ function render(t){
 
 /* ---------- loop ---------- */
 let last=performance.now(),t=0;
-function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;update(dt,t);render(t);requestAnimationFrame(loop);}
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;if(started){update(dt,t);render(reducedMotion?0:t);}requestAnimationFrame(loop);}
 
 requestAnimationFrame(loop);
 
@@ -1069,8 +1185,9 @@ function enterYard(){
   ac();tok();started=true;
   document.getElementById('title').classList.add('hide');
   cv.focus({preventScroll:true});
+  document.getElementById('yardmenub').hidden=false;
   startYard();updateHere();renderChatLog();
-  setTimeout(()=>{if(!state.talked)say('등불사장',[`${name} 법우, 한마음선원 등불사장에 오신 걸 환영해요.`,'안쪽에 계신 반장 법우에게 먼저 인사해 볼까요? (금색 ▼ 표시)']);},500);
+  setTimeout(()=>{if(!state.talked&&!modalOpen&&!dialog)say('등불사장',[`${name} 법우, 한마음선원 등불사장에 오신 걸 환영해요.`,'안쪽에 계신 반장 법우에게 먼저 인사해 볼까요? (금색 ▼ 표시)']);},500);
 }
 const sexBtns={m:document.getElementById('sexm'),f:document.getElementById('sexf')};
 function paintSex(){
@@ -1095,7 +1212,7 @@ if(namein){
   namein.value=myNick;
   namein.oninput=()=>{namein.classList.remove('bad');namehint.classList.remove('bad');namehint.textContent=NAME_HINT;};
   namein.onkeydown=e=>{if(e.isComposing||e.keyCode===229)return;e.stopPropagation();if(e.key==='Enter'){e.preventDefault();enterYard();}};
-  setTimeout(()=>{try{namein.focus();}catch(e){}},400);
+  if(!isTouch)setTimeout(()=>{try{namein.focus();}catch(e){}},400);
 }
 document.getElementById('startb').onclick=enterYard;
 })();

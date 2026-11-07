@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteBookFromSupabase, fetchBooksFromSupabase, saveBookToSupabase } from './lib/booksApi'
 import { searchBooks } from './lib/bookSearchApi'
 import { isSupabaseConfigured } from './lib/supabaseClient'
+import { applyOutbox, loadOutbox, removeOutbox, saveOutbox } from './lib/bookOutbox'
 
 const STORAGE_KEY = 'reading-community-books'
 
@@ -43,18 +44,43 @@ const sampleBooks = [
   },
 ]
 
+function normalizeBooks(value) {
+  if (!Array.isArray(value)) return sampleBooks
+  const seen = new Set()
+  return value.filter((book) => {
+    if (!book || typeof book.id !== 'string' || !book.id || seen.has(book.id) ||
+        typeof book.title !== 'string' || typeof book.author !== 'string') return false
+    seen.add(book.id)
+    return true
+  }).map((book) => ({
+    ...book,
+    title: book.title.slice(0, 200),
+    author: book.author.slice(0, 120),
+    status: book.status === 'done' ? 'done' : 'reading',
+    progress: book.status === 'done' ? 100 : clampProgress(book.progress),
+  }))
+}
+
 function loadBooks() {
   try {
     const savedBooks = localStorage.getItem(STORAGE_KEY)
-    return savedBooks ? JSON.parse(savedBooks) : sampleBooks
+    const cached = savedBooks ? normalizeBooks(JSON.parse(savedBooks)) : sampleBooks
+    return normalizeBooks(applyOutbox(cached, loadOutbox()))
   } catch {
-    return sampleBooks
+    return normalizeBooks(applyOutbox(sampleBooks, loadOutbox()))
   }
 }
 
 function saveBooks(books) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(books))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(books))
+    return true
+  } catch {
+    return false
+  }
 }
+
+const newBookId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 function clampProgress(value) {
   return Math.min(100, Math.max(0, Number(value) || 0))
@@ -68,13 +94,13 @@ function BookCard({ book, onDelete }) {
           <h3>{book.title}</h3>
           <p>{book.author}</p>
         </div>
-        <button type="button" className="delete-button" onClick={() => onDelete(book.id)}>
+        <button type="button" className="delete-button" aria-label={`${book.title} 삭제`} onClick={() => onDelete(book.id)}>
           삭제
         </button>
       </div>
       <div className="progress-row">
         <span>{book.progress}%</span>
-        <div className="progress-track" aria-label={`${book.title} 진행률 ${book.progress}%`}>
+        <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={book.progress} aria-label={`${book.title} 진행률`}>
           <div className="progress-fill" style={{ width: `${book.progress}%` }} />
         </div>
       </div>
@@ -101,12 +127,13 @@ function BookSection({ title, books, emptyText, onDelete }) {
 }
 
 function SearchResultCard({ book, onAdd }) {
+  const [failedCover, setFailedCover] = useState(false)
   const coverUrl = book.coverId ? `https://covers.openlibrary.org/b/id/${book.coverId}-M.jpg` : null
 
   return (
     <article className="result-card">
       <div className="cover-box">
-        {coverUrl ? <img src={coverUrl} alt={`${book.title} 표지`} /> : <span>표지 없음</span>}
+        {coverUrl && !failedCover ? <img src={coverUrl} alt={`${book.title} 표지`} loading="lazy" onError={() => setFailedCover(true)} /> : <span>표지 없음</span>}
       </div>
       <div className="result-card__body">
         <h3>{book.title}</h3>
@@ -134,6 +161,18 @@ function SearchResultCard({ book, onAdd }) {
 
 export default function App() {
   const [books, setBooks] = useState(loadBooks)
+  const booksRef = useRef(books)
+  const localRevision = useRef(0)
+  const bookWrites = useRef(new Map())
+  const [initialOutbox] = useState(loadOutbox)
+  const pendingWrites = useRef(initialOutbox)
+  const lastOutboxSave = useRef(true)
+  const requests = useRef(new Map())
+  const retrying = useRef(false)
+  const [pendingCount, setPendingCount] = useState(initialOutbox.size)
+  const [isRetrying, setIsRetrying] = useState(false)
+  const searchRequest = useRef({ id: 0, controller: null })
+  const [storageError, setStorageError] = useState('')
   const [syncStatus, setSyncStatus] = useState(isSupabaseConfigured ? 'Supabase 연결 확인 중' : 'localStorage 저장 중')
   const [query, setQuery] = useState('')
   const [libraryQuery, setLibraryQuery] = useState('')
@@ -166,6 +205,7 @@ export default function App() {
 
   useEffect(() => {
     let ignore = false
+    const revision = localRevision.current
 
     async function loadRemoteBooks() {
       if (!isSupabaseConfigured) {
@@ -178,11 +218,17 @@ export default function App() {
           return
         }
 
-        if (remoteBooks.length > 0) {
-          setBooks(remoteBooks)
-          saveBooks(remoteBooks)
+        if (localRevision.current !== revision) {
+          setSyncStatus('현재 기록을 유지했습니다. 새로고침하면 서버 기록을 다시 확인합니다.')
+          return
         }
-        setSyncStatus('Supabase와 동기화됨')
+        if (remoteBooks.length > 0) {
+          const normalized = normalizeBooks(applyOutbox(normalizeBooks(remoteBooks), pendingWrites.current))
+          booksRef.current = normalized
+          setBooks(normalized)
+          if (!saveBooks(normalized)) setStorageError('이 브라우저에 저장할 수 없습니다. 새로고침 전에 기록을 확인해 주세요.')
+        }
+        setSyncStatus(remoteBooks.length ? '서버 기록 불러오기 완료' : '서버에 책이 없어 이 브라우저 기록을 표시합니다.')
       } catch {
         if (!ignore) {
           setSyncStatus('Supabase 연결 실패, localStorage 사용 중')
@@ -197,21 +243,91 @@ export default function App() {
     }
   }, [])
 
-  function updateBooks(nextBooks) {
+  useEffect(() => () => {
+    searchRequest.current.controller?.abort()
+  }, [])
+
+  function updateBooks(change) {
+    const nextBooks = change(booksRef.current)
+    localRevision.current++
+    booksRef.current = nextBooks
     setBooks(nextBooks)
-    saveBooks(nextBooks)
+    const saved = saveBooks(nextBooks)
+    setStorageError(saved && lastOutboxSave.current ? '' : '기록 또는 저장 대기 목록을 이 브라우저에 보관하지 못했습니다. 새로고침 전에 기록을 확인해 주세요.')
+  }
+
+  function queueBookWrite(id, operation) {
+    const previous = bookWrites.current.get(id) || Promise.resolve()
+    const next = previous.catch(() => {}).then(operation)
+    bookWrites.current.set(id, next)
+    const cleanup = () => {
+      if (bookWrites.current.get(id) === next) bookWrites.current.delete(id)
+    }
+    next.then(cleanup, cleanup)
+    return next
+  }
+
+  function persistPending(operation, remove = false) {
+    lastOutboxSave.current = remove ? removeOutbox(operation) : saveOutbox(operation)
+    setPendingCount(pendingWrites.current.size)
+    if (!lastOutboxSave.current) setStorageError('저장 대기 목록을 보관하지 못했습니다. 새로고침 전에 기록을 확인해 주세요.')
+  }
+
+  function rememberWrite(operation) {
+    pendingWrites.current.set(operation.id, operation)
+    persistPending(operation)
+  }
+
+  function acknowledgeWrite(operation) {
+    if (pendingWrites.current.get(operation.id) !== operation) return
+    pendingWrites.current.delete(operation.id)
+    localRevision.current++ // 재시도 완료 전의 서버 조회가 기록을 덮지 않게 한다.
+    persistPending(operation, true)
+  }
+
+  function syncWrite(operation) {
+    if (requests.current.has(operation)) return requests.current.get(operation)
+    const request = queueBookWrite(operation.id, () => operation.kind === 'save'
+      ? saveBookToSupabase(operation.book)
+      : deleteBookFromSupabase(operation.id))
+    requests.current.set(operation, request)
+    const cleanup = () => requests.current.delete(operation)
+    request.then(cleanup, cleanup)
+    return request
+  }
+
+  async function retryPending() {
+    if (!isSupabaseConfigured || retrying.current) return
+    retrying.current = true; setIsRetrying(true)
+    let failures = 0
+    try {
+      for (const operation of [...pendingWrites.current.values()]) {
+        if (pendingWrites.current.get(operation.id) !== operation) continue
+        try {
+          await syncWrite(operation)
+          acknowledgeWrite(operation)
+        } catch { failures++ }
+      }
+      setSyncStatus(failures ? '일부 기록을 보내지 못했습니다. 연결 후 다시 시도해 주세요.' : '저장 대기 기록을 서버에 반영했습니다.')
+    } finally {
+      retrying.current = false; setIsRetrying(false)
+    }
   }
 
   async function addBook(nextBook) {
-    updateBooks([nextBook, ...books])
+    const operation = { id: nextBook.id, kind: 'save', book: nextBook }
+    if (isSupabaseConfigured) rememberWrite(operation)
+    updateBooks((current) => [nextBook, ...current])
 
     try {
-      await saveBookToSupabase(nextBook)
+      if (!isSupabaseConfigured) return
+      await syncWrite(operation)
+      acknowledgeWrite(operation)
       if (isSupabaseConfigured) {
-        setSyncStatus('Supabase와 동기화됨')
+        setSyncStatus('이 책을 서버에 저장했습니다.')
       }
     } catch {
-      setSyncStatus('Supabase 저장 실패, localStorage에 보관됨')
+      setSyncStatus('서버 저장에 실패했습니다. 브라우저 저장 상태도 확인해 주세요.')
     }
   }
 
@@ -226,7 +342,7 @@ export default function App() {
 
     const progress = form.status === 'done' ? 100 : clampProgress(form.progress)
     const nextBook = {
-      id: `book-${Date.now()}`,
+      id: `book-${newBookId()}`,
       title,
       author,
       status: form.status,
@@ -234,7 +350,7 @@ export default function App() {
       source: 'manual',
     }
 
-    await addBook(nextBook)
+    void addBook(nextBook)
     setForm({
       title: '',
       author: '',
@@ -244,23 +360,32 @@ export default function App() {
   }
 
   async function deleteBook(id) {
-    updateBooks(books.filter((book) => book.id !== id))
+    const operation = { id, kind: 'delete' }
+    if (isSupabaseConfigured || pendingWrites.current.has(id)) rememberWrite(operation)
+    updateBooks((current) => current.filter((book) => book.id !== id))
 
     try {
-      await deleteBookFromSupabase(id)
+      if (!isSupabaseConfigured) return
+      await syncWrite(operation)
+      acknowledgeWrite(operation)
       if (isSupabaseConfigured) {
-        setSyncStatus('Supabase와 동기화됨')
+        setSyncStatus('이 책을 서버에서 삭제했습니다.')
       }
     } catch {
-      setSyncStatus('Supabase 삭제 실패, localStorage만 변경됨')
+      setSyncStatus('서버 삭제에 실패했습니다. 삭제 요청을 보관했으니 연결 후 다시 보내 주세요.')
     }
   }
 
   async function handleLibrarySearch(event) {
     event.preventDefault()
     const keyword = libraryQuery.trim()
+    const requestId = ++searchRequest.current.id
+    searchRequest.current.controller?.abort()
+    const controller = new AbortController()
+    searchRequest.current.controller = controller
 
     if (!keyword) {
+      setIsSearching(false)
       setHasSearched(false)
       setLibraryResults([])
       setSearchError('')
@@ -272,19 +397,25 @@ export default function App() {
     setHasSearched(true)
 
     try {
-      const results = await searchBooks(keyword)
+      const results = await searchBooks(keyword, { signal: controller.signal })
+      if (requestId !== searchRequest.current.id) return
       setLibraryResults(results)
     } catch (error) {
+      if (requestId !== searchRequest.current.id || controller.signal.aborted) return
       setLibraryResults([])
       setSearchError(error.message || '검색 중 오류가 발생했습니다.')
     } finally {
-      setIsSearching(false)
+      if (requestId === searchRequest.current.id) setIsSearching(false)
     }
   }
 
   async function addLibraryBook(book) {
+    if (booksRef.current.some((entry) => entry.openLibraryKey === book.key)) {
+      setSyncStatus('이미 서재에 추가한 책입니다.')
+      return
+    }
     const nextBook = {
-      id: `open-library-${book.key}-${Date.now()}`,
+      id: `open-library-${newBookId()}`,
       title: book.title,
       author: book.author,
       status: 'reading',
@@ -305,7 +436,14 @@ export default function App() {
         <p className="eyebrow">함께 읽고 기록하는 작은 서재</p>
         <h1>독서 커뮤니티</h1>
         <p className="hero-copy">읽는 중인 책과 완독한 책을 나누어 관리하고, 새로고침 후에도 기록을 유지합니다.</p>
-        <p className="sync-status">{syncStatus}</p>
+        <p className="sync-status" role="status">{syncStatus}</p>
+        {storageError ? <p className="status-text status-text--error" role="alert">{storageError}</p> : null}
+        {pendingCount > 0 ? (
+          <div className="pending-panel">
+            <p role="status">서버에 반영할 기록 {pendingCount}개를 보관하고 있습니다.</p>
+            {isSupabaseConfigured ? <button type="button" className="secondary-button" onClick={retryPending} disabled={isRetrying}>{isRetrying ? '다시 보내는 중…' : '저장 다시 시도'}</button> : <p>공유 연결 설정이 복구되면 다시 보낼 수 있습니다.</p>}
+          </div>
+        ) : null}
         <div className="stats">
           <div>
             <strong>{books.length}</strong>
@@ -339,6 +477,8 @@ export default function App() {
             <input
               value={form.title}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
+              required
+              maxLength={200}
               placeholder="읽고 싶은 책"
             />
           </label>
@@ -347,6 +487,8 @@ export default function App() {
             <input
               value={form.author}
               onChange={(event) => setForm({ ...form, author: event.target.value })}
+              required
+              maxLength={120}
               placeholder="저자 이름"
             />
           </label>
@@ -405,7 +547,7 @@ export default function App() {
           </button>
         </form>
 
-        {searchError ? <p className="status-text status-text--error">{searchError}</p> : null}
+        {searchError ? <p className="status-text status-text--error" role="alert">{searchError}</p> : null}
         {isSearching ? <p className="status-text">도서를 검색하고 있습니다.</p> : null}
         {!isSearching && hasSearched && !searchError && libraryResults.length === 0 ? (
           <p className="status-text">검색 결과가 없습니다.</p>
