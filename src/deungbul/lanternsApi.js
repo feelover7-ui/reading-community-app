@@ -1,5 +1,7 @@
 import { supabase } from './supabaseClient.js'
 
+const requestSignal = () => globalThis.AbortSignal?.timeout?.(15000)
+
 export { isSupabaseConfigured, disconnectRealtime } from './supabaseClient.js'
 
 const TABLE = 'lanterns'
@@ -7,20 +9,22 @@ const TABLE = 'lanterns'
 function fromRow(row) {
   return {
     id: row.id,
-    shape: row.shape,
-    color: row.color,
-    pattern: row.pattern,
-    wish: row.wish,
-    owner: row.owner,
+    shape: ['lotus', 'wheel', 'fish', 'elephant'].includes(row.shape) ? row.shape : 'lotus',
+    color: typeof row.color === 'string' && /^#[0-9a-f]{6}$/i.test(row.color) ? row.color : '#f2c037',
+    pattern: ['none', 'dots', 'wave', 'dancheong', 'gold'].includes(row.pattern) ? row.pattern : 'none',
+    wish: typeof row.wish === 'string' ? row.wish.slice(0, 24) : '',
+    owner: typeof row.owner === 'string' ? row.owner.slice(0, 64) : '',
     createdAt: row.created_at,
   }
 }
+
+export { fromRow as normalizeLantern }
 
 // 최신 limit개를 오래된 순으로 돌려준다. 걸이줄 왼쪽부터 채우기 위함.
 // total 은 줄에 다 못 걸더라도 실제로 몇 개가 올라왔는지 세어 준 값이다.
 export async function fetchLanterns(limit) {
   if (!supabase) {
-    return []
+    return { rows: [], total: 0 }
   }
 
   const { data, error, count } = await supabase
@@ -28,6 +32,7 @@ export async function fetchLanterns(limit) {
     .select('id,shape,color,pattern,wish,owner,created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .limit(limit)
+    .abortSignal(requestSignal())
 
   if (error) {
     throw error
@@ -53,6 +58,7 @@ export async function insertLantern(lantern) {
     })
     .select('id,shape,color,pattern,wish,owner,created_at')
     .single()
+    .abortSignal(requestSignal())
 
   if (error) {
     throw error
@@ -77,6 +83,6 @@ export function subscribeLanterns(onInsert) {
     .subscribe()
 
   return () => {
-    supabase.removeChannel(channel)
+    Promise.resolve(supabase.removeChannel(channel)).catch(() => {})
   }
 }
