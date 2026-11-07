@@ -5,7 +5,8 @@ const byId=id=>document.getElementById(id)
 const scene=byId('scene'), surface=byId('surface'), viewport=byId('viewport')
 const pins=byId('pins'), list=byId('place-list'), traveler=byId('traveler')
 const visited=new Set(), pinButtons=new Map(), listButtons=new Map()
-let zoom=1, position={x:50,y:88}
+let zoom=1, position={x:50,y:88}, cameraFocus=null
+const WORLD_WIDTH=1920
 const spriteCanvas=byId('traveler-sprite'), spriteCtx=spriteCanvas.getContext('2d')
 const spriteLook={body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48'}
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)')
@@ -108,10 +109,14 @@ function setPosition(x,y){
   traveler.style.left=x+'%'
   traveler.style.top=y+'%'
   walkingUntil=moved&&!reducedMotion?performance.now()+420:0
+  cameraFocus=null
+  updateCamera()
   if(!avatarFrame)avatarFrame=requestAnimationFrame(paintAvatar)
 }
 function selectPlace(place){
   setPosition(...place.arrival)
+  if(place.id==='seven'){cameraFocus={x:place.x,y:place.y};updateCamera()}
+  byId('guide').open=true
   visited.add(place.id)
   byId('place-category').textContent=place.category
   byId('place-title').textContent=place.name
@@ -130,7 +135,6 @@ function selectPlace(place){
     listButtons.get(current.id).setAttribute('aria-pressed',String(selected))
     listButtons.get(current.id).querySelector('.check').textContent=visited.has(current.id)?'✓':''
   }
-  if(zoom>1)pinButtons.get(place.id).scrollIntoView({block:'nearest',inline:'nearest',behavior:'auto'})
 }
 for(const place of places){
   const pin=document.createElement('button')
@@ -160,21 +164,44 @@ viewport.addEventListener('keydown',e=>{
   if(directions[e.key]){e.preventDefault();move(...directions[e.key])}
 })
 for(const button of document.querySelectorAll('[data-dx]'))button.onclick=()=>move(Number(button.dataset.dx),Number(button.dataset.dy))
-function setZoom(value){
-  zoom=Math.max(1,Math.min(2.5,value))
-  surface.style.width=(zoom*100)+'%'
-  byId('zoomlabel').textContent=Math.round(zoom*100)+'%'
-  byId('zoomout').disabled=zoom===1
-  byId('zoomin').disabled=zoom===2.5
-  if(zoom===1)viewport.scrollTo({left:0,top:0})
+function viewSize(){
+  return {width:viewport.clientWidth||window.innerWidth||1000,height:viewport.clientHeight||window.innerHeight||720}
 }
-byId('zoomout').onclick=()=>setZoom(zoom-.5)
-byId('zoomin').onclick=()=>setZoom(zoom+.5)
-byId('reset').onclick=()=>setZoom(1)
+function fitZoom(){
+  const view=viewSize()
+  return Math.max(.1,Math.min(1,view.width/WORLD_WIDTH,view.height/(WORLD_WIDTH*.72)))
+}
+function updateCamera(){
+  const view=viewSize(), width=WORLD_WIDTH*zoom, height=width*.72
+  const focus=cameraFocus||position
+  const offset=(size,world,fraction)=>world<=size?(size-world)/2:Math.max(size-world,Math.min(0,size/2-world*fraction/100))
+  surface.style.width=width+'px'
+  surface.style.transform='translate('+Math.round(offset(view.width,width,focus.x))+'px,'+Math.round(offset(view.height,height,focus.y))+'px)'
+}
+function setZoom(value){
+  zoom=Math.max(fitZoom(),Math.min(1.75,value))
+  byId('zoomlabel').textContent=Math.round(zoom*100)+'%'
+  byId('zoomout').disabled=zoom<=fitZoom()+.001
+  byId('zoomin').disabled=zoom>=1.75
+  updateCamera()
+}
+byId('zoomout').onclick=()=>setZoom(zoom-.25)
+byId('zoomin').onclick=()=>setZoom(zoom+.25)
+byId('reset').onclick=()=>{cameraFocus=null;setZoom(fitZoom())}
+byId('follow').onclick=()=>{cameraFocus=null;setZoom(1)}
+window.addEventListener('resize',()=>setZoom(zoom))
 byId('night').onclick=e=>{
   const night=document.body.classList.toggle('night')
   e.currentTarget.setAttribute('aria-pressed',String(night))
   e.currentTarget.textContent=night?'낮 풍경으로':'나만 밤 풍경'
 }
+const skip=document.querySelector('.skip')
+if(skip)skip.addEventListener('click',e=>{
+  e.preventDefault()
+  byId('guide').open=true
+  const placesSection=byId('places')
+  placesSection.tabIndex=-1
+  placesSection.focus({preventScroll:true})
+})
 setZoom(1)
 setPosition(position.x,position.y)
