@@ -426,3 +426,11 @@ input:disabled {
 .book-card__top > div { min-width: 0; }
 .book-card p { overflow-wrap: anywhere; }
 button:focus-visible { outline: 3px solid #245cdb; outline-offset: 3px; }
+
+.pending-panel{margin:0 0 18px;padding:14px 16px;border:1px solid #d3ddf1;border-radius:12px;background:#eef3ff;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.pending-panel p{margin:0;line-height:1.6;flex:1 1 220px}
+.pending-panel button{min-height:44px}
+.primary-button,.secondary-button,.delete-button{min-height:44px}
+.hero-copy,.status-text,.sync-status{overflow-wrap:anywhere}
+.sync-status{max-width:100%;line-height:1.6}
+@media(max-width:420px){.pending-panel button{width:100%}.book-card{padding:14px}}
