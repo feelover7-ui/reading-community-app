@@ -1,5 +1,7 @@
 import { isSupabaseConfigured, supabase } from './supabaseClient'
 
+const requestSignal = () => globalThis.AbortSignal?.timeout?.(15000)
+
 function fromRow(row) {
   return {
     id: row.id,
@@ -36,13 +38,13 @@ export async function fetchBooksFromSupabase() {
     return []
   }
 
-  const { data, error } = await supabase.from('books').select('*').order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('books').select('*').order('created_at', { ascending: false }).abortSignal(requestSignal())
 
   if (error) {
     throw error
   }
 
-  return data.map(fromRow)
+  return (data || []).map(fromRow)
 }
 
 export async function saveBookToSupabase(book) {
@@ -50,7 +52,7 @@ export async function saveBookToSupabase(book) {
     return
   }
 
-  const { error } = await supabase.from('books').upsert(toRow(book), { onConflict: 'id' })
+  const { error } = await supabase.from('books').upsert(toRow(book), { onConflict: 'id' }).abortSignal(requestSignal())
 
   if (error) {
     throw error
@@ -62,7 +64,7 @@ export async function deleteBookFromSupabase(id) {
     return
   }
 
-  const { error } = await supabase.from('books').delete().eq('id', id)
+  const { error } = await supabase.from('books').delete().eq('id', id).abortSignal(requestSignal())
 
   if (error) {
     throw error
