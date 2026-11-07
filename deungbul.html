@@ -207,6 +207,8 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
 .tour-link{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;color:var(--ink);background:#f2e7d2;text-decoration:none;font-size:13px;font-weight:700}
 .tour-link span{font-size:10px;color:var(--muted);font-weight:400}
 .tour-link:hover{background:#e8d8b8}
+#title .sexbtn{display:flex;align-items:center;justify-content:center;gap:10px}
+#title .sexbtn canvas{display:block!important;flex:none;width:24px!important;height:36px!important;max-width:none;margin:0;image-rendering:pixelated}
 </style>
 </head>
 <body>
@@ -247,8 +249,8 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
         <label for="namein">마당에서 쓸 이름</label>
         <input id="namein" aria-describedby="namehint" type="text" maxlength="12" placeholder="이름을 적어 주세요" autocomplete="off" autocapitalize="off" spellcheck="false">
         <div id="sexbox" role="group" aria-label="캐릭터 모습 선택">
-          <button type="button" class="sexbtn" id="sexm" aria-pressed="false">남</button>
-          <button type="button" class="sexbtn" id="sexf" aria-pressed="false">여</button>
+          <button type="button" class="sexbtn" id="sexm" aria-pressed="false"><canvas id="sex-preview-m" width="48" height="72" aria-hidden="true"></canvas><span>남</span></button>
+          <button type="button" class="sexbtn" id="sexf" aria-pressed="false"><canvas id="sex-preview-f" width="48" height="72" aria-hidden="true"></canvas><span>여</span></button>
         </div>
         <div id="namehint" aria-live="polite">법우들에게 이 이름과 모습으로 보여요</div>
       </div>
