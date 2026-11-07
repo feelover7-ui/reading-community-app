@@ -39,13 +39,25 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 
 현재 데이터는 브라우저 `localStorage`에 먼저 저장합니다. Supabase 환경변수가 설정되어 있으면 `public.books` 테이블과 동기화합니다.
 
+## Deungbul Page
+
+`deungbul.html` 은 한마음선원 등불사장 캔버스 게임입니다. Vite 멀티 페이지 입력으로 빌드되어 `/deungbul.html` 로 열립니다.
+
+- Entry: `deungbul.html`
+- Script: `src/deungbul/game.js`
+- Supabase access: `src/deungbul/lanternsApi.js`
+- Shared table: `public.lanterns` (생성 SQL은 `supabase/lanterns.sql`)
+- 걸이줄 칸 42개, 최신 42개만 표시
+- 환경변수나 테이블이 없으면 localStorage 폴백
+
 ## Supabase
 
 - Project ref: `vsnbzwofscqeeewscozp`
 - API URL: `https://vsnbzwofscqeeewscozp.supabase.co`
-- Table: `public.books`
+- Tables: `public.books`, `public.lanterns`
 - RLS: enabled
 - Current policy: temporary public MVP access for `anon` and `authenticated`
+- `public.lanterns`: select + insert 만 공개, update/delete 없음
 - Frontend key type: publishable key only
 - Vercel preview env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` configured
 - `service_role`, secret key, database password: not used
