@@ -204,6 +204,9 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
 }
 @media(max-height:560px) and (min-width:560px){#title .welcome{max-width:840px;grid-template-columns:1fr 1.1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.tour-link{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;color:var(--ink);background:#f2e7d2;text-decoration:none;font-size:13px;font-weight:700}
+.tour-link span{font-size:10px;color:var(--muted);font-weight:400}
+.tour-link:hover{background:#e8d8b8}
 </style>
 </head>
 <body>
@@ -250,6 +253,7 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
         <div id="namehint" aria-live="polite">법우들에게 이 이름과 모습으로 보여요</div>
       </div>
       <button id="startb">마당에 들어가기</button>
+      <a class="tour-link" href="/doryang.html" target="_blank" rel="noopener noreferrer">안양 본원 도량 둘러보기 <span>새 창</span></a>
       <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업 Space<br>이야기 Enter · 마당 메뉴로 바로 작업하기</div>
     </section>
   </div>
