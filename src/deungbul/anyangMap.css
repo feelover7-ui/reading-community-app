@@ -70,3 +70,67 @@ footer p{margin:0 0 5px}
 @media(max-width:760px){.shell{padding:24px 12px 18px}.masthead{gap:12px;align-items:flex-start}.masthead>.button{font-size:12px;padding:10px;flex:none}.layout{grid-template-columns:1fr}.map-top{padding:20px 14px 12px;gap:8px}.map-top h2{font-size:18px}.map-top .button{font-size:11px;padding:8px}.map-bottom{padding:14px;align-items:flex-start}.guide{grid-template-columns:1fr 1fr;gap:12px}.detail,.places{padding:18px}.detail h2{font-size:21px}.pin{padding:5px;justify-content:center}.pin .pin-label{display:none}.model-note{font-size:11px}.map-tools{padding-right:14px}}
 @media(max-width:520px){.guide{grid-template-columns:1fr}.map-bottom{gap:8px}#map-help{font-size:11px}.dpad{grid-template:repeat(3,44px)/repeat(3,44px)}.intro{font-size:12px}.map-top .eyebrow{font-size:10px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
+
+/* 기존 등불사장처럼 캐릭터를 따라가는 전체 화면 구도. 건물 배치는 별도 확인 대상이다. */
+html,body{height:100%;overflow:hidden;overscroll-behavior:none}
+body{background:#dce5cb}
+.shell{max-width:none;height:100dvh;margin:0;padding:0}
+.layout{display:block}
+.map-card{border:0;border-radius:0;background:none;box-shadow:none}
+.viewport{position:fixed;inset:0;width:100%;height:100dvh;max-height:none;overflow:hidden;touch-action:none;z-index:0}
+.surface{position:absolute;left:0;top:0;min-width:0;transition:transform .4s linear}
+.masthead{position:fixed;left:max(12px,env(safe-area-inset-left));top:max(12px,env(safe-area-inset-top));display:block;width:245px;margin:0;padding:14px 16px;border:1px solid var(--line);border-radius:15px;background:rgba(255,250,240,.96);box-shadow:var(--shadow);z-index:5}
+.masthead h1{font-size:24px;margin-bottom:0}
+.masthead .eyebrow{font-size:10px;letter-spacing:.03em}
+.masthead .intro{display:none}
+.masthead>.button{margin-top:12px;font-size:12px;min-height:40px;padding:8px 12px}
+.model-note{position:fixed;top:12px;left:50%;transform:translateX(-50%);max-width:calc(100vw - 560px);margin:0;padding:9px 12px;border:1px solid var(--line);background:rgba(255,250,240,.94);z-index:5;text-align:center}
+.map-top{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));padding:0;z-index:5}
+.map-top>div{display:none}
+.map-tools{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom));transform:translateX(-50%);padding:0;z-index:6;flex-wrap:wrap;justify-content:center}
+.map-tools button,.map-tools output{background:var(--paper);box-shadow:0 2px 6px #0000000a}
+.map-tools output{display:grid;place-items:center;min-height:44px;border-radius:8px}
+.map-tools #reset,#follow{font-size:12px}
+.guide{position:fixed;right:max(12px,env(safe-area-inset-right));top:68px;display:block;width:300px;max-height:calc(100dvh - 250px);overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--paper);box-shadow:var(--shadow);z-index:7}
+.guide summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:46px;padding:12px 16px;list-style:none;color:var(--green);font-size:13px;font-weight:700;cursor:pointer}
+.guide summary::-webkit-details-marker{display:none}
+.guide summary::after{content:'＋'}
+.guide[open] summary::after{content:'−'}
+.guide-body{display:grid;gap:12px;padding:0 12px 12px}
+.guide:not([open]) .guide-body{display:none}
+.guide .detail,.guide .places{padding:16px;border-radius:12px;box-shadow:none}
+.guide .detail h2{font-size:21px}
+.guide footer{padding:4px;font-size:10px}
+.map-bottom{position:fixed;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:0;pointer-events:none;z-index:5}
+.map-bottom>div:first-child{max-width:245px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,250,240,.96)}
+.dpad{pointer-events:auto}
+.current{font-size:12px;line-height:1.6}
+@media(max-width:760px){
+ .shell{padding:0}
+ .masthead{width:calc(100vw - 180px);min-width:132px;padding:12px}
+ .masthead h1{font-size:17px}
+ .masthead .eyebrow{font-size:10px;letter-spacing:0}
+ .masthead>.button{font-size:11px;margin-top:8px}
+ .model-note{top:auto;bottom:88px;left:12px;transform:none;width:calc(100vw - 178px);max-width:none;font-size:10px;line-height:1.6}
+ .model-note span{display:block;margin:0}
+ .guide{width:min(300px,calc(100vw - 24px));top:68px}
+ .guide:not([open]){width:148px}
+ .guide summary{font-size:11px;padding:10px}
+ .guide-body{grid-template-columns:1fr}
+ .map-top{padding:0}
+ .map-tools{left:auto;right:12px;bottom:172px;transform:none;gap:3px;max-width:260px}
+ .map-tools button{min-width:38px;padding:6px}
+ .map-tools output{min-width:40px}
+ .map-tools #reset,#follow{padding:6px 8px;font-size:11px;margin-left:0}
+ #map-help{display:none}
+ .map-bottom>div:first-child{width:calc(100vw - 178px)}
+}
+@media(max-height:500px){
+ .masthead .eyebrow,.masthead>.button{display:none}
+ .guide{max-height:calc(100dvh - 90px)}
+ .map-bottom>div:first-child,#map-help,.model-note{display:none}
+ .map-tools{left:12px;right:auto;bottom:16px;transform:none}
+ .map-bottom{justify-content:flex-end}
+}
+
+.guide summary{position:sticky;top:0;background:var(--paper);z-index:1}
