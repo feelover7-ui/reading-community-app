@@ -48,6 +48,8 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 - Supabase client: `src/deungbul/supabaseClient.js` (소원등·방명록이 하나를 공유)
 - Lanterns: `src/deungbul/lanternsApi.js` -> `public.lanterns` (`supabase/lanterns.sql`)
 - Board/chat: `src/deungbul/boardApi.js` -> `public.posts`, `public.messages` (`supabase/board.sql`)
+- 시작 화면에서 이름을 받고(`#namein`, 필수) 저장한 뒤에 마당 채널에 합류한다. 이름 없이 presence 에 올라가지 않게 하려는 것이다.
+- 지금 마당에 있는 사람 명단은 HUD 의 `#here` 에 그린다.
 - Live presence: `src/deungbul/presence.js` -> Realtime 채널 `deungbul-yard` (DB 사용 안 함)
   - presence: 입장/퇴장, 닉네임
   - broadcast `pos`: 위치 (움직일 때만, 최소 220ms 간격)

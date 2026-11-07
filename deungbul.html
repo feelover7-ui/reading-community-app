@@ -20,7 +20,10 @@ canvas#game{display:block}
 #hud li.done{color:#a89880;text-decoration:line-through}
 #hud li.cur{color:var(--ink);font-weight:700}
 #hud .foot{margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);color:#6b5a48;font-size:12px}
-#hud.collapsed ol,#hud.collapsed .foot{display:none}
+#hud .here{margin-top:7px;padding-top:7px;border-top:1px dashed var(--line);color:#6b5a48;font-size:12px;line-height:1.55;display:none}
+#hud .here b{color:var(--accent)}
+#hud .here .me{color:var(--ink);font-weight:700}
+#hud.collapsed ol,#hud.collapsed .foot,#hud.collapsed .here{display:none}
 #hud.collapsed h3{margin:0}
 #topbtns{position:fixed;right:12px;top:12px;display:flex;gap:8px;z-index:5}
 .iconbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:rgba(251,244,228,.95);font-size:17px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.2)}
@@ -96,13 +99,21 @@ body.touch #joy,body.touch #act{display:block}
 #title canvas{display:block;margin:0 auto 16px}
 #title button{background:#c8402f;color:#fff;border:none;border-radius:999px;padding:14px 40px;font:700 17px 'Noto Sans KR';cursor:pointer;box-shadow:0 0 24px rgba(255,140,60,.45)}
 #title .ctl{margin-top:16px;font-size:12px;color:#b8a78c}
+#namebox{margin:0 auto 16px;width:min(300px,calc(100vw - 48px))}
+#namebox label{display:block;font-size:13px;color:#e8c45a;margin-bottom:7px;letter-spacing:.04em}
+#namein{width:100%;border:2px solid #6b4a2f;border-radius:11px;padding:12px 14px;font:inherit;font-size:16px;text-align:center;background:rgba(251,244,228,.95);color:#2b1d14}
+#namein:focus{outline:none;border-color:#e8c45a;box-shadow:0 0 0 3px rgba(232,196,90,.25)}
+#namein.bad{border-color:#e06a5a;animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+#namehint{margin-top:7px;font-size:12px;color:#b8a78c;min-height:1.2em}
+#namehint.bad{color:#f0a294}
 @media (max-width:640px){#hud{width:206px;font-size:12px;padding:10px 12px}#hud h3{font-size:14px}}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
 
-<div id="hud"><h3 id="hudh">오늘의 소임 <small>접기</small></h3><ol id="quest"></ol><div class="foot" id="hudfoot"></div></div>
+<div id="hud"><h3 id="hudh">오늘의 소임 <small>접기</small></h3><ol id="quest"></ol><div class="foot" id="hudfoot"></div><div class="here" id="here"></div></div>
 <div id="topbtns"><button class="iconbtn" id="chatb" title="한 줄 이야기 (Enter)">💬</button><button class="iconbtn" id="snd" title="소리">🔊</button><button class="iconbtn" id="helpb" title="도움말">?</button></div>
 <div id="dialog"><div class="name" id="dname"></div><div class="text" id="dtext"></div><div class="next">▼ 계속</div></div>
 <div id="modal"><div class="card" id="card"></div></div>
@@ -121,6 +132,11 @@ body.touch #joy,body.touch #act{display:block}
     <h1>등불사장</h1>
     <canvas id="tcv" width="320" height="110"></canvas>
     <p>장엄등을 만드는 등불사장에서<br>나만의 소원등을 엮고, 바르고, 칠하고, 밝혀서<br>마당에 걸고 다 함께 점등해요.<br>같이 들어온 법우들과 이야기도 나눠요.</p>
+    <div id="namebox">
+      <label for="namein">마당에서 쓸 이름</label>
+      <input id="namein" type="text" maxlength="12" placeholder="이름 (12자까지)" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div id="namehint">법우들에게 이 이름으로 보여요</div>
+    </div>
     <button id="startb">들어가기</button>
     <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업 Space &nbsp;|&nbsp; 이야기 Enter</div>
   </div>

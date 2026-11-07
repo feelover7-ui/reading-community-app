@@ -158,7 +158,7 @@ function hungList(){const out=SEEDS.map((L,i)=>({L,slot:slots[SEED_IDX[i]],i}));
 function trimHung(){if(state.lanterns.length>MAX_HUNG)state.lanterns=state.lanterns.slice(-MAX_HUNG);}
 const seenIds=new Set();
 let unsub=null,boardSub=null,boardUI=null,boardTimer=0;
-function goLocal(msg){if(!shared)return;shared=false;if(unsub){unsub();unsub=null;}if(boardSub){boardSub();boardSub=null;}stopYard();disconnectRealtime();state.lanterns=localLanterns.slice();syncHasHung();updateHUD();if(msg&&started)toast(msg);}
+function goLocal(msg){if(!shared)return;shared=false;if(unsub){unsub();unsub=null;}if(boardSub){boardSub();boardSub=null;}stopYard();updateHere();disconnectRealtime();state.lanterns=localLanterns.slice();syncHasHung();updateHUD();if(msg&&started)toast(msg);}
 function addRemote(row){
   if(!shared||!row)return;
   if(row.id&&seenIds.has(row.id))return;
@@ -203,7 +203,6 @@ function startShared(){
   refresh();
   unsub=subscribeLanterns(addRemote);
   boardSub=subscribeBoard({onPost:addRemotePost,onMessage:addRemoteMessage});
-  startYard();
   setInterval(refresh,20000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 }
@@ -519,16 +518,32 @@ const peers=new Map();
 const SAY_MS=6000,PEER_GONE_MS=90000,POSE_MS=220;
 let yard=null,myLine='',myLineUntil=0,lastPoseAt=0,sentX=-99,sentY=-99,sentDir='';
 
+let hereDirty=false;
 function peerOf(id,nick){
   let p=peers.get(id);
   if(!p){
     if(peers.size>=24)return null;
     p={id,nick:nick||'법우',x:17.5,y:11,tx:17.5,ty:11,dir:'down',moving:false,walk:0,color:peerColor(id),say:'',sayUntil:0,last:Date.now(),placed:false};
     peers.set(id,p);
+    hereDirty=true;
   }
-  if(nick)p.nick=nick;
+  if(nick&&p.nick!==nick){p.nick=nick;hereDirty=true;}
   p.last=Date.now();
   return p;
+}
+// 지금 마당에 누가 있는지 소임 상자 아래에 적는다.
+const hereEl=document.getElementById('here');
+function updateHere(){
+  hereDirty=false;
+  if(!hereEl)return;
+  if(!shared||!yard||!yard.joined||!started){hereEl.style.display='none';return;}
+  hereEl.style.display='block';
+  hereEl.innerHTML='';
+  hereEl.append(el('div',null,`지금 마당에 ${peers.size+1}명`));
+  const row=el('div');
+  row.append(el('span','me',nickNow()||'나'));
+  for(const p of peers.values()){row.append(document.createTextNode(' · '));row.append(el('span',null,p.nick||'법우'));}
+  hereEl.append(row);
 }
 function applyPose(id,pose){
   const p=peerOf(id,pose.nick);
@@ -561,26 +576,29 @@ function startYard(){
   if(!shared||yard)return;
   yard=joinYard({
     ownerId:OWNER,
-    onJoin:(id,meta)=>{seat(id,meta);setTimeout(()=>pushPose(true),120);},
-    onLeave:id=>peers.delete(id),
+    onJoin:(id,meta)=>{seat(id,meta);updateHere();setTimeout(()=>pushPose(true),120);},
+    onLeave:id=>{peers.delete(id);updateHere();},
     onSync:list=>{
       const alive=new Set();
       list.forEach(({id,meta})=>{alive.add(id);seat(id,meta);});
       for(const id of [...peers.keys()])if(!alive.has(id))peers.delete(id);
+      updateHere();
     },
     onPose:(id,pose)=>applyPose(id,pose),
     onSay:(id,data)=>{const p=peerOf(id,data.nick);if(p){p.say=String(data.text||'').slice(0,200);p.sayUntil=Date.now()+SAY_MS;}},
   });
-  if(yard)setTimeout(()=>{yard.track({nick:nickNow(),x:player.x,y:player.y,dir:player.dir});pushPose(true);},600);
+  if(yard)setTimeout(()=>{yard.track({nick:nickNow(),x:player.x,y:player.y,dir:player.dir});pushPose(true);updateHere();},600);
 }
 function stopYard(){
   if(yard){yard.leave();yard=null;}
   peers.clear();
+  updateHere();
 }
 function updatePeers(dt){
+  if(hereDirty)updateHere();
   const now=Date.now();
   for(const [id,p] of peers){
-    if(now-p.last>PEER_GONE_MS){peers.delete(id);continue;}
+    if(now-p.last>PEER_GONE_MS){peers.delete(id);hereDirty=true;continue;}
     const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
     if(d>4){p.x=p.tx;p.y=p.ty;p.moving=false;}
     else if(d>.02){const k=Math.min(1,dt*9);p.x+=dx*k;p.y+=dy*k;p.moving=true;p.walk+=dt;}
@@ -631,7 +649,7 @@ async function sendChatLine(){
   }catch(e){console.warn('[등불사장] 이야기 보내기 실패',e);toast(boardErr(e));}
 }
 if(chatnick){
-  chatnick.oninput=()=>setNick(chatnick.value);
+  chatnick.oninput=()=>{setNick(chatnick.value);updateHere();};
   chatnick.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();try{chatmsg.focus();}catch(err){}}else if(e.key==='Escape'){e.preventDefault();closeChat();}};
   chatmsg.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();sendChatLine();}else if(e.key==='Escape'){e.preventDefault();closeChat();}};
   document.getElementById('chatsend').onclick=()=>sendChatLine();
@@ -889,5 +907,28 @@ requestAnimationFrame(loop);
 const tcv=document.getElementById('tcv');(function(){const r=Math.min(2,window.devicePixelRatio||1);tcv.width=320*r;tcv.height=110*r;tcv.style.width='320px';tcv.style.height='110px';const g=tcv.getContext('2d');g.setTransform(r,0,0,r,0,0);g.strokeStyle='rgba(232,196,90,.6)';g.lineWidth=1.2;g.beginPath();g.moveTo(0,14);g.quadraticCurveTo(160,34,320,14);g.stroke();[['lotus','#f29bb5','gold'],['wheel','#f2c037','dancheong'],['fish','#d8352f','wave'],['elephant','#f5efe2','dots']].forEach(([s,c,p],i)=>{const x=46+i*76,y=22+Math.sin(i/3*Math.PI)*0;g.beginPath();g.moveTo(x,y);g.lineTo(x,y+10);g.stroke();drawLantern(g,x,y+44,58,{shape:s,color:c,pattern:p},{lit:true,tassel:true});});})();
 // 선언이 모두 끝난 뒤에 공유를 시작한다 (마당 상태 변수들이 위에서 선언된다)
 startShared();
-document.getElementById('startb').onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');setTimeout(()=>{if(!state.talked)say('등불사장',['한마음선원 등불사장에 오신 걸 환영해요.','안쪽에 계신 반장 법우에게 먼저 인사해 볼까요? (금색 ▼ 표시)']);},500);};
+const namein=document.getElementById('namein'),namehint=document.getElementById('namehint');
+const NAME_HINT='법우들에게 이 이름으로 보여요';
+function nameWarn(msg){
+  if(!namein)return;
+  namehint.textContent=msg;namehint.classList.add('bad');
+  namein.classList.remove('bad');void namein.offsetWidth;namein.classList.add('bad');
+  try{namein.focus();}catch(e){}
+}
+function enterYard(){
+  const name=(namein?namein.value:'').trim().replace(/\s+/g,' ').slice(0,12);
+  if(!name){nameWarn('이름을 적어 주세요');return;}
+  setNick(name);
+  ac();tok();started=true;
+  document.getElementById('title').classList.add('hide');
+  startYard();updateHere();
+  setTimeout(()=>{if(!state.talked)say('등불사장',[`${name} 법우, 한마음선원 등불사장에 오신 걸 환영해요.`,'안쪽에 계신 반장 법우에게 먼저 인사해 볼까요? (금색 ▼ 표시)']);},500);
+}
+if(namein){
+  namein.value=myNick;
+  namein.oninput=()=>{namein.classList.remove('bad');namehint.classList.remove('bad');namehint.textContent=NAME_HINT;};
+  namein.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter'){e.preventDefault();enterYard();}};
+  setTimeout(()=>{try{namein.focus();}catch(e){}},400);
+}
+document.getElementById('startb').onclick=enterYard;
 })();
