@@ -559,7 +559,7 @@ function renderList(){
 function buildPostForm(form){
   const nick=nickInput();
   const ta=el('textarea');ta.rows=3;ta.maxLength=500;ta.placeholder='마당에 남길 글 (500자까지)';ta.setAttribute('aria-label','방명록 내용');
-  const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='지울 때 쓸 비밀번호 (8~20자)';pw.minLength=8;pw.autocomplete='new-password';pw.setAttribute('aria-label','글 삭제 비밀번호');
+  const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='지울 때 쓸 비밀번호 (4자 이상)';pw.minLength=4;pw.autocomplete='off';pw.setAttribute('aria-label','글 삭제 비밀번호');
   const go=el('button','btn','글 남기기');
   form.append(el('p','note','닉네임과 비밀번호를 적어 두면 나중에 본인이 글을 지울 수 있어요. 다른 사이트에서 쓰는 비밀번호는 사용하지 마세요.'),nick,ta,pw,go);
   if(!canHash){go.disabled=true;go.textContent='안전한 주소(https)에서만 글을 쓸 수 있어요';return;}
@@ -570,7 +570,7 @@ function buildPostForm(form){
     const bodyDraft=ta.value,passwordDraft=pw.value;
     if(!n){toast('닉네임을 적어 주세요');try{nick.focus();}catch(e){}return;}
     if(!b){toast('내용을 적어 주세요');try{ta.focus();}catch(e){}return;}
-    if(pw.value.length<8){toast('비밀번호를 8자 이상 적어 주세요');try{pw.focus();}catch(e){}return;}
+    if(pw.value.length<4){toast('비밀번호를 4자 이상 적어 주세요');try{pw.focus();}catch(e){}return;}
     go.disabled=true;go.textContent='남기는 중…';
     try{
       const row=await insertPost({nick:n,body:b,pwHash:await hashPassword(pw.value,n)});
