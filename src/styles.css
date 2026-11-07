@@ -422,3 +422,7 @@ input:disabled {
     min-height: 112px;
   }
 }
+
+.book-card__top > div { min-width: 0; }
+.book-card p { overflow-wrap: anywhere; }
+button:focus-visible { outline: 3px solid #245cdb; outline-offset: 3px; }
