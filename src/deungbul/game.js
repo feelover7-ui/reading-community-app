@@ -8,6 +8,14 @@ const T=40,W=36,H=26;
 const cv=document.getElementById('game'),ctx=cv.getContext('2d');
 const isTouch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
 if(isTouch){document.body.classList.add('touch');document.getElementById('ctlhint').textContent='왼쪽 조이스틱으로 이동 · 오른쪽 버튼으로 작업 · 위쪽 💬 로 이야기';}
+const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
+let reducedMotion=motionPreference.matches;
+motionPreference.addEventListener?.('change',e=>{reducedMotion=e.matches;if(reducedMotion)particles.length=0;});
+function fitVisibleHeight(){
+  document.documentElement.style.setProperty('--visible-height',(window.visualViewport?.height||window.innerHeight)+'px');
+}
+window.visualViewport?.addEventListener('resize',fitVisibleHeight);
+fitVisibleHeight();
 let vw=0,vh=0,dpr=1,zoom=1;
 function resize(){dpr=Math.min(window.devicePixelRatio||1,2);vw=window.innerWidth;vh=window.innerHeight;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);cv.style.width=vw+'px';cv.style.height=vh+'px';zoom=Math.min(1.35,Math.max(.55,Math.min(vw/(15*T),vh/(10.5*T))));}
 addEventListener('resize',resize);resize();
@@ -195,17 +203,19 @@ function addRemote(row){
   state.lanterns.push(row);hungTotal++;trimHung();syncHasHung();updateHUD();
   if(started&&row.owner!==OWNER)toast('다른 법우가 소원등을 걸었어요');
 }
-let loadedOnce=false,misses=0,refreshBusy=false;
+let loadedOnce=false,misses=0,refreshBusy=false,lastCountAt=0;
 async function refresh(){
   if(!isSupabaseConfigured||refreshBusy)return;
   refreshBusy=true;
   try{
     const knownIds=new Set(state.lanterns.filter(L=>L.id).map(L=>L.id));
-    const {rows,total}=await fetchLanterns(MAX_HUNG);
+    const withCount=Date.now()-lastCountAt>=60000;
+    const {rows,total}=await fetchLanterns(MAX_HUNG,{withCount});
+    if(total!==null)lastCountAt=Date.now();
     const arriving=shared?state.lanterns.filter(L=>L.id&&!knownIds.has(L.id)&&!rows.some(r=>r.id===L.id)):[];
     const recovering=!shared;
     const pending=recovering?offlineHung.filter(L=>!L.id):state.lanterns.filter(L=>L.owner===OWNER&&!L.id);
-    hungTotal=Math.max(total,rows.length+arriving.length);
+    hungTotal=Math.max(total===null?hungTotal:total,rows.length+arriving.length);
     seenIds.clear();rows.concat(arriving).forEach(r=>seenIds.add(r.id));
     shared=true;
     state.lanterns=rows.concat(arriving,pending);trimHung();syncHasHung();updateHUD();
@@ -247,7 +257,7 @@ function startShared(){
 }
 
 /* ---------- entities ---------- */
-const player={x:17.5,y:11,dir:'up',moving:false,walk:0};
+const player={x:17.5,y:11,vx:0,vy:0,dir:'up',moving:false,walk:0};
 const NPCS=[
   {id:'banjang',name:'등불사장 반장 법우',x:17.5,y:9.6,dir:'down',o:{body:'#3f7a5c',apron:'#e9dcc4',hair:'#2b1d14'}},
   {id:'worker',name:'용등 만드는 법우',x:21.5,y:8.6,dir:'right',o:{body:'#5d7fb8',apron:'#e9dcc4',hair:'#4a3020'}},
@@ -267,9 +277,9 @@ const bell=()=>{[[98,7,.28],[196,6,.16],[247,5,.07],[294,5.5,.1],[392,4,.05]].fo
 const toastEl=document.getElementById('toast');let toastTimer=0;
 function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2600);}
 const dlg=document.getElementById('dialog'),dname=document.getElementById('dname'),dtext=document.getElementById('dtext');
-let dialog=null,modalOpen=false,started=false;
-function say(name,lines,onEnd){dialog={name,lines,i:0,onEnd};dname.textContent=name;dtext.textContent=lines[0];dlg.style.display='block';}
-function advance(){if(!dialog)return;dialog.i++;if(dialog.i>=dialog.lines.length){const f=dialog.onEnd;dialog=null;dlg.style.display='none';f&&f();}else dtext.textContent=dialog.lines[dialog.i];}
+let dialog=null,dialogReturnFocus=null,modalOpen=false,started=false;
+function say(name,lines,onEnd){if(!dialog)dialogReturnFocus=document.activeElement;dialog={name,lines,i:0,onEnd};dname.textContent=name;dtext.textContent=lines[0];dlg.style.display='block';dlg.focus({preventScroll:true});}
+function advance(){if(!dialog)return;dialog.i++;if(dialog.i>=dialog.lines.length){const f=dialog.onEnd;dialog=null;dlg.style.display='none';const target=dialogReturnFocus&&dialogReturnFocus.isConnected&&!dialogReturnFocus.closest('#title.hide')?dialogReturnFocus:cv;target.focus({preventScroll:true});dialogReturnFocus=null;f&&f();}else dtext.textContent=dialog.lines[dialog.i];}
 dlg.addEventListener('click',advance);
 const modalWrap=document.getElementById('modal'),card=document.getElementById('card');
 let modalReturnFocus=null;
@@ -496,7 +506,7 @@ function postCard(p){
   del.onclick=()=>{
     if(d.querySelector('.delrow'))return;
     const row=el('div','delrow');
-    const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='글 쓸 때 정한 비밀번호';pw.setAttribute('aria-label','글 삭제 비밀번호');
+    const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='글 쓸 때 정한 비밀번호';pw.autocomplete='current-password';pw.setAttribute('aria-label','글 삭제 비밀번호');
     const ok=el('button','linkbtn warn','확인'),no=el('button','linkbtn','취소');
     row.append(pw,ok,no);d.append(row);try{pw.focus();}catch(e){}
     no.onclick=()=>row.remove();
@@ -549,9 +559,9 @@ function renderList(){
 function buildPostForm(form){
   const nick=nickInput();
   const ta=el('textarea');ta.rows=3;ta.maxLength=500;ta.placeholder='마당에 남길 글 (500자까지)';ta.setAttribute('aria-label','방명록 내용');
-  const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='지울 때 쓸 비밀번호 (2자 이상)';pw.setAttribute('aria-label','글 삭제 비밀번호');
+  const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='지울 때 쓸 비밀번호 (8~20자)';pw.minLength=8;pw.autocomplete='new-password';pw.setAttribute('aria-label','글 삭제 비밀번호');
   const go=el('button','btn','글 남기기');
-  form.append(el('p','note','닉네임과 비밀번호를 적어 두면 나중에 본인이 글을 지울 수 있어요. 비밀번호는 그대로 보내지 않고 암호로 바꿔서 보관합니다.'),nick,ta,pw,go);
+  form.append(el('p','note','닉네임과 비밀번호를 적어 두면 나중에 본인이 글을 지울 수 있어요. 다른 사이트에서 쓰는 비밀번호는 사용하지 마세요.'),nick,ta,pw,go);
   if(!canHash){go.disabled=true;go.textContent='안전한 주소(https)에서만 글을 쓸 수 있어요';return;}
   go.onclick=async()=>{
     if(go.disabled)return;
@@ -560,7 +570,7 @@ function buildPostForm(form){
     const bodyDraft=ta.value,passwordDraft=pw.value;
     if(!n){toast('닉네임을 적어 주세요');try{nick.focus();}catch(e){}return;}
     if(!b){toast('내용을 적어 주세요');try{ta.focus();}catch(e){}return;}
-    if(pw.value.length<2){toast('비밀번호를 2자 이상 적어 주세요');try{pw.focus();}catch(e){}return;}
+    if(pw.value.length<8){toast('비밀번호를 8자 이상 적어 주세요');try{pw.focus();}catch(e){}return;}
     go.disabled=true;go.textContent='남기는 중…';
     try{
       const row=await insertPost({nick:n,body:b,pwHash:await hashPassword(pw.value,n)});
@@ -900,6 +910,34 @@ function nearest(){let best=null,bd=1.25;for(const it of INTERACT){const d=Math.
 function targetKey(){if(state.stage>0)return['frame','paper','paint','light','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';return null;}
 function action(){if(!started)return;if(dialog){advance();return;}if(modalOpen)return;const it=nearest();if(it){it.fn();updateHUD();}}
 
+/* ---------- 지도 없이 이용하는 마당 메뉴 ---------- */
+function openYardMenu(){
+  if(!started||dialog)return;
+  closeChat();
+  const m=modalShell('마당 메뉴','방향키나 조이스틱 없이도 작업하고, 법우들의 소원을 읽을 수 있어요.');
+  m.append(el('p','note',shared?'법우들과 함께 보는 마당입니다.':'지금은 이 기기에 저장하는 마당입니다.'));
+  const next=targetKey();
+  const heading=el('h3',null,'작업과 대화'),places=el('div','yard-places');
+  INTERACT.forEach(it=>{
+    const button=el('button','btn ghost',(it.key===next?'다음 소임 · ':'')+it.name);
+    button.onclick=()=>{
+      const spots=[[it.x,it.y],[it.x,it.y+.65],[it.x+.8,it.y],[it.x-.8,it.y],[it.x,it.y-.8]];
+      const spot=spots.find(([x,y])=>canStand(x,y));
+      if(spot){player.x=spot[0];player.y=spot[1];player.vx=0;player.vy=0;player.moving=false;}
+      closeModal();it.fn();updateHUD();pushPose(true);
+    };
+    places.append(button);
+  });
+  m.append(heading,places,el('h3',null,'마당에 걸린 소원'));
+  const wishes=el('ul','wish-list');
+  hungList().forEach(({L,mine})=>{
+    const shape=SHAPES.find(s=>s.id===L.shape)?.name||'소원등';
+    wishes.append(el('li',null,(mine?'내 '+shape:shape)+' · '+(L.wish||'소원을 담은 등')));
+  });
+  m.append(wishes);
+}
+document.getElementById('yardmenub').onclick=openYardMenu;
+
 /* ---------- input ---------- */
 const keys=new Set();
 addEventListener('keydown',e=>{
@@ -947,7 +985,7 @@ function update(dt,t){
   if(dt>0){player.vx=(player.x-wasX)/dt;player.vy=(player.y-wasY)/dt;}
   updatePeers(dt);
   pushPose();
-  if(state.night&&particles.length<80&&Math.random()<.5){const a=Math.random()*Math.PI*2;particles.push({x:18*T+Math.cos(a)*2.4*T,y:16.3*T+Math.sin(a)*2.4*T,vx:(Math.random()-.5)*12,vy:-18-Math.random()*26,age:0,life:2+Math.random()*2.5});}
+  if(!reducedMotion&&state.night&&particles.length<80&&Math.random()<.5){const a=Math.random()*Math.PI*2;particles.push({x:18*T+Math.cos(a)*2.4*T,y:16.3*T+Math.sin(a)*2.4*T,vx:(Math.random()-.5)*12,vy:-18-Math.random()*26,age:0,life:2+Math.random()*2.5});}
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.age+=dt;p.x+=p.vx*dt+Math.sin(t*2+i)*.3;p.y+=p.vy*dt;if(p.age>p.life)particles.splice(i,1);}
 }
 
@@ -1122,7 +1160,7 @@ function render(t){
 
 /* ---------- loop ---------- */
 let last=performance.now(),t=0;
-function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;update(dt,t);render(t);requestAnimationFrame(loop);}
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;if(started){update(dt,t);render(reducedMotion?0:t);}requestAnimationFrame(loop);}
 
 requestAnimationFrame(loop);
 
@@ -1147,8 +1185,9 @@ function enterYard(){
   ac();tok();started=true;
   document.getElementById('title').classList.add('hide');
   cv.focus({preventScroll:true});
+  document.getElementById('yardmenub').hidden=false;
   startYard();updateHere();renderChatLog();
-  setTimeout(()=>{if(!state.talked)say('등불사장',[`${name} 법우, 한마음선원 등불사장에 오신 걸 환영해요.`,'안쪽에 계신 반장 법우에게 먼저 인사해 볼까요? (금색 ▼ 표시)']);},500);
+  setTimeout(()=>{if(!state.talked&&!modalOpen&&!dialog)say('등불사장',[`${name} 법우, 한마음선원 등불사장에 오신 걸 환영해요.`,'안쪽에 계신 반장 법우에게 먼저 인사해 볼까요? (금색 ▼ 표시)']);},500);
 }
 const sexBtns={m:document.getElementById('sexm'),f:document.getElementById('sexf')};
 function paintSex(){
@@ -1173,7 +1212,7 @@ if(namein){
   namein.value=myNick;
   namein.oninput=()=>{namein.classList.remove('bad');namehint.classList.remove('bad');namehint.textContent=NAME_HINT;};
   namein.onkeydown=e=>{if(e.isComposing||e.keyCode===229)return;e.stopPropagation();if(e.key==='Enter'){e.preventDefault();enterYard();}};
-  setTimeout(()=>{try{namein.focus();}catch(e){}},400);
+  if(!isTouch)setTimeout(()=>{try{namein.focus();}catch(e){}},400);
 }
 document.getElementById('startb').onclick=enterYard;
 })();
