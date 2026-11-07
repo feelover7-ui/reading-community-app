@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, fetchLanterns, insertLantern, subscribeLanterns } from './lanternsApi.js'
+import { normalizeLantern, isSupabaseConfigured, fetchLanterns, insertLantern, subscribeLanterns } from './lanternsApi.js'
 import { canHash, hashPassword, fetchPosts, insertPost, deletePost, fetchMessages, insertMessage, subscribeBoard } from './boardApi.js'
 import { joinYard } from './presence.js'
 
@@ -27,7 +27,10 @@ const COLORS=[{c:'#d8352f',n:'진홍'},{c:'#f29bb5',n:'연분홍'},{c:'#f2c037',
 const PATTERNS=[{id:'none',n:'무늬 없음'},{id:'dots',n:'꽃점'},{id:'wave',n:'물결'},{id:'dancheong',n:'단청띠'},{id:'gold',n:'금테'}];
 const BOTTOM={lotus:.36,wheel:.49,fish:.19,elephant:.3};
 
+const shapeCache=new Map();
 function shapePath(shape,s){
+  const key=shape+':'+s;
+  if(shapeCache.has(key))return shapeCache.get(key);
   const p=new Path2D();const add=f=>{const q=new Path2D();f(q);p.addPath(q);};
   if(shape==='lotus'){
     const by=s*.28;
@@ -47,6 +50,8 @@ function shapePath(shape,s){
     add(q=>{q.moveTo(-s*.33,-s*.05);q.quadraticCurveTo(-s*.43,s*.12,-s*.35,s*.27);q.lineTo(-s*.27,s*.26);q.quadraticCurveTo(-s*.33,s*.1,-s*.24,0);q.closePath();});
     add(q=>q.rect(-s*.13,s*.12,s*.09,s*.18));add(q=>q.rect(s*.15,s*.12,s*.09,s*.18));
   }
+  if(shapeCache.size>=128)shapeCache.delete(shapeCache.keys().next().value);
+  shapeCache.set(key,p);
   return p;
 }
 function drawDetails(c,shape,s,col){
@@ -64,6 +69,8 @@ function drawPattern(c,pat,s){
 }
 function drawLantern(c,x,y,s,L,o={}){
   if(!L||!L.shape)return;
+  // 로컬 저장소나 공개 테이블의 잘못된 색이 Canvas 그리기 전체를 중단하지 않게 한다.
+  if(L.color&&!/^#[0-9a-f]{6}$/i.test(L.color))L={...L,color:'#f2c037'};
   const p=shapePath(L.shape,s);
   c.save();c.translate(x,y);if(o.rot)c.rotate(o.rot);
   const paper=L.color?(o.paper??1):0;
@@ -154,8 +161,9 @@ let shared=isSupabaseConfigured;
 let hungTotal=0;   // 서버에 올라온 소원등 전체 개수 (걸이줄보다 많을 수 있다)
 const rid=()=>Math.random().toString(36).slice(2,10);
 const OWNER=(()=>{try{let v=localStorage.getItem(OWNER_KEY);if(!v){v='beopu-'+rid()+rid();localStorage.setItem(OWNER_KEY,v);}return v;}catch(e){return 'beopu-'+rid()+rid();}})();
+const YARD_ID=OWNER+'-'+rid(); // 소원등 소유자는 유지하되 탭마다 다른 접속자로 등록한다.
 let localLanterns=[];
-try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){localLanterns=Array.isArray(d.lanterns)?d.lanterns.map(L=>({shape:L.shape,color:L.color,pattern:L.pattern,wish:L.wish,owner:OWNER})):[];state.litOnce=!!d.litOnce;state.talked=!!d.talked;state.myHungOnce=!!d.myHungOnce||localLanterns.length>0;}}catch(e){}
+try{const d=JSON.parse(localStorage.getItem(KEY)||'null');if(d){localLanterns=Array.isArray(d.lanterns)?d.lanterns.filter(L=>L&&typeof L==='object').map(L=>({...normalizeLantern(L),owner:OWNER})):[];state.litOnce=!!d.litOnce;state.talked=!!d.talked;state.myHungOnce=!!d.myHungOnce||localLanterns.length>0;}}catch(e){}
 if(!shared)state.lanterns=localLanterns.slice();
 function myCount(){let n=0;for(const L of state.lanterns)if(L.owner===OWNER)n++;return n;}
 function syncHasHung(){state.hasHung=state.myHungOnce||myCount()>0;}
@@ -164,12 +172,12 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify({lanterns:localLante
 function hungList(){const out=SEEDS.map((L,i)=>({L,slot:slots[SEED_IDX[i]],i}));state.lanterns.forEach((L,i)=>{const s=slots[USER_ORDER[i]];if(s)out.push({L,slot:s,i:100+i,mine:L.owner===OWNER});});return out;}
 function trimHung(){if(state.lanterns.length>MAX_HUNG)state.lanterns=state.lanterns.slice(-MAX_HUNG);}
 const seenIds=new Set();
-let unsub=null,boardSub=null,boardUI=null,boardTimer=0;
+let unsub=null,boardSub=null,boardUI=null,boardTimer=0,sharingEpoch=0;
 const offlineHung=[];
 function goLocal(msg){
   if(!shared)return;
   for(const L of state.lanterns)if(L.owner===OWNER&&!L.id&&!offlineHung.includes(L))offlineHung.push(L);
-  shared=false;setTimeout(renderChatLog,0);
+  shared=false;sharingEpoch++;setTimeout(renderChatLog,0);
   if(unsub){unsub();unsub=null;}if(boardSub){boardSub();boardSub=null;}
   stopYard();updateHere();
   // 채널은 정리하되 클라이언트를 영구 중단하지 않는다. 다음 조회 성공 시 다시 구독한다.
@@ -192,16 +200,19 @@ async function refresh(){
   if(!isSupabaseConfigured||refreshBusy)return;
   refreshBusy=true;
   try{
+    const knownIds=new Set(state.lanterns.filter(L=>L.id).map(L=>L.id));
     const {rows,total}=await fetchLanterns(MAX_HUNG);
+    const arriving=shared?state.lanterns.filter(L=>L.id&&!knownIds.has(L.id)&&!rows.some(r=>r.id===L.id)):[];
     const recovering=!shared;
     const pending=recovering?offlineHung.filter(L=>!L.id):state.lanterns.filter(L=>L.owner===OWNER&&!L.id);
-    hungTotal=total;
-    seenIds.clear();rows.forEach(r=>seenIds.add(r.id));
+    hungTotal=Math.max(total,rows.length+arriving.length);
+    seenIds.clear();rows.concat(arriving).forEach(r=>seenIds.add(r.id));
     shared=true;
-    state.lanterns=rows.concat(pending);trimHung();syncHasHung();updateHUD();
+    state.lanterns=rows.concat(arriving,pending);trimHung();syncHasHung();updateHUD();
     loadedOnce=true;misses=0;
     subscribeShared();
     if(recovering){
+      sharingEpoch++;
       if(started)startYard();
       renderChatLog();
       if(boardUI)loadBoard();
@@ -230,7 +241,7 @@ async function pushLantern(L){
 function startShared(){
   if(!isSupabaseConfigured)return;
   refresh();
-  setInterval(refresh,20000);
+  setInterval(()=>{if(!document.hidden)refresh();},20000);
   addEventListener('online',refresh);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 }
@@ -280,6 +291,7 @@ function closeModal(){
   target.focus({preventScroll:true});modalReturnFocus=null;
 }
 modalWrap.addEventListener('keydown',e=>{
+  if(e.isComposing||e.keyCode===229)return;
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeModal();return;}
   if(e.key!=='Tab')return;
   const items=[...card.querySelectorAll('button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(n=>n.getClientRects().length);
@@ -405,11 +417,13 @@ const SEX_KEY='hanmaum-deungbul-sex';
 const POST_LIMIT=50,MSG_LIMIT=50;
 let myNick='';try{myNick=localStorage.getItem(NICK_KEY)||'';}catch(e){}
 let mySex='';try{mySex=localStorage.getItem(SEX_KEY)||'';}catch(e){}
+if(mySex!=='m'&&mySex!=='f')mySex='';
 function setSex(v){mySex=v==='f'?'f':'m';try{localStorage.setItem(SEX_KEY,mySex);}catch(e){}}
 const isLong=v=>v==='f';
 function setNick(v){myNick=(v||'').slice(0,12);try{localStorage.setItem(NICK_KEY,myNick);}catch(e){}}
 const nickNow=()=>(myNick||'').trim();
 const posts=[],msgs=[];
+const deletedPosts=new Set();
 const trimTail=(a,n)=>{if(a.length>n)a.length=n;};
 const trimHead=(a,n)=>{if(a.length>n)a.splice(0,a.length-n);};
 
@@ -429,12 +443,14 @@ function boardErr(e){
 }
 
 function addRemotePost(p){
+  if(!shared||deletedPosts.has(p.id))return;
   if(posts.some(x=>x.id===p.id))return;
   posts.unshift(p);trimTail(posts,POST_LIMIT);
   if(boardUI)renderList();
   else if(started&&p.nick!==nickNow())toast(`${p.nick} 법우가 방명록에 글을 남겼어요`);
 }
 function addRemoteMessage(m){
+  if(!shared)return;
   if(msgs.some(x=>x.id===m.id))return;
   msgs.push(m);trimHead(msgs,MSG_LIMIT);
   renderChatLog();
@@ -443,14 +459,19 @@ function addRemoteMessage(m){
 }
 
 async function loadBoard(){
-  const ui=boardUI;
+  const ui=boardUI,epoch=sharingEpoch;
   if(!ui||!shared||ui.fetching)return;
+  const knownPosts=new Set(posts.map(p=>p.id)),knownMessages=new Set(msgs.map(m=>m.id));
   ui.fetching=true;
   try{
     const [ps,ms]=await Promise.all([fetchPosts(POST_LIMIT),fetchMessages(MSG_LIMIT)]);
-    if(boardUI!==ui||!shared)return;
-    posts.length=0;posts.push(...ps);
-    msgs.length=0;msgs.push(...ms);
+    if(boardUI!==ui||!shared||sharingEpoch!==epoch)return;
+    // 조회 도중 도착한 실시간 글과 대화, 완료된 삭제를 이전 스냅샷으로 덮지 않는다.
+    const freshPosts=posts.filter(p=>!knownPosts.has(p.id)&&!ps.some(row=>row.id===p.id));
+    const freshMessages=msgs.filter(m=>!knownMessages.has(m.id)&&!ms.some(row=>row.id===m.id));
+    const removed=deletedPosts;
+    posts.length=0;posts.push(...freshPosts,...ps.filter(p=>!removed.has(p.id)));trimTail(posts,POST_LIMIT);
+    msgs.length=0;msgs.push(...ms,...freshMessages);trimHead(msgs,MSG_LIMIT);
     if(boardUI){boardUI.loading=false;boardUI.error='';renderList();}
     renderChatLog();
   }catch(e){
@@ -461,7 +482,7 @@ async function loadBoard(){
 
 function nickInput(){
   const i=el('input');i.type='text';i.maxLength=12;i.placeholder='닉네임 (12자까지)';i.value=myNick;
-  i.setAttribute('aria-label','닉네임');
+  i.setAttribute('aria-label','닉네임');i.dataset.nick='true';
   i.oninput=()=>setNick(i.value);
   return i;
 }
@@ -485,7 +506,7 @@ function postCard(p){
       ok.disabled=true;
       try{
         const done=await deletePost(p.id,await hashPassword(pw.value,p.nick));
-        if(done){const i=posts.findIndex(x=>x.id===p.id);if(i>=0)posts.splice(i,1);renderList();toast('글을 지웠어요');}
+        if(done){deletedPosts.add(p.id);const i=posts.findIndex(x=>x.id===p.id);if(i>=0)posts.splice(i,1);renderList();toast('글을 지웠어요');}
         else{ok.disabled=false;toast('비밀번호가 달라요');}
       }catch(e){ok.disabled=false;console.warn('[등불사장] 글 지우기 실패',e);toast(boardErr(e));}
     };
@@ -534,15 +555,18 @@ function buildPostForm(form){
   if(!canHash){go.disabled=true;go.textContent='안전한 주소(https)에서만 글을 쓸 수 있어요';return;}
   go.onclick=async()=>{
     if(go.disabled)return;
+    if(!shared){toast('연결이 돌아오면 다시 보내 주세요');return;}
     const n=nickNow(),b=ta.value.trim();
+    const bodyDraft=ta.value,passwordDraft=pw.value;
     if(!n){toast('닉네임을 적어 주세요');try{nick.focus();}catch(e){}return;}
     if(!b){toast('내용을 적어 주세요');try{ta.focus();}catch(e){}return;}
     if(pw.value.length<2){toast('비밀번호를 2자 이상 적어 주세요');try{pw.focus();}catch(e){}return;}
     go.disabled=true;go.textContent='남기는 중…';
     try{
       const row=await insertPost({nick:n,body:b,pwHash:await hashPassword(pw.value,n)});
-      if(row&&!posts.some(x=>x.id===row.id)){posts.unshift(row);trimTail(posts,POST_LIMIT);}
-      ta.value='';pw.value='';renderList();toast('마당에 글을 남겼어요');chime();
+      if(!row)throw new Error('방명록 저장 응답이 없습니다');
+      if(!posts.some(x=>x.id===row.id)){posts.unshift(row);trimTail(posts,POST_LIMIT);}
+      if(ta.value===bodyDraft)ta.value='';if(pw.value===passwordDraft)pw.value='';renderList();toast('마당에 글을 남겼어요');chime();
     }catch(e){console.warn('[등불사장] 글 남기기 실패',e);toast(boardErr(e));}
     go.disabled=false;go.textContent='글 남기기';
   };
@@ -557,16 +581,18 @@ function buildChatForm(form){
   form.append(el('p','note','지금 들어와 있는 법우들과 주고받는 이야기예요. 최근 50줄만 남고, 지우는 기능은 없어요.'),nick,row);
   const send=async()=>{
     if(go.disabled)return;
-    const n=nickNow(),b=inp.value.trim();
+    if(!shared){toast('연결이 돌아오면 다시 보내 주세요');return;}
+    const n=nickNow(),b=inp.value.trim(),draft=inp.value;
     if(!n){toast('닉네임을 적어 주세요');try{nick.focus();}catch(e){}return;}
     if(!b)return;
     go.disabled=true;
     try{
       const m=await insertMessage({nick:n,body:b});
-      if(m&&!msgs.some(x=>x.id===m.id)){msgs.push(m);trimHead(msgs,MSG_LIMIT);renderChatLog();}
-      inp.value='';renderList();
+      if(!m)throw new Error('대화 저장 응답이 없습니다');
+      if(!msgs.some(x=>x.id===m.id)){msgs.push(m);trimHead(msgs,MSG_LIMIT);renderChatLog();}
+      if(inp.value===draft)inp.value='';renderList();
     }catch(e){console.warn('[등불사장] 이야기 보내기 실패',e);toast(boardErr(e));}
-    go.disabled=false;try{inp.focus();}catch(e){}
+    go.disabled=false;if(inp.isConnected)try{inp.focus();}catch(e){}
   };
   go.onclick=send;
   inp.onkeydown=e=>{if(e.isComposing||e.keyCode===229)return;if(e.key==='Enter'){e.preventDefault();send();}};
@@ -577,9 +603,15 @@ function showTab(t){
   boardUI.tab=t;
   boardUI.tb.classList.toggle('sel',t==='board');
   boardUI.tc.classList.toggle('sel',t==='chat');
-  boardUI.form.innerHTML='';
+  const ui=boardUI;
+  if(!ui.forms)ui.forms={};
+  if(!ui.forms[t]){
+    ui.forms[t]=el('div');
+    (t==='board'?buildPostForm:buildChatForm)(ui.forms[t]);
+  }
+  ui.form.replaceChildren(ui.forms[t]);
+  for(const input of ui.forms[t].querySelectorAll('[data-nick]'))input.value=myNick;
   renderList();
-  (t==='board'?buildPostForm:buildChatForm)(boardUI.form);
 }
 
 function openBoard(){
@@ -599,7 +631,7 @@ function openBoard(){
   showTab('board');
   loadBoard();
   clearInterval(boardTimer);
-  boardTimer=setInterval(()=>{if(boardUI)loadBoard();else{clearInterval(boardTimer);boardTimer=0;}},20000);
+  boardTimer=setInterval(()=>{if(boardUI){if(!document.hidden)loadBoard();}else{clearInterval(boardTimer);boardTimer=0;}},20000);
 }
 
 /* ---------- 같은 마당에 들어와 있는 법우들 ---------- */
@@ -717,7 +749,7 @@ function pushPose(force){
 function startYard(){
   if(!shared||yard)return;
   yard=joinYard({
-    ownerId:OWNER,
+    ownerId:YARD_ID,
     onReady:()=>{pushPose(true);updateHere();},
     onJoin:(id,meta)=>{seat(id,meta);updateHere();setTimeout(()=>pushPose(true),120);},
     onLeave:id=>{peers.delete(id);updateHere();},
