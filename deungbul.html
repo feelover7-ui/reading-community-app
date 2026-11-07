@@ -73,6 +73,13 @@ canvas#game{display:block}
 .msg .t{color:#b5a68f;font-size:11px;margin-left:6px}
 .msg.mine b{color:var(--accent)}
 .note{font-size:12px;color:#9a8a76;line-height:1.5;margin:0 0 8px}
+#chatbar{position:fixed;left:50%;bottom:18px;transform:translate(-50%,24px);width:min(620px,calc(100vw - 24px));display:none;gap:8px;z-index:12;opacity:0;transition:opacity .15s,transform .15s}
+#chatbar.show{display:flex;opacity:1;transform:translate(-50%,0)}
+#chatbar input{border:2px solid #6b4a2f;border-radius:11px;padding:11px 13px;font:inherit;font-size:16px;background:var(--paper);color:var(--ink);min-width:0;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+#chatbar #chatnick{flex:0 0 108px}
+#chatbar #chatmsg{flex:1}
+#chatbar button{flex:none;border:none;border-radius:11px;padding:0 18px;background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+@media (max-width:520px){#chatbar{bottom:auto;top:70px}#chatbar #chatnick{flex:0 0 84px}}
 .card .help p{margin:0 0 8px;font-size:14px;line-height:1.6}
 .card .help kbd{background:#eadcc0;border-radius:5px;padding:1px 7px;font-size:12px;font-family:inherit}
 #toast{position:fixed;top:16px;left:50%;transform:translate(-50%,-90px);background:#2b1d14;color:#fbf4e4;padding:10px 18px;border-radius:999px;font-size:14px;transition:transform .35s;z-index:30;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.35)}
@@ -96,10 +103,15 @@ body.touch #joy,body.touch #act{display:block}
 <canvas id="game"></canvas>
 
 <div id="hud"><h3 id="hudh">오늘의 소임 <small>접기</small></h3><ol id="quest"></ol><div class="foot" id="hudfoot"></div></div>
-<div id="topbtns"><button class="iconbtn" id="snd" title="소리">🔊</button><button class="iconbtn" id="helpb" title="도움말">?</button></div>
+<div id="topbtns"><button class="iconbtn" id="chatb" title="한 줄 이야기 (Enter)">💬</button><button class="iconbtn" id="snd" title="소리">🔊</button><button class="iconbtn" id="helpb" title="도움말">?</button></div>
 <div id="dialog"><div class="name" id="dname"></div><div class="text" id="dtext"></div><div class="next">▼ 계속</div></div>
 <div id="modal"><div class="card" id="card"></div></div>
 <div id="toast"></div>
+<div id="chatbar">
+  <input id="chatnick" type="text" maxlength="12" placeholder="닉네임" autocomplete="off">
+  <input id="chatmsg" type="text" maxlength="200" placeholder="한 줄 쓰고 엔터" autocomplete="off">
+  <button id="chatsend">보내기</button>
+</div>
 <div id="joy"><i></i></div>
 <button id="act">작업</button>
 
@@ -108,9 +120,9 @@ body.touch #joy,body.touch #act{display:block}
     <div class="kicker">한마음선원 청년회</div>
     <h1>등불사장</h1>
     <canvas id="tcv" width="320" height="110"></canvas>
-    <p>장엄등을 만드는 등불사장에서<br>나만의 소원등을 엮고, 바르고, 칠하고, 밝혀서<br>마당에 걸고 다 함께 점등해요.</p>
+    <p>장엄등을 만드는 등불사장에서<br>나만의 소원등을 엮고, 바르고, 칠하고, 밝혀서<br>마당에 걸고 다 함께 점등해요.<br>같이 들어온 법우들과 이야기도 나눠요.</p>
     <button id="startb">들어가기</button>
-    <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업·대화 Space</div>
+    <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업 Space &nbsp;|&nbsp; 이야기 Enter</div>
   </div>
 </div>
 

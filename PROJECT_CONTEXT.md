@@ -48,6 +48,11 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 - Supabase client: `src/deungbul/supabaseClient.js` (소원등·방명록이 하나를 공유)
 - Lanterns: `src/deungbul/lanternsApi.js` -> `public.lanterns` (`supabase/lanterns.sql`)
 - Board/chat: `src/deungbul/boardApi.js` -> `public.posts`, `public.messages` (`supabase/board.sql`)
+- Live presence: `src/deungbul/presence.js` -> Realtime 채널 `deungbul-yard` (DB 사용 안 함)
+  - presence: 입장/퇴장, 닉네임
+  - broadcast `pos`: 위치 (움직일 때만, 최소 220ms 간격)
+  - broadcast `say`: 말풍선 (기록은 `public.messages` 가 따로 맡음)
+  - sync 목록을 기준으로 사라진 사람을 지운다. 채팅할 때 track 을 다시 부르지 않는다 (presence 항목이 중복되면 퇴장 처리가 꼬인다)
 - 걸이줄 칸 42개, 최신 42개만 표시
 - 방명록 글 최근 50개, 채팅 최근 50줄
 - 환경변수나 테이블이 없으면 localStorage 폴백 (게임은 그대로 동작)
