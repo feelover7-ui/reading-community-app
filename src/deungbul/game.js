@@ -17,7 +17,14 @@ function fitVisibleHeight(){
 window.visualViewport?.addEventListener('resize',fitVisibleHeight);
 fitVisibleHeight();
 let vw=0,vh=0,dpr=1,zoom=1;
-function resize(){dpr=Math.min(window.devicePixelRatio||1,2);vw=window.innerWidth;vh=window.innerHeight;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);cv.style.width=vw+'px';cv.style.height=vh+'px';zoom=Math.min(1.35,Math.max(.55,Math.min(vw/(15*T),vh/(10.5*T))));}
+function resize(){dpr=Math.min(window.devicePixelRatio||1,2);vw=window.innerWidth;vh=window.innerHeight;cv.width=Math.round(vw*dpr);cv.height=Math.round(vh*dpr);cv.style.width=vw+'px';cv.style.height=vh+'px';zoom=viewZoom();}
+/* 좁은 화면에서 가로 15칸을 억지로 다 보여주면 한 칸이 24px까지 줄어 사물이 절반 크기가 된다.
+   화면이 좁을수록 보여 줄 칸 수를 줄여서 크기를 지킨다. */
+function viewZoom(){
+  const needW=vw<480?10:vw<700?12.5:15;
+  const needH=vh<460?8.5:10.5;
+  return Math.min(1.35,Math.max(.55,Math.min(vw/(needW*T),vh/(needH*T))));
+}
 addEventListener('resize',resize);resize();
 
 /* ---------- helpers ---------- */
