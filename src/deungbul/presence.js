@@ -6,7 +6,7 @@ const CHANNEL = 'deungbul-yard'
 // - presence: 누가 들어오고 나갔는지, 닉네임이 무엇인지
 // - broadcast 'pos': 걸어다니는 위치 (DB에 저장하지 않는다)
 // - broadcast 'say': 말풍선에 띄울 한 줄 (기록은 messages 테이블이 따로 맡는다)
-export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay }) {
+export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay, onLit }) {
   if (!supabase) {
     return null
   }
@@ -53,6 +53,13 @@ export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay }) {
     }
   })
 
+  // 점등: 한 명이 켜면 마당 전체가 같이 밤이 된다
+  channel.on('broadcast', { event: 'lit' }, ({ payload }) => {
+    if (payload && payload.id !== ownerId) {
+      onLit && onLit(payload)
+    }
+  })
+
   let joined = false
   channel.subscribe((status) => {
     joined = status === 'SUBSCRIBED'
@@ -84,6 +91,9 @@ export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay }) {
     },
     sendSay(text, nick) {
       push('say', { id: ownerId, nick, text })
+    },
+    sendLit(nick) {
+      push('lit', { id: ownerId, nick })
     },
     leave() {
       joined = false

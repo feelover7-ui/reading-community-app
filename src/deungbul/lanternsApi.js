@@ -16,15 +16,16 @@ function fromRow(row) {
   }
 }
 
-// 최신 limit개를 가져와 오래된 순으로 돌려준다. 걸이줄 왼쪽부터 순서대로 채우기 위함.
+// 최신 limit개를 오래된 순으로 돌려준다. 걸이줄 왼쪽부터 채우기 위함.
+// total 은 줄에 다 못 걸더라도 실제로 몇 개가 올라왔는지 세어 준 값이다.
 export async function fetchLanterns(limit) {
   if (!supabase) {
     return []
   }
 
-  const { data, error } = await supabase
+  const { data, error, count } = await supabase
     .from(TABLE)
-    .select('id,shape,color,pattern,wish,owner,created_at')
+    .select('id,shape,color,pattern,wish,owner,created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -32,7 +33,8 @@ export async function fetchLanterns(limit) {
     throw error
   }
 
-  return (data || []).map(fromRow).reverse()
+  const rows = (data || []).map(fromRow).reverse()
+  return { rows, total: typeof count === 'number' ? count : rows.length }
 }
 
 export async function insertLantern(lantern) {

@@ -76,13 +76,19 @@ canvas#game{display:block}
 .msg .t{color:#b5a68f;font-size:11px;margin-left:6px}
 .msg.mine b{color:var(--accent)}
 .note{font-size:12px;color:#9a8a76;line-height:1.5;margin:0 0 8px}
-#chatbar{position:fixed;left:50%;bottom:18px;transform:translate(-50%,24px);width:min(620px,calc(100vw - 24px));display:none;gap:8px;z-index:12;opacity:0;transition:opacity .15s,transform .15s}
-#chatbar.show{display:flex;opacity:1;transform:translate(-50%,0)}
+#chatlog{position:fixed;left:12px;bottom:66px;width:min(420px,calc(100vw - 24px));max-height:132px;overflow:hidden;display:none;flex-direction:column;justify-content:flex-end;gap:2px;z-index:11;pointer-events:none}
+#chatlog.show{display:flex}
+#chatlog div{background:rgba(27,20,15,.62);color:#fbf4e4;border-radius:8px;padding:4px 9px;font-size:13px;line-height:1.45;align-self:flex-start;max-width:100%;word-break:break-word}
+#chatlog b{color:#f0cf73;margin-right:5px}
+#chatlog div.mine b{color:#ffb4a3}
+body.touch #chatlog{bottom:176px;width:calc(100vw - 24px);max-height:92px}
+#chatbar{position:fixed;left:12px;bottom:16px;transform:translateY(24px);width:min(520px,calc(100vw - 24px));display:none;gap:8px;z-index:12;opacity:0;transition:opacity .15s,transform .15s}
+#chatbar.show{display:flex;opacity:1;transform:translateY(0)}
 #chatbar input{border:2px solid #6b4a2f;border-radius:11px;padding:11px 13px;font:inherit;font-size:16px;background:var(--paper);color:var(--ink);min-width:0;box-shadow:0 6px 20px rgba(0,0,0,.35)}
 #chatbar #chatnick{flex:0 0 108px}
 #chatbar #chatmsg{flex:1}
 #chatbar button{flex:none;border:none;border-radius:11px;padding:0 18px;background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)}
-@media (max-width:520px){#chatbar{bottom:auto;top:70px}#chatbar #chatnick{flex:0 0 84px}}
+@media (max-width:520px){#chatbar{bottom:auto;top:70px;left:12px}#chatbar #chatnick{flex:0 0 84px}}
 .card .help p{margin:0 0 8px;font-size:14px;line-height:1.6}
 .card .help kbd{background:#eadcc0;border-radius:5px;padding:1px 7px;font-size:12px;font-family:inherit}
 #toast{position:fixed;top:16px;left:50%;transform:translate(-50%,-90px);background:#2b1d14;color:#fbf4e4;padding:10px 18px;border-radius:999px;font-size:14px;transition:transform .35s;z-index:30;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.35)}
@@ -105,7 +111,11 @@ body.touch #joy,body.touch #act{display:block}
 #namein:focus{outline:none;border-color:#e8c45a;box-shadow:0 0 0 3px rgba(232,196,90,.25)}
 #namein.bad{border-color:#e06a5a;animation:shake .3s}
 @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
-#namehint{margin-top:7px;font-size:12px;color:#b8a78c;min-height:1.2em}
+#sexbox{display:flex;gap:8px;margin-top:9px}
+#title .sexbtn{flex:1;padding:11px 0;border:2px solid #6b4a2f;border-radius:11px;background:rgba(251,244,228,.9);color:#2b1d14;font:700 15px 'Noto Sans KR',sans-serif;cursor:pointer;box-shadow:none}
+#title .sexbtn.sel{border-color:#e8c45a;background:#c8402f;color:#fff;box-shadow:0 0 16px rgba(255,140,60,.4)}
+#title .sexbtn.bad{border-color:#e06a5a;animation:shake .3s}
+#namehint{margin-top:9px;font-size:12px;color:#b8a78c;min-height:1.2em}
 #namehint.bad{color:#f0a294}
 @media (max-width:640px){#hud{width:206px;font-size:12px;padding:10px 12px}#hud h3{font-size:14px}}
 </style>
@@ -118,6 +128,7 @@ body.touch #joy,body.touch #act{display:block}
 <div id="dialog"><div class="name" id="dname"></div><div class="text" id="dtext"></div><div class="next">▼ 계속</div></div>
 <div id="modal"><div class="card" id="card"></div></div>
 <div id="toast"></div>
+<div id="chatlog"></div>
 <div id="chatbar">
   <input id="chatnick" type="text" maxlength="12" placeholder="닉네임" autocomplete="off">
   <input id="chatmsg" type="text" maxlength="200" placeholder="한 줄 쓰고 엔터" autocomplete="off">
@@ -135,7 +146,11 @@ body.touch #joy,body.touch #act{display:block}
     <div id="namebox">
       <label for="namein">마당에서 쓸 이름</label>
       <input id="namein" type="text" maxlength="12" placeholder="이름 (12자까지)" autocomplete="off" autocapitalize="off" spellcheck="false">
-      <div id="namehint">법우들에게 이 이름으로 보여요</div>
+      <div id="sexbox">
+        <button type="button" class="sexbtn" id="sexm">남</button>
+        <button type="button" class="sexbtn" id="sexf">여</button>
+      </div>
+      <div id="namehint">법우들에게 이 이름과 모습으로 보여요</div>
     </div>
     <button id="startb">들어가기</button>
     <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업 Space &nbsp;|&nbsp; 이야기 Enter</div>
