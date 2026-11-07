@@ -80,22 +80,49 @@ export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay, onLi
   let tracked = false
   let requestedMeta = null
   let closed = false
+  let generation = 0
+  let retryTimer = null
+  let retryDelay = 1000
+  const clearRetry = () => {
+    clearTimeout(retryTimer)
+    retryTimer = null
+  }
+  const retryTrack = (attemptGeneration) => {
+    if (closed || !joined || attemptGeneration !== generation) return
+    tracked = false
+    clearRetry()
+    retryTimer = setTimeout(() => {
+      retryTimer = null
+      trackOnce()
+    }, retryDelay)
+    retryDelay = Math.min(retryDelay * 2, 15000)
+  }
+  // 성공한 track은 반복하지 않는다. 실패만 재시도하고 이전 연결의 응답은 무시한다.
   const trackOnce = () => {
-    if (!joined || tracked || !requestedMeta || closed) return
+    if (!joined || tracked || !requestedMeta || closed || retryTimer !== null) return
     tracked = true
+    const attemptGeneration = generation
     try {
       Promise.resolve(channel.track(requestedMeta)).then((result) => {
-        if (result !== 'ok') tracked = false
-      }).catch(() => { tracked = false })
+        if (closed || attemptGeneration !== generation) return
+        if (result !== 'ok') retryTrack(attemptGeneration)
+        else retryDelay = 1000
+      }).catch(() => retryTrack(attemptGeneration))
     } catch (e) {
-      tracked = false
+      retryTrack(attemptGeneration)
     }
   }
   channel.subscribe((status) => {
     if (closed) return
     const wasJoined = joined
     joined = status === 'SUBSCRIBED'
-    if (!joined) { tracked = false; return }
+    if (!joined) {
+      generation++
+      tracked = false
+      clearRetry()
+      retryDelay = 1000
+      return
+    }
     if (wasJoined) return
     trackOnce()
     if (onReady) onReady()
@@ -129,6 +156,8 @@ export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay, onLi
     },
     leave() {
       closed = true
+      generation++
+      clearRetry()
       joined = false
       requestedMeta = null
       try {
