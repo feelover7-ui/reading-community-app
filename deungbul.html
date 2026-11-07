@@ -128,6 +128,10 @@ body.touch #joy,body.touch #act{display:block}
 #title.hide{visibility:hidden;transition:opacity .6s,visibility 0s linear .6s}
 @media (max-width:420px){#hud{width:calc(100vw - 178px)}#hud h3{font-size:12px;gap:4px}#hud h3 small{font-size:10px}#chatbar{gap:5px}#chatbar button{padding:0 10px}#chatbar #chatnick{flex:0 0 70px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+input,textarea{user-select:text;-webkit-user-select:text}
+.card input,.card textarea{scroll-margin:24px}
+#hud{max-height:calc(100dvh - 24px);overflow-y:auto;touch-action:pan-y}
+@media (max-height:520px){#title{padding:12px}#title canvas{display:none}#title p{margin-bottom:10px}#title .ctl{margin-top:8px}}
 </style>
 </head>
 <body>
