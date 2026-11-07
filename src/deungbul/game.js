@@ -246,7 +246,7 @@ function updateHUD(){const items=questItems();let cur=items.findIndex(i=>!i[1]);
 function changed(){updateHUD();save();}
 updateHUD();
 // npm run dev 에서만 쓰는 확인용 훅. 프로덕션 빌드에서는 통째로 빠진다.
-if(import.meta.env.DEV)window.__deungbul=()=>({x:+player.x.toFixed(2),y:+player.y.toFixed(2),stage:state.stage,hung:state.lanterns.length,shared,mine:myCount(),me:OWNER,nick:nickNow(),joined:!!(yard&&yard.joined),myLine:myLineUntil>Date.now()?myLine:'',peers:[...peers.values()].map(p=>({id:p.id,nick:p.nick,x:+p.x.toFixed(2),y:+p.y.toFixed(2),say:p.sayUntil>Date.now()?p.say:''}))});
+if(import.meta.env.DEV)window.__deungbul=()=>({x:+player.x.toFixed(2),y:+player.y.toFixed(2),stage:state.stage,hung:state.lanterns.length,shared,mine:myCount(),me:OWNER,nick:nickNow(),joined:!!(yard&&yard.joined),gap:poseGap(),myLine:myLineUntil>Date.now()?myLine:'',peers:[...peers.values()].map(p=>({id:p.id,nick:p.nick,x:+p.x.toFixed(2),y:+p.y.toFixed(2),say:p.sayUntil>Date.now()?p.say:''}))});
 
 /* ---------- interactions ---------- */
 const NEXT_NAME=['골조 작업대','한지 작업대','채색 작업대','전기 작업대','마당의 소원등 걸이대'];
@@ -515,15 +515,25 @@ const PEER_COLORS=['#5d7fb8','#3f7a5c','#a4603f','#8f6fb5','#c4733f','#3f7a7a','
 const strHash=t=>{let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return Math.abs(h);};
 const peerColor=id=>PEER_COLORS[strHash(id)%PEER_COLORS.length];
 const peers=new Map();
-const SAY_MS=6000,PEER_GONE_MS=90000,POSE_MS=220;
-let yard=null,myLine='',myLineUntil=0,lastPoseAt=0,sentX=-99,sentY=-99,sentDir='';
+const SAY_MS=6000,PEER_GONE_MS=90000;
+/* 위치는 '추측 항법'으로 주고받는다.
+   속도까지 같이 보내면 받는 쪽이 그 방향으로 이어서 그릴 수 있어서,
+   똑바로 걷는 동안에는 보낼 일이 거의 없다. 사람이 많을수록 이게 크게 아낀다. */
+const POSE_ERR=.35;    // 예측과 실제가 이만큼(칸) 벌어지면 다시 보낸다
+const POSE_EXTRA=1.5;  // 예측을 이어가는 최대 시간(초). 소식이 끊기면 여기서 멈춘다
+const POSE_BEAT=1600;  // 걷는 동안 적어도 이 간격(ms)으로는 한 번 보낸다
+const PEER_MAX=120;
+// 사람이 많아지면 보내는 간격을 늘린다. 예측이 사이를 메워서 티가 잘 안 난다.
+function poseGap(){const n=peers.size;return n<=8?220:n<=16?320:n<=32?450:n<=64?650:900;}
+let yard=null,myLine='',myLineUntil=0;
+const sent={x:-99,y:-99,vx:0,vy:0,dir:'',moving:false,t:0};
 
 let hereDirty=false;
 function peerOf(id,nick){
   let p=peers.get(id);
   if(!p){
-    if(peers.size>=24)return null;
-    p={id,nick:nick||'법우',x:17.5,y:11,tx:17.5,ty:11,dir:'down',moving:false,walk:0,color:peerColor(id),say:'',sayUntil:0,last:Date.now(),placed:false};
+    if(peers.size>=PEER_MAX)return null;
+    p={id,nick:nick||'법우',x:17.5,y:11,tx:17.5,ty:11,vx:0,vy:0,poseAt:Date.now(),dir:'down',moving:false,walk:0,color:peerColor(id),say:'',sayUntil:0,last:Date.now(),placed:false};
     peers.set(id,p);
     hereDirty=true;
   }
@@ -543,7 +553,15 @@ function updateHere(){
   hereEl.append(el('div',null,live?`지금 마당에 ${peers.size+1}명`:'지금은 혼자 보는 마당'));
   const row=el('div');
   row.append(el('span','me',nickNow()||'나'));
-  if(live)for(const p of peers.values()){row.append(document.createTextNode(' · '));row.append(el('span',null,p.nick||'법우'));}
+  if(live){
+    let shown=0;
+    for(const p of peers.values()){
+      if(shown>=11)break;
+      row.append(document.createTextNode(' · '));row.append(el('span',null,p.nick||'법우'));shown++;
+    }
+    const rest=peers.size-shown;
+    if(rest>0)row.append(document.createTextNode(` 외 ${rest}명`));
+  }
   hereEl.append(row);
 }
 function applyPose(id,pose){
@@ -551,8 +569,23 @@ function applyPose(id,pose){
   if(!p)return;
   if(typeof pose.x==='number')p.tx=pose.x;
   if(typeof pose.y==='number')p.ty=pose.y;
+  p.vx=typeof pose.vx==='number'?pose.vx:0;
+  p.vy=typeof pose.vy==='number'?pose.vy:0;
+  p.poseAt=Date.now();
   if(pose.dir)p.dir=pose.dir;
   if(!p.placed){p.x=p.tx;p.y=p.ty;p.placed=true;}
+}
+// 마지막으로 받은 위치에서 속도만큼 이어 간다. 벽은 뚫지 않는다.
+function predictPeer(p,now){
+  const age=Math.min((now-p.poseAt)/1000,POSE_EXTRA);
+  if(!p.vx&&!p.vy)return[p.tx,p.ty];
+  let gx=p.tx+p.vx*age,gy=p.ty+p.vy*age;
+  if(!canStand(gx,gy)){
+    if(canStand(gx,p.ty))gy=p.ty;
+    else if(canStand(p.tx,gy))gx=p.tx;
+    else{gx=p.tx;gy=p.ty;}
+  }
+  return[gx,gy];
 }
 // presence 에 실린 위치는 들어온 순간의 것이라, 아직 자리를 못 잡은 사람에게만 쓴다.
 // 이미 걸어다니는 사람에게 쓰면 뒤로 끌려간다.
@@ -564,14 +597,21 @@ function peerNickHere(nick){
   for(const p of peers.values())if(p.nick===nick)return true;
   return false;
 }
+// 받는 쪽이 지금 나를 어디에 그리고 있을지 똑같이 계산해 보고,
+// 실제와 많이 벌어졌을 때만 보낸다. 가만히 서 있으면 한 건도 안 나간다.
 function pushPose(force){
   if(!yard||!yard.joined)return;
-  const changed=Math.abs(player.x-sentX)>.03||Math.abs(player.y-sentY)>.03||player.dir!==sentDir;
-  if(!changed&&!force)return;
   const now=Date.now();
-  if(!force&&now-lastPoseAt<POSE_MS)return;
-  lastPoseAt=now;sentX=player.x;sentY=player.y;sentDir=player.dir;
-  yard.sendPose({x:+player.x.toFixed(2),y:+player.y.toFixed(2),dir:player.dir,nick:nickNow()});
+  if(!force&&now-sent.t<poseGap())return;
+  if(!force){
+    const age=Math.min((now-sent.t)/1000,POSE_EXTRA);
+    const err=Math.hypot(sent.x+sent.vx*age-player.x,sent.y+sent.vy*age-player.y);
+    const stale=player.moving&&now-sent.t>POSE_BEAT;
+    if(err<POSE_ERR&&player.moving===sent.moving&&player.dir===sent.dir&&!stale)return;
+  }
+  sent.x=player.x;sent.y=player.y;sent.vx=player.vx;sent.vy=player.vy;
+  sent.dir=player.dir;sent.moving=player.moving;sent.t=now;
+  yard.sendPose({x:+player.x.toFixed(2),y:+player.y.toFixed(2),vx:+player.vx.toFixed(2),vy:+player.vy.toFixed(2),dir:player.dir,nick:nickNow()});
 }
 function startYard(){
   if(!shared||yard)return;
@@ -603,10 +643,14 @@ function updatePeers(dt){
   const now=Date.now();
   for(const [id,p] of peers){
     if(now-p.last>PEER_GONE_MS){peers.delete(id);hereDirty=true;continue;}
-    const dx=p.tx-p.x,dy=p.ty-p.y,d=Math.hypot(dx,dy);
-    if(d>4){p.x=p.tx;p.y=p.ty;p.moving=false;}
-    else if(d>.02){const k=Math.min(1,dt*9);p.x+=dx*k;p.y+=dy*k;p.moving=true;p.walk+=dt;}
-    else{p.x=p.tx;p.y=p.ty;p.moving=false;}
+    const[gx,gy]=predictPeer(p,now);
+    const dx=gx-p.x,dy=gy-p.y,d=Math.hypot(dx,dy);
+    const rolling=Math.hypot(p.vx,p.vy)>.1;
+    if(d>4){p.x=gx;p.y=gy;}
+    else if(d>.02){const k=Math.min(1,dt*9);p.x+=dx*k;p.y+=dy*k;}
+    else{p.x=gx;p.y=gy;}
+    p.moving=rolling||d>.05;
+    if(p.moving)p.walk+=dt;
   }
 }
 // 머리 위 이름표. 내 것은 붉은색이라 한눈에 구분된다.
@@ -728,12 +772,14 @@ function update(dt,t){
   }
   const l=Math.hypot(mx,my);if(l>1){mx/=l;my/=l;}
   player.moving=l>.05;
+  const wasX=player.x,wasY=player.y;
   if(player.moving){
     const sp=4.3*dt;const nx=player.x+mx*sp,ny=player.y+my*sp;
     if(canStand(nx,player.y))player.x=nx;if(canStand(player.x,ny))player.y=ny;
     player.walk+=dt;
     if(Math.abs(mx)>Math.abs(my))player.dir=mx<0?'left':'right';else player.dir=my<0?'up':'down';
   }
+  if(dt>0){player.vx=(player.x-wasX)/dt;player.vy=(player.y-wasY)/dt;}
   updatePeers(dt);
   pushPose();
   if(state.night&&particles.length<80&&Math.random()<.5){const a=Math.random()*Math.PI*2;particles.push({x:18*T+Math.cos(a)*2.4*T,y:16.3*T+Math.sin(a)*2.4*T,vx:(Math.random()-.5)*12,vy:-18-Math.random()*26,age:0,life:2+Math.random()*2.5});}
@@ -872,7 +918,7 @@ function render(t){
   const night=state.night;
   const dr=objects.map(o=>({y:o.sortY,f:()=>{if(o.kind==='table')drawTable(o,t);else if(o.kind==='shelf')drawShelf(o);else if(o.kind==='rack')drawRack(o);else if(o.kind==='dragon')drawDragon();else if(o.kind==='big')drawBig(ctx,night,t);else if(o.kind==='stone')drawStone(o,night);else if(o.kind==='sign')drawSign(o);else if(o.kind==='board')drawBoardSign(o);else if(o.kind==='tree')drawTree(o);}}));
   NPCS.forEach(n=>dr.push({y:n.y*T,f:()=>drawPerson(n.x*T,n.y*T,n.o,n.dir,false,t)}));
-  peers.forEach(p=>dr.push({y:p.y*T,f:()=>drawPeer(p,night)}));
+  peers.forEach(p=>{if(p.x>=x0-2&&p.x<=x1+2&&p.y>=y0-2&&p.y<=y1+3)dr.push({y:p.y*T,f:()=>drawPeer(p,night)});});
   dr.push({y:player.y*T,f:()=>{drawPerson(player.x*T,player.y*T,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48'},player.dir,player.moving,player.walk);if(started)nameTag(player.x*T,player.y*T,nickNow()||'나',night,true);if(state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-CARRY_Y,26,state.craft,{lit:state.stage>=4,wire:1,paper:state.stage>=2?1:0});}});
   dr.sort((a,b)=>a.y-b.y).forEach(d=>d.f());
   const hung=hungList();
@@ -899,7 +945,7 @@ function render(t){
   if(!dialog&&!modalOpen){for(const h of hung){const ry=ropeY(h.slot.r,h.slot.x);if(Math.abs(h.slot.x-player.x)<.55&&player.y>ry+.2&&player.y<ry+2.3){drawBubble(h.slot.x*T,(ry+.12)*T,wrap(h.L.wish||'',12),{font:'700 14px "Gowun Batang",serif',bg:night?'rgba(30,24,48,.94)':'rgba(251,244,228,.97)',color:night?'#ffe7a8':'#2b1d14',stroke:night?'#d9a531':'#6b4a2f'});break;}}}
   // 말풍선
   const sayNow=Date.now(),sst=sayStyle(night);
-  peers.forEach(p=>{if(p.say&&p.sayUntil>sayNow)drawBubble(p.x*T,p.y*T-64,wrap(p.say,14),sst);});
+  peers.forEach(p=>{if(p.say&&p.sayUntil>sayNow&&p.x>=x0-3&&p.x<=x1+3&&p.y>=y0-3&&p.y<=y1+3)drawBubble(p.x*T,p.y*T-64,wrap(p.say,14),sst);});
   const myBubble=myLine&&myLineUntil>sayNow;
   if(myBubble)drawBubble(player.x*T,player.y*T-(state.stage>=1?110:72),wrap(myLine,14),sst);
   // target marker
