@@ -3,15 +3,22 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey)
+// 잘못된 배포 설정이 앱의 모듈 로딩 전체를 중단하지 않게 한다.
+let client = null
+try {
+  if (supabaseUrl && supabasePublishableKey) {
+    const url = new URL(supabaseUrl)
+    if (url.protocol === 'https:' || url.protocol === 'http:') {
+      client = createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSession: false } })
+    }
+  }
+} catch {
+  // 설정이 유효하지 않으면 로컬 저장으로 동작한다. 키 값은 로그에 남기지 않는다.
+}
+export const supabase = client
+export const isSupabaseConfigured = Boolean(client)
 
-// 등불사장 페이지 전용 클라이언트. 로그인이 없으므로 세션을 저장하지 않습니다.
-// 소원등 / 방명록 / 채팅이 이 하나를 같이 써서 realtime 소켓도 하나만 씁니다.
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSession: false } })
-  : null
-
-// 공유를 포기할 때 realtime 재연결 시도까지 멈춥니다.
+// 명시적으로 Realtime을 중지할 때만 사용합니다. 공유 복구 경로에서는 호출하지 않습니다.
 export function disconnectRealtime() {
   if (!supabase) {
     return
