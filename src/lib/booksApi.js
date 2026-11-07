@@ -38,7 +38,7 @@ export async function fetchBooksFromSupabase() {
     return []
   }
 
-  const { data, error } = await supabase.from('books').select('*').order('created_at', { ascending: false }).abortSignal(requestSignal())
+  const { data, error } = await supabase.from('books').select('id,title,author,status,progress,source,cover_url,open_library_key,first_publish_year,isbn').order('created_at', { ascending: false }).abortSignal(requestSignal())
 
   if (error) {
     throw error
