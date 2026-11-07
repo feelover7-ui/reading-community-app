@@ -24,7 +24,7 @@
 - `insert`: public, with a check on wish length (24자), owner length, and allowed shape values
 - `update`, `delete`: no public policy
 
-### `public.posts` (마당 방명록 글)
+### `public.posts` (방명록 글)
 
 - RLS: enabled
 - `select`: public, but only on `id, nick, body, created_at`

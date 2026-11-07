@@ -112,7 +112,7 @@ addObj({x:15,y:17,w:6,h:3,solid:true,kind:'big',sortY:20*T});
 addObj({x:14,y:13,w:1,h:1,solid:true,kind:'stone',sortY:14*T});
 addObj({x:21,y:13,w:1,h:1,solid:true,kind:'stone',sortY:14*T});
 addObj({x:8,y:17,w:1,h:1,solid:true,kind:'sign',sortY:18*T});
-addObj({x:27,y:17,w:1,h:1,solid:true,kind:'board',sortY:18*T});
+addObj({x:20,y:10,w:1,h:1,solid:true,kind:'board',sortY:11*T});
 addObj({x:2,y:21,w:2,h:2,solid:true,kind:'tree',sortY:23*T});
 addObj({x:32,y:21,w:2,h:2,solid:true,kind:'tree',sortY:23*T});
 
@@ -492,10 +492,10 @@ function showTab(t){
 
 function openBoard(){
   if(!shared){
-    say('마당 방명록',['방명록이 아직 열리지 않았어요.','함께 보는 마당이 켜져야 글을 주고받을 수 있어요.','지금은 소원등만 이 기기에 걸려요.']);
+    say('방명록',['방명록이 아직 열리지 않았어요.','함께 보는 마당이 켜져야 글을 주고받을 수 있어요.','지금은 소원등만 이 기기에 걸려요.']);
     return;
   }
-  const m=modalShell('마당 방명록','법우들이 남긴 글이에요. 글을 남기거나, 지금 들어와 있는 법우들과 이야기해요.');
+  const m=modalShell('방명록','법우들이 남긴 글이에요. 글을 남기거나, 지금 들어와 있는 법우들과 이야기해요.');
   const tabs=el('div','tabs');
   const tb=el('button','tab sel','글 남기기'),tc=el('button','tab','이야기 나누기');
   tabs.append(tb,tc);
@@ -674,7 +674,7 @@ function talk(id){
     if(state.stage>0&&state.stage<4){say('등불사장 반장 법우',['잘하고 있어요!',`다음은 ${NEXT_NAME[state.stage]}예요.`]);return;}
     if(state.stage===4){say('등불사장 반장 법우',['와, 예쁘게 나왔네요!','문 밖 마당으로 나가서 왼쪽 걸이대에 걸어요.']);return;}
     if(state.hasHung&&!state.litOnce){say('등불사장 반장 법우',['등 걸었어요? 이제 마당 가운데 장엄등 앞에서 점등해 봐요.']);return;}
-    if(state.litOnce){say('등불사장 반장 법우',['오늘 수고 많았어요.','등은 몇 개든 더 만들어도 돼요. 가족 등도 하나 걸어 볼래요?',shared?'마당 오른쪽 방명록에 글도 한 줄 남기고 가요. 다른 법우들과 이야기도 나눌 수 있어요.':'마당 오른쪽에 방명록도 있어요.']);return;}
+    if(state.litOnce){say('등불사장 반장 법우',['오늘 수고 많았어요.','등은 몇 개든 더 만들어도 돼요. 가족 등도 하나 걸어 볼래요?',shared?'문 옆 방명록에 글도 한 줄 남기고 가요. 다른 법우들과 이야기도 나눌 수 있어요.':'문 옆에 방명록도 있어요.']);return;}
     say('등불사장 반장 법우',['골조 작업대부터 시작해요. 맨 왼쪽이에요.']);
   }else if(id==='worker'){
     say('용등 만드는 법우',['이건 연등회 때 나갈 용등 골조예요.','철사로 뼈대를 하나하나 엮고, 그 위에 한지를 여러 겹 바르고, 마르면 채색까지… 몇 달씩 걸려요.','꼬리 쪽은 한지까지 발랐고, 머리 쪽은 아직 철사만 엮어 놨어요.','손은 많이 가도, 다 같이 만들다 보면 그 시간이 그대로 공부가 되더라고요.']);
@@ -688,7 +688,7 @@ const INTERACT=[
   ...NPCS.map(n=>({x:n.x,y:n.y,name:n.name,fn:()=>talk(n.id),mark:[n.x,n.y-1.45],key:n.id})),
   {x:8.5,y:18.45,name:'소원등 걸이대',fn:hangSign,mark:[8.5,16.35],key:'sign'},
   {x:18,y:20.45,name:'장엄등',fn:bigLantern,mark:[18,12.9],key:'big'},
-  {x:27.5,y:18.45,name:'마당 방명록',fn:openBoard,mark:[27.5,16.35],key:'board'},
+  {x:20.5,y:11.45,name:'방명록',fn:openBoard,mark:[20.5,9.35],key:'board'},
 ];
 function nearest(){let best=null,bd=1.25;for(const it of INTERACT){const d=Math.hypot(it.x-player.x,it.y-player.y);if(d<bd){bd=d;best=it;}}return best;}
 function targetKey(){if(state.stage>0)return['frame','paper','paint','light','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';return null;}
@@ -714,7 +714,7 @@ const joyEnd=e=>{if(joy.id!==e.pointerId)return;joy.id=null;joy.x=0;joy.y=0;knob
 joyEl.addEventListener('pointerup',joyEnd);joyEl.addEventListener('pointercancel',joyEnd);
 document.getElementById('act').addEventListener('pointerdown',e=>{e.preventDefault();action();});
 document.getElementById('snd').onclick=e=>{muted=!muted;e.currentTarget.textContent=muted?'🔇':'🔊';};
-document.getElementById('helpb').onclick=()=>{if(!started)return;const m=modalShell('도움말',null);const h=el('div','help');h.innerHTML=`<p><b>이동</b> ${isTouch?'왼쪽 조이스틱':'<kbd>방향키</kbd> 또는 <kbd>WASD</kbd>'}<br><b>작업·대화</b> ${isTouch?'오른쪽 <b>작업</b> 버튼':'<kbd>Space</kbd> 또는 <kbd>E</kbd>'}<br><b>한 줄 이야기</b> ${isTouch?'오른쪽 위 <b>💬</b> 버튼':'<kbd>Enter</kbd>'}</p><p>같은 마당에 들어와 있는 법우들이 캐릭터로 보여요. 이야기를 보내면 머리 위에 말풍선이 떠요.</p><p>금색 ▼ 표시가 다음에 갈 곳이에요. 등불사장 위쪽 작업대를 왼쪽부터 차례로 돌면 소원등 하나가 완성돼요.</p><p>완성한 등은 마당 왼쪽 <b>소원등 걸이대</b>에 걸고, 마당 가운데 <b>장엄등</b> 앞에서 점등해요. 등은 몇 개든 더 만들 수 있어요.</p><p>마당 오른쪽 <b>마당 방명록</b>에서는 글을 남기거나, 지금 들어와 있는 법우들과 이야기를 나눌 수 있어요.</p><p style="color:#8a7a66;font-size:13px">${shared?'걸린 소원등은 법우들이 같은 마당에서 함께 봐요. 다른 법우가 등을 걸면 내 화면 걸이줄에도 새 등이 걸립니다.':'지금은 내가 건 소원등이 이 브라우저에만 저장돼요.'} 공간 배치는 등불사장을 바탕으로 상상해 그린 거예요.</p>`;const b=el('button','btn','닫기');b.onclick=closeModal;m.append(h,b);};
+document.getElementById('helpb').onclick=()=>{if(!started)return;const m=modalShell('도움말',null);const h=el('div','help');h.innerHTML=`<p><b>이동</b> ${isTouch?'왼쪽 조이스틱':'<kbd>방향키</kbd> 또는 <kbd>WASD</kbd>'}<br><b>작업·대화</b> ${isTouch?'오른쪽 <b>작업</b> 버튼':'<kbd>Space</kbd> 또는 <kbd>E</kbd>'}<br><b>한 줄 이야기</b> ${isTouch?'오른쪽 위 <b>💬</b> 버튼':'<kbd>Enter</kbd>'}</p><p>같은 마당에 들어와 있는 법우들이 캐릭터로 보여요. 이야기를 보내면 머리 위에 말풍선이 떠요.</p><p>금색 ▼ 표시가 다음에 갈 곳이에요. 등불사장 위쪽 작업대를 왼쪽부터 차례로 돌면 소원등 하나가 완성돼요.</p><p>완성한 등은 마당 왼쪽 <b>소원등 걸이대</b>에 걸고, 마당 가운데 <b>장엄등</b> 앞에서 점등해요. 등은 몇 개든 더 만들 수 있어요.</p><p>들어오자마자 오른쪽에 있는 <b>방명록</b>에서는 글을 남기거나, 지금 들어와 있는 법우들과 이야기를 나눌 수 있어요.</p><p style="color:#8a7a66;font-size:13px">${shared?'걸린 소원등은 법우들이 같은 마당에서 함께 봐요. 다른 법우가 등을 걸면 내 화면 걸이줄에도 새 등이 걸립니다.':'지금은 내가 건 소원등이 이 브라우저에만 저장돼요.'} 공간 배치는 등불사장을 바탕으로 상상해 그린 거예요.</p>`;const b=el('button','btn','닫기');b.onclick=closeModal;m.append(h,b);};
 
 /* ---------- update ---------- */
 function canStand(x,y){const hw=.26;const s=(a,b)=>{const tx=Math.floor(a),ty=Math.floor(b);if(tx<0||ty<0||tx>=W||ty>=H)return true;return solid[ty][tx];};return!(s(x-hw,y-.12)||s(x+hw,y-.12)||s(x-hw,y+.18)||s(x+hw,y+.18));}
@@ -830,7 +830,7 @@ function drawBig(c,lit,t){
   c.fillStyle='#f0cf73';c.font='700 15px "Gowun Batang",serif';c.textAlign='center';c.textBaseline='middle';c.fillText('청년회 장엄등',18*T,18.93*T);
 }
 function drawStone(o,lit){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,16,5);ctx.fillStyle='#9a958b';ctx.fillRect(x-14,y-10,28,8);ctx.fillRect(x-5,y-30,10,22);ctx.fillStyle='#a9a398';ctx.fillRect(x-12,y-48,24,18);ctx.fillStyle=lit?'#ffd36b':'#5a554e';ctx.fillRect(x-6,y-44,12,10);ctx.fillStyle='#7f7a71';ctx.beginPath();ctx.moveTo(x-18,y-48);ctx.lineTo(x,y-60);ctx.lineTo(x+18,y-48);ctx.closePath();ctx.fill();}
-function drawBoardSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-50,y-62,100,32,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('마당 방명록',x,y-52);ctx.fillStyle='#bba169';ctx.font='400 10px "Noto Sans KR",sans-serif';ctx.fillText('글 남기기 · 이야기',x,y-39);}
+function drawBoardSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-50,y-62,100,32,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('방명록',x,y-52);ctx.fillStyle='#bba169';ctx.font='400 10px "Noto Sans KR",sans-serif';ctx.fillText('글 남기기 · 이야기',x,y-39);}
 function drawSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-46,y-58,92,28,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('소원등 걸이대',x,y-44);}
 function drawTree(o){const x=(o.x+1)*T,y=(o.y+2)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-6,30,9);ctx.fillStyle='#6b4630';ctx.fillRect(x-6,y-34,12,30);[['#3f6e46',0,-58,34],['#4f8456',-14,-66,24],['#5a9461',12,-72,22],['#67a36d',2,-80,16]].forEach(([c,dx,dy,r])=>{ctx.fillStyle=c;circ(ctx,x+dx,y+dy,r);});}
 function drawPerson(px,py,o,dir,moving,t){
