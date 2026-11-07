@@ -1,10 +1,12 @@
 import { supabase } from './supabaseClient.js'
 
+const requestSignal = () => globalThis.AbortSignal?.timeout?.(15000)
+
 const POSTS = 'posts'
 const MESSAGES = 'messages'
 
 // 글 쓸 때 받은 비밀번호는 그대로 보내지 않고 브라우저에서 해시로 바꿉니다.
-// 닉네임을 섞어서 같은 비밀번호라도 글마다 해시가 달라지게 합니다.
+// 닉네임을 섞습니다. 같은 닉네임과 비밀번호는 같은 해시가 됩니다.
 export const canHash = Boolean(globalThis.crypto && globalThis.crypto.subtle)
 
 export async function hashPassword(password, nick) {
@@ -24,7 +26,7 @@ const POST_COLS = 'id,nick,body,created_at'
 const MESSAGE_COLS = 'id,nick,body,created_at'
 
 function fromRow(row) {
-  return { id: row.id, nick: row.nick, body: row.body, createdAt: row.created_at }
+  return { id: row.id, nick: typeof row.nick === 'string' ? row.nick.slice(0, 12) : '법우', body: typeof row.body === 'string' ? row.body.slice(0, 500) : '', createdAt: row.created_at }
 }
 
 export async function fetchPosts(limit) {
@@ -37,6 +39,7 @@ export async function fetchPosts(limit) {
     .select(POST_COLS)
     .order('created_at', { ascending: false })
     .limit(limit)
+    .abortSignal(requestSignal())
 
   if (error) {
     throw error
@@ -55,6 +58,7 @@ export async function insertPost({ nick, body, pwHash }) {
     .insert({ nick, body, pw_hash: pwHash })
     .select(POST_COLS)
     .single()
+    .abortSignal(requestSignal())
 
   if (error) {
     throw error
@@ -69,7 +73,7 @@ export async function deletePost(id, pwHash) {
     return false
   }
 
-  const { data, error } = await supabase.rpc('delete_post', { p_id: id, p_hash: pwHash })
+  const { data, error } = await supabase.rpc('delete_post', { p_id: id, p_hash: pwHash }).abortSignal(requestSignal())
 
   if (error) {
     throw error
@@ -88,6 +92,7 @@ export async function fetchMessages(limit) {
     .select(MESSAGE_COLS)
     .order('created_at', { ascending: false })
     .limit(limit)
+    .abortSignal(requestSignal())
 
   if (error) {
     throw error
@@ -106,6 +111,7 @@ export async function insertMessage({ nick, body }) {
     .insert({ nick, body })
     .select(MESSAGE_COLS)
     .single()
+    .abortSignal(requestSignal())
 
   if (error) {
     throw error
@@ -134,6 +140,6 @@ export function subscribeBoard({ onPost, onMessage }) {
     .subscribe()
 
   return () => {
-    supabase.removeChannel(channel)
+    Promise.resolve(supabase.removeChannel(channel)).catch(() => {})
   }
 }
