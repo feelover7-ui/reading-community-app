@@ -1,6 +1,7 @@
 import { normalizeLantern, isSupabaseConfigured, fetchLanterns, insertLantern, subscribeLanterns } from './lanternsApi.js'
 import { canHash, hashPassword, fetchPosts, insertPost, deletePost, fetchMessages, insertMessage, subscribeBoard } from './boardApi.js'
 import { joinYard } from './presence.js'
+import { drawPixelPerson } from './pixelCharacter.js'
 
 (()=>{
 'use strict';
@@ -809,7 +810,7 @@ function updatePeers(dt){
   }
 }
 // 머리 위 이름표. 내 것은 붉은색이라 한눈에 구분된다.
-const TAG_Y=62;      // 이름표 윗변
+const TAG_Y=70;      // 이름표 윗변
 const CARRY_Y=88;    // 들고 있는 소원등 (이름표 위로 올린다)
 function nameTag(px,py,name,night,mine){
   const t=(name||'법우').slice(0,12);
@@ -1090,16 +1091,7 @@ function drawBoardSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0
 function drawSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-46,y-58,92,28,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('소원등 걸이대',x,y-44);}
 function drawTree(o){const x=(o.x+1)*T,y=(o.y+2)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-6,30,9);ctx.fillStyle='#6b4630';ctx.fillRect(x-6,y-34,12,30);[['#3f6e46',0,-58,34],['#4f8456',-14,-66,24],['#5a9461',12,-72,22],['#67a36d',2,-80,16]].forEach(([c,dx,dy,r])=>{ctx.fillStyle=c;circ(ctx,x+dx,y+dy,r);});}
 function drawPerson(px,py,o,dir,moving,t){
-  const bob=moving?Math.abs(Math.sin(t*11))*2.2:0;const step=moving?Math.sin(t*11)*3:0;
-  ctx.fillStyle='rgba(0,0,0,.22)';ell(ctx,px,py,11,4.5);
-  if(o.kasa){ctx.fillStyle=o.body;rr(ctx,px-12,py-28-bob,24,27,8);ctx.fill();}
-  else{ctx.fillStyle=o.pants||'#3b3b48';ctx.fillRect(px-7,py-11,5,10+step*.4);ctx.fillRect(px+2,py-11,5,10-step*.4);ctx.fillStyle=o.body;rr(ctx,px-11,py-28-bob,22,19,7);ctx.fill();if(o.apron&&dir!=='up'){ctx.fillStyle=o.apron;ctx.fillRect(px-7,py-24-bob,14,14);}}
-  if(o.kasa){ctx.fillStyle=o.kasa;ctx.beginPath();ctx.moveTo(px-12,py-24-bob);ctx.lineTo(px-6,py-28-bob);ctx.lineTo(px+12,py-8-bob);ctx.lineTo(px+12,py-2-bob);ctx.closePath();ctx.fill();}
-  if(o.hair&&o.long){ctx.fillStyle=o.hair;rr(ctx,px-13,py-45-bob,26,30,12);ctx.fill();}
-  ctx.fillStyle='#f1c9a0';circ(ctx,px,py-35-bob,10);
-  if(o.hair){ctx.fillStyle=o.hair;if(dir==='up')circ(ctx,px,py-36-bob,10.5);else{ctx.beginPath();ctx.arc(px,py-36.5-bob,10.6,Math.PI,Math.PI*2);ctx.fill();ctx.fillRect(px-10.6,py-37-bob,3,5);ctx.fillRect(px+7.6,py-37-bob,3,5);}}
-  else{ctx.fillStyle='rgba(255,255,255,.35)';ell(ctx,px-3,py-41-bob,4,2.5);}
-  if(dir!=='up'){const ex=dir==='left'?-3.5:dir==='right'?3.5:0;ctx.fillStyle='#2b1d14';circ(ctx,px-3.4+ex,py-34-bob,1.5);circ(ctx,px+3.4+ex,py-34-bob,1.5);}
+  drawPixelPerson(ctx,px,py,o,dir,moving&&!reducedMotion,t);
 }
 function drawBubble(x,y,lines,opt={}){
   ctx.font=(opt.font||'500 13px "Noto Sans KR",sans-serif');let w=0;lines.forEach(l=>w=Math.max(w,ctx.measureText(l).width));
@@ -1151,12 +1143,12 @@ function render(t){
     if(player.y>12.6&&state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-CARRY_Y,26,state.craft,{lit:state.stage>=4,paper:state.stage>=2?1:0});
   }
   // NPC names
-  NPCS.forEach(n=>{if(Math.hypot(n.x-player.x,n.y-player.y)<3.2&&!dialog){ctx.font='700 12px "Noto Sans KR",sans-serif';const w=ctx.measureText(n.name).width+14;ctx.fillStyle='rgba(43,29,20,.82)';rr(ctx,n.x*T-w/2,n.y*T-64,w,19,9);ctx.fill();ctx.fillStyle='#fbf4e4';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(n.name,n.x*T,n.y*T-54.5);}});
+  NPCS.forEach(n=>{if(Math.hypot(n.x-player.x,n.y-player.y)<3.2&&!dialog){ctx.font='700 12px "Noto Sans KR",sans-serif';const w=ctx.measureText(n.name).width+14;ctx.fillStyle='rgba(43,29,20,.82)';rr(ctx,n.x*T-w/2,n.y*T-72,w,19,9);ctx.fill();ctx.fillStyle='#fbf4e4';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(n.name,n.x*T,n.y*T-62.5);}});
   // wish tooltip
   if(!dialog&&!modalOpen){for(const h of hung){const ry=ropeY(h.slot.r,h.slot.x);if(Math.abs(h.slot.x-player.x)<.55&&player.y>ry+.2&&player.y<ry+2.3){drawBubble(h.slot.x*T,(ry+.12)*T,wrap(h.L.wish||'',12),{font:'700 14px "Gowun Batang",serif',bg:night?'rgba(30,24,48,.94)':'rgba(251,244,228,.97)',color:night?'#ffe7a8':'#2b1d14',stroke:night?'#d9a531':'#6b4a2f'});break;}}}
   // 말풍선
   const sayNow=Date.now(),sst=sayStyle(night);
-  peers.forEach(p=>{if(p.say&&p.sayUntil>sayNow&&p.x>=x0-3&&p.x<=x1+3&&p.y>=y0-3&&p.y<=y1+3)drawBubble(p.x*T,p.y*T-64,wrap(p.say,14),sst);});
+  peers.forEach(p=>{if(p.say&&p.sayUntil>sayNow&&p.x>=x0-3&&p.x<=x1+3&&p.y>=y0-3&&p.y<=y1+3)drawBubble(p.x*T,p.y*T-76,wrap(p.say,14),sst);});
   const myBubble=myLine&&myLineUntil>sayNow;
   if(myBubble)drawBubble(player.x*T,player.y*T-(state.stage>=1?110:72),wrap(myLine,14),sst);
   // target marker
@@ -1215,6 +1207,11 @@ for(const k of ['m','f']){
   if(b)b.onclick=()=>{setSex(k);paintSex();namehint.classList.remove('bad');namehint.textContent=NAME_HINT;};
 }
 paintSex();
+for(const sex of ['m','f']){
+  const preview=document.getElementById('sex-preview-'+sex);
+  const previewContext=preview&&preview.getContext('2d');
+  if(previewContext)drawPixelPerson(previewContext,24,72,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48',long:sex==='f'},'down',false,0,2);
+}
 if(namein){
   namein.value=myNick;
   namein.oninput=()=>{namein.classList.remove('bad');namehint.classList.remove('bad');namehint.textContent=NAME_HINT;};
