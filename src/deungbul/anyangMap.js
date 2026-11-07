@@ -1,10 +1,37 @@
 import { places, canWalk } from './anyangMapData.js'
+import { drawPixelPerson, walkFrame } from './pixelCharacter.js'
 
 const byId=id=>document.getElementById(id)
 const scene=byId('scene'), surface=byId('surface'), viewport=byId('viewport')
 const pins=byId('pins'), list=byId('place-list'), traveler=byId('traveler')
 const visited=new Set(), pinButtons=new Map(), listButtons=new Map()
 let zoom=1, position={x:50,y:88}
+const spriteCanvas=byId('traveler-sprite'), spriteCtx=spriteCanvas.getContext('2d')
+const spriteLook={body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48'}
+const motionPreference=matchMedia('(prefers-reduced-motion: reduce)')
+let reducedMotion=motionPreference.matches, facing='down', walkingUntil=0, avatarFrame=0, lastSprite=''
+function paintAvatar(now){
+  avatarFrame=0
+  if(!spriteCtx)return
+  const moving=!document.hidden&&!reducedMotion&&now<walkingUntil
+  const frame=walkFrame(moving,now/1000), key=facing+':'+frame
+  if(key!==lastSprite){
+    spriteCtx.clearRect(0,0,spriteCanvas.width,spriteCanvas.height)
+    drawPixelPerson(spriteCtx,spriteCanvas.width/2,spriteCanvas.height,spriteLook,facing,moving,now/1000,2)
+    lastSprite=key
+  }
+  // 이동 중에만 다음 프레임을 예약하고, 정지하면 루프를 끝낸다.
+  if(moving)avatarFrame=requestAnimationFrame(paintAvatar)
+}
+function stopAvatar(){
+  walkingUntil=0
+  if(avatarFrame)cancelAnimationFrame(avatarFrame)
+  avatarFrame=0
+  paintAvatar(performance.now())
+}
+motionPreference.addEventListener?.('change',e=>{reducedMotion=e.matches;stopAvatar()})
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAvatar()})
+window.addEventListener('blur',stopAvatar)
 
 // 직접 작성한 단순 SVG 풍경. 공식 홈페이지 사진/조감도 파일은 포함하지 않습니다.
 const tree=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="17" rx="25" ry="10" fill="#728962" opacity=".22"/><path d="M-4 5h8v20h-8z" fill="#866b48"/><circle cy="-9" r="25" fill="#66815c"/><circle cx="-15" cy="-7" r="18" fill="#7b956c"/><circle cx="10" cy="-19" r="17" fill="#8ba379"/></g>`
@@ -74,9 +101,14 @@ ${trees.map(p=>tree(...p)).join('')}
 <rect class="night-shade" width="1000" height="720" fill="#111b35"/>
 `
 function setPosition(x,y){
+  const dx=x-position.x, dy=y-position.y
+  const moved=Math.abs(dx)+Math.abs(dy)>.001
+  if(moved)facing=Math.abs(dx)>=Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up')
   position={x,y}
   traveler.style.left=x+'%'
   traveler.style.top=y+'%'
+  walkingUntil=moved&&!reducedMotion?performance.now()+420:0
+  if(!avatarFrame)avatarFrame=requestAnimationFrame(paintAvatar)
 }
 function selectPlace(place){
   setPosition(...place.arrival)
