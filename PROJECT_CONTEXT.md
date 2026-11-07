@@ -89,10 +89,13 @@ Vercel preview URL:
 https://goal-windows-codex-mvp-node-js-2-iwctrypmu-ami18.vercel.app
 ```
 
-Vercel production URL was created during the first CLI deployment:
+Vercel production URL (public, no login):
 
 ```text
-https://goal-windows-codex-mvp-node-js-2.vercel.app
+https://goal-windows-codex-mvp-node-js-2.vercel.app            독서 커뮤니티
+https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html   등불사장
 ```
+
+Production env vars `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are registered.
 
 The preview deployment is ready, but preview deployment protection may require Vercel authentication before viewing it.

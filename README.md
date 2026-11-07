@@ -55,7 +55,7 @@ public.books
 같은 저장소에 정적 페이지로 하나 더 들어 있습니다. 소원등을 만들어 마당 걸이대에 걸고 장엄등을 점등하는 캔버스 게임입니다.
 
 ```text
-/deungbul.html
+https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 ```
 
 로컬에서는 `npm run dev` 후 아래 주소로 엽니다.
