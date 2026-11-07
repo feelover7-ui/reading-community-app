@@ -1,4 +1,5 @@
 import { isSupabaseConfigured, fetchLanterns, insertLantern, subscribeLanterns, disconnectRealtime } from './lanternsApi.js'
+import { canHash, hashPassword, fetchPosts, insertPost, deletePost, fetchMessages, insertMessage, subscribeBoard } from './boardApi.js'
 
 (()=>{
 'use strict';
@@ -110,6 +111,7 @@ addObj({x:15,y:17,w:6,h:3,solid:true,kind:'big',sortY:20*T});
 addObj({x:14,y:13,w:1,h:1,solid:true,kind:'stone',sortY:14*T});
 addObj({x:21,y:13,w:1,h:1,solid:true,kind:'stone',sortY:14*T});
 addObj({x:8,y:17,w:1,h:1,solid:true,kind:'sign',sortY:18*T});
+addObj({x:27,y:17,w:1,h:1,solid:true,kind:'board',sortY:18*T});
 addObj({x:2,y:21,w:2,h:2,solid:true,kind:'tree',sortY:23*T});
 addObj({x:32,y:21,w:2,h:2,solid:true,kind:'tree',sortY:23*T});
 
@@ -154,8 +156,8 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify({lanterns:localLante
 function hungList(){const out=SEEDS.map((L,i)=>({L,slot:slots[SEED_IDX[i]],i}));state.lanterns.forEach((L,i)=>{const s=slots[USER_ORDER[i]];if(s)out.push({L,slot:s,i:100+i,mine:L.owner===OWNER});});return out;}
 function trimHung(){if(state.lanterns.length>MAX_HUNG)state.lanterns=state.lanterns.slice(-MAX_HUNG);}
 const seenIds=new Set();
-let unsub=null;
-function goLocal(msg){if(!shared)return;shared=false;if(unsub){unsub();unsub=null;}disconnectRealtime();state.lanterns=localLanterns.slice();syncHasHung();updateHUD();if(msg&&started)toast(msg);}
+let unsub=null,boardSub=null,boardUI=null,boardTimer=0;
+function goLocal(msg){if(!shared)return;shared=false;if(unsub){unsub();unsub=null;}if(boardSub){boardSub();boardSub=null;}disconnectRealtime();state.lanterns=localLanterns.slice();syncHasHung();updateHUD();if(msg&&started)toast(msg);}
 function addRemote(row){
   if(!shared||!row)return;
   if(row.id&&seenIds.has(row.id))return;
@@ -199,6 +201,7 @@ function startShared(){
   if(!shared)return;
   refresh();
   unsub=subscribeLanterns(addRemote);
+  boardSub=subscribeBoard({onPost:addRemotePost,onMessage:addRemoteMessage});
   setInterval(refresh,20000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
 }
@@ -230,7 +233,7 @@ function advance(){if(!dialog)return;dialog.i++;if(dialog.i>=dialog.lines.length
 dlg.addEventListener('click',advance);
 const modalWrap=document.getElementById('modal'),card=document.getElementById('card');
 function modalShell(title,sub){card.innerHTML='';const x=el('button','x','✕');x.onclick=closeModal;card.append(x,el('h2',null,title));if(sub)card.append(el('p','sub',sub));modalWrap.classList.add('show');modalOpen=true;return card;}
-function closeModal(){modalWrap.classList.remove('show');modalOpen=false;card.innerHTML='';}
+function closeModal(){modalWrap.classList.remove('show');modalOpen=false;card.innerHTML='';boardUI=null;clearInterval(boardTimer);boardTimer=0;}
 modalWrap.addEventListener('click',e=>{if(e.target===modalWrap)closeModal();});
 function makePreview(size){const c=document.createElement('canvas');const r=Math.min(2,window.devicePixelRatio||1);c.width=size*r;c.height=size*r;c.style.width=size+'px';c.style.height=size+'px';c.paint=(L,o={})=>{const g=c.getContext('2d');g.setTransform(r,0,0,r,0,0);g.clearRect(0,0,size,size);if(!L||!L.shape){g.fillStyle='rgba(107,74,47,.3)';g.font=`700 ${size*.32}px "Gowun Batang",serif`;g.textAlign='center';g.textBaseline='middle';g.fillText('?',size/2,size/2);return;}drawLantern(g,size/2,size/2-(o.tassel?size*.06:0),size*.8,L,o);};return c;}
 
@@ -329,6 +332,184 @@ function bigLantern(){
   const b=el('button','btn ghost','낮으로 돌아가기');b.onclick=()=>{state.night=false;closeModal();toast('날이 밝았어요');};
   m.append(a,b);
 }
+/* ---------- 마당 방명록 · 이야기 나누기 ---------- */
+const NICK_KEY='hanmaum-deungbul-nick';
+const POST_LIMIT=50,MSG_LIMIT=50;
+let myNick='';try{myNick=localStorage.getItem(NICK_KEY)||'';}catch(e){}
+function setNick(v){myNick=(v||'').slice(0,12);try{localStorage.setItem(NICK_KEY,myNick);}catch(e){}}
+const nickNow=()=>(myNick||'').trim();
+const posts=[],msgs=[];
+const trimTail=(a,n)=>{if(a.length>n)a.length=n;};
+const trimHead=(a,n)=>{if(a.length>n)a.splice(0,a.length-n);};
+
+function stamp(iso){
+  if(!iso)return'';
+  const d=new Date(iso),n=new Date(),p=x=>String(x).padStart(2,'0');
+  const today=d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();
+  return today?`${p(d.getHours())}:${p(d.getMinutes())}`:`${d.getMonth()+1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+// 표가 아직 없거나 권한이 없을 때를 구분해서 알려 준다. board.sql 을 안 돌린 경우가 대부분이다.
+function boardErr(e){
+  const code=String(e&&e.code||''),msg=String(e&&e.message||'');
+  if(code==='42P01'||code==='PGRST205'||/does not exist|Could not find the table/i.test(msg))return'방명록 표가 아직 없어요 (board.sql 실행 필요)';
+  if(code==='42501'||/permission denied/i.test(msg))return'방명록 권한이 없어요 (board.sql 실행 필요)';
+  if(code==='PGRST202')return'삭제 기능이 아직 없어요 (board.sql 실행 필요)';
+  return'지금은 방명록에 연결이 안 돼요';
+}
+
+function addRemotePost(p){
+  if(posts.some(x=>x.id===p.id))return;
+  posts.unshift(p);trimTail(posts,POST_LIMIT);
+  if(boardUI)renderList();
+  else if(started&&p.nick!==nickNow())toast(`${p.nick} 법우가 방명록에 글을 남겼어요`);
+}
+function addRemoteMessage(m){
+  if(msgs.some(x=>x.id===m.id))return;
+  msgs.push(m);trimHead(msgs,MSG_LIMIT);
+  if(boardUI)renderList();
+  else if(started&&m.nick!==nickNow())toast(`${m.nick}: ${m.body}`.slice(0,42));
+}
+
+async function loadBoard(){
+  if(!boardUI||!shared)return;
+  try{
+    const [ps,ms]=await Promise.all([fetchPosts(POST_LIMIT),fetchMessages(MSG_LIMIT)]);
+    posts.length=0;posts.push(...ps);
+    msgs.length=0;msgs.push(...ms);
+    if(boardUI){boardUI.loading=false;boardUI.error='';renderList();}
+  }catch(e){
+    console.warn('[등불사장] 방명록 불러오기 실패',e);
+    if(boardUI){boardUI.loading=false;boardUI.error=boardErr(e);renderList();}
+  }
+}
+
+function nickInput(){
+  const i=el('input');i.type='text';i.maxLength=12;i.placeholder='닉네임 (12자까지)';i.value=myNick;
+  i.oninput=()=>setNick(i.value);
+  return i;
+}
+
+function postCard(p){
+  const d=el('div','post'),meta=el('div','meta');
+  meta.append(el('b',null,p.nick),el('span',null,stamp(p.createdAt)),el('span','sp'));
+  const del=el('button','linkbtn','지우기');meta.append(del);
+  d.append(meta,el('div','body',p.body));
+  del.onclick=()=>{
+    if(d.querySelector('.delrow'))return;
+    const row=el('div','delrow');
+    const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='글 쓸 때 정한 비밀번호';
+    const ok=el('button','linkbtn warn','확인'),no=el('button','linkbtn','취소');
+    row.append(pw,ok,no);d.append(row);try{pw.focus();}catch(e){}
+    no.onclick=()=>row.remove();
+    const run=async()=>{
+      if(!pw.value){toast('비밀번호를 적어 주세요');return;}
+      ok.disabled=true;
+      try{
+        const done=await deletePost(p.id,await hashPassword(pw.value,p.nick));
+        if(done){const i=posts.findIndex(x=>x.id===p.id);if(i>=0)posts.splice(i,1);renderList();toast('글을 지웠어요');}
+        else{ok.disabled=false;toast('비밀번호가 달라요');}
+      }catch(e){ok.disabled=false;console.warn('[등불사장] 글 지우기 실패',e);toast(boardErr(e));}
+    };
+    ok.onclick=run;
+    pw.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();run();}};
+  };
+  return d;
+}
+
+function msgRow(m){
+  const d=el('div','msg'+(m.nick===nickNow()?' mine':''));
+  d.append(el('b',null,m.nick),el('span',null,m.body),el('span','t',stamp(m.createdAt)));
+  return d;
+}
+
+function renderList(){
+  if(!boardUI)return;
+  const {list,tab}=boardUI;
+  list.innerHTML='';
+  const rows=tab==='board'?posts:msgs;
+  if(!rows.length){
+    list.append(el('div','empty',boardUI.error?boardUI.error:(boardUI.loading?'불러오는 중…':(tab==='board'?'아직 남긴 글이 없어요. 첫 글을 남겨 보세요.':'아직 오간 이야기가 없어요. 먼저 인사해 보세요.'))));
+    return;
+  }
+  if(tab==='board')rows.forEach(p=>list.append(postCard(p)));
+  else{rows.forEach(m=>list.append(msgRow(m)));list.scrollTop=list.scrollHeight;}
+}
+
+function buildPostForm(form){
+  const nick=nickInput();
+  const ta=el('textarea');ta.rows=3;ta.maxLength=500;ta.placeholder='마당에 남길 글 (500자까지)';
+  const pw=el('input');pw.type='password';pw.maxLength=20;pw.placeholder='지울 때 쓸 비밀번호 (2자 이상)';
+  const go=el('button','btn','글 남기기');
+  form.append(el('p','note','닉네임과 비밀번호를 적어 두면 나중에 본인이 글을 지울 수 있어요. 비밀번호는 그대로 보내지 않고 암호로 바꿔서 보관합니다.'),nick,ta,pw,go);
+  if(!canHash){go.disabled=true;go.textContent='안전한 주소(https)에서만 글을 쓸 수 있어요';return;}
+  go.onclick=async()=>{
+    const n=nickNow(),b=ta.value.trim();
+    if(!n){toast('닉네임을 적어 주세요');try{nick.focus();}catch(e){}return;}
+    if(!b){toast('내용을 적어 주세요');try{ta.focus();}catch(e){}return;}
+    if(pw.value.length<2){toast('비밀번호를 2자 이상 적어 주세요');try{pw.focus();}catch(e){}return;}
+    go.disabled=true;go.textContent='남기는 중…';
+    try{
+      const row=await insertPost({nick:n,body:b,pwHash:await hashPassword(pw.value,n)});
+      if(row&&!posts.some(x=>x.id===row.id)){posts.unshift(row);trimTail(posts,POST_LIMIT);}
+      ta.value='';pw.value='';renderList();toast('마당에 글을 남겼어요');chime();
+    }catch(e){console.warn('[등불사장] 글 남기기 실패',e);toast(boardErr(e));}
+    go.disabled=false;go.textContent='글 남기기';
+  };
+}
+
+function buildChatForm(form){
+  const nick=nickInput();
+  const row=el('div','row');
+  const inp=el('input');inp.type='text';inp.maxLength=200;inp.placeholder='한 줄 이야기 (200자까지)';
+  const go=el('button','btn','보내기');
+  row.append(inp,go);
+  form.append(el('p','note','지금 들어와 있는 법우들과 주고받는 이야기예요. 최근 50줄만 남고, 지우는 기능은 없어요.'),nick,row);
+  const send=async()=>{
+    const n=nickNow(),b=inp.value.trim();
+    if(!n){toast('닉네임을 적어 주세요');try{nick.focus();}catch(e){}return;}
+    if(!b)return;
+    go.disabled=true;
+    try{
+      const m=await insertMessage({nick:n,body:b});
+      if(m&&!msgs.some(x=>x.id===m.id)){msgs.push(m);trimHead(msgs,MSG_LIMIT);}
+      inp.value='';renderList();
+    }catch(e){console.warn('[등불사장] 이야기 보내기 실패',e);toast(boardErr(e));}
+    go.disabled=false;try{inp.focus();}catch(e){}
+  };
+  go.onclick=send;
+  inp.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();send();}};
+}
+
+function showTab(t){
+  if(!boardUI)return;
+  boardUI.tab=t;
+  boardUI.tb.classList.toggle('sel',t==='board');
+  boardUI.tc.classList.toggle('sel',t==='chat');
+  boardUI.form.innerHTML='';
+  renderList();
+  (t==='board'?buildPostForm:buildChatForm)(boardUI.form);
+}
+
+function openBoard(){
+  if(!shared){
+    say('마당 방명록',['방명록이 아직 열리지 않았어요.','함께 보는 마당이 켜져야 글을 주고받을 수 있어요.','지금은 소원등만 이 기기에 걸려요.']);
+    return;
+  }
+  const m=modalShell('마당 방명록','법우들이 남긴 글이에요. 글을 남기거나, 지금 들어와 있는 법우들과 이야기해요.');
+  const tabs=el('div','tabs');
+  const tb=el('button','tab sel','글 남기기'),tc=el('button','tab','이야기 나누기');
+  tabs.append(tb,tc);
+  const list=el('div','blist'),form=el('div');
+  m.append(tabs,list,form);
+  boardUI={tab:'board',list,form,tb,tc,loading:!posts.length&&!msgs.length,error:''};
+  tb.onclick=()=>showTab('board');
+  tc.onclick=()=>showTab('chat');
+  showTab('board');
+  loadBoard();
+  clearInterval(boardTimer);
+  boardTimer=setInterval(()=>{if(boardUI)loadBoard();else{clearInterval(boardTimer);boardTimer=0;}},20000);
+}
+
 function talk(id){
   if(id==='banjang'){
     const first=!state.talked;state.talked=true;changed();
@@ -336,7 +517,7 @@ function talk(id){
     if(state.stage>0&&state.stage<4){say('등불사장 반장 법우',['잘하고 있어요!',`다음은 ${NEXT_NAME[state.stage]}예요.`]);return;}
     if(state.stage===4){say('등불사장 반장 법우',['와, 예쁘게 나왔네요!','문 밖 마당으로 나가서 왼쪽 걸이대에 걸어요.']);return;}
     if(state.hasHung&&!state.litOnce){say('등불사장 반장 법우',['등 걸었어요? 이제 마당 가운데 장엄등 앞에서 점등해 봐요.']);return;}
-    if(state.litOnce){say('등불사장 반장 법우',['오늘 수고 많았어요.','등은 몇 개든 더 만들어도 돼요. 가족 등도 하나 걸어 볼래요?']);return;}
+    if(state.litOnce){say('등불사장 반장 법우',['오늘 수고 많았어요.','등은 몇 개든 더 만들어도 돼요. 가족 등도 하나 걸어 볼래요?',shared?'마당 오른쪽 방명록에 글도 한 줄 남기고 가요. 다른 법우들과 이야기도 나눌 수 있어요.':'마당 오른쪽에 방명록도 있어요.']);return;}
     say('등불사장 반장 법우',['골조 작업대부터 시작해요. 맨 왼쪽이에요.']);
   }else if(id==='worker'){
     say('용등 만드는 법우',['이건 연등회 때 나갈 용등 골조예요.','철사로 뼈대를 하나하나 엮고, 그 위에 한지를 여러 겹 바르고, 마르면 채색까지… 몇 달씩 걸려요.','꼬리 쪽은 한지까지 발랐고, 머리 쪽은 아직 철사만 엮어 놨어요.','손은 많이 가도, 다 같이 만들다 보면 그 시간이 그대로 공부가 되더라고요.']);
@@ -350,6 +531,7 @@ const INTERACT=[
   ...NPCS.map(n=>({x:n.x,y:n.y,name:n.name,fn:()=>talk(n.id),mark:[n.x,n.y-1.45],key:n.id})),
   {x:8.5,y:18.45,name:'소원등 걸이대',fn:hangSign,mark:[8.5,16.35],key:'sign'},
   {x:18,y:20.45,name:'장엄등',fn:bigLantern,mark:[18,12.9],key:'big'},
+  {x:27.5,y:18.45,name:'마당 방명록',fn:openBoard,mark:[27.5,16.35],key:'board'},
 ];
 function nearest(){let best=null,bd=1.25;for(const it of INTERACT){const d=Math.hypot(it.x-player.x,it.y-player.y);if(d<bd){bd=d;best=it;}}return best;}
 function targetKey(){if(state.stage>0)return['frame','paper','paint','light','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';return null;}
@@ -374,7 +556,7 @@ const joyEnd=e=>{if(joy.id!==e.pointerId)return;joy.id=null;joy.x=0;joy.y=0;knob
 joyEl.addEventListener('pointerup',joyEnd);joyEl.addEventListener('pointercancel',joyEnd);
 document.getElementById('act').addEventListener('pointerdown',e=>{e.preventDefault();action();});
 document.getElementById('snd').onclick=e=>{muted=!muted;e.currentTarget.textContent=muted?'🔇':'🔊';};
-document.getElementById('helpb').onclick=()=>{if(!started)return;const m=modalShell('도움말',null);const h=el('div','help');h.innerHTML=`<p><b>이동</b> ${isTouch?'왼쪽 조이스틱':'<kbd>방향키</kbd> 또는 <kbd>WASD</kbd>'}<br><b>작업·대화</b> ${isTouch?'오른쪽 <b>작업</b> 버튼':'<kbd>Space</kbd> · <kbd>E</kbd> · <kbd>Enter</kbd>'}</p><p>금색 ▼ 표시가 다음에 갈 곳이에요. 등불사장 위쪽 작업대를 왼쪽부터 차례로 돌면 소원등 하나가 완성돼요.</p><p>완성한 등은 마당 왼쪽 <b>소원등 걸이대</b>에 걸고, 마당 가운데 <b>장엄등</b> 앞에서 점등해요. 등은 몇 개든 더 만들 수 있어요.</p><p style="color:#8a7a66;font-size:13px">${shared?'걸린 소원등은 법우들이 같은 마당에서 함께 봐요. 다른 법우가 등을 걸면 내 화면 걸이줄에도 새 등이 걸립니다.':'지금은 내가 건 소원등이 이 브라우저에만 저장돼요.'} 공간 배치는 등불사장을 바탕으로 상상해 그린 거예요.</p>`;const b=el('button','btn','닫기');b.onclick=closeModal;m.append(h,b);};
+document.getElementById('helpb').onclick=()=>{if(!started)return;const m=modalShell('도움말',null);const h=el('div','help');h.innerHTML=`<p><b>이동</b> ${isTouch?'왼쪽 조이스틱':'<kbd>방향키</kbd> 또는 <kbd>WASD</kbd>'}<br><b>작업·대화</b> ${isTouch?'오른쪽 <b>작업</b> 버튼':'<kbd>Space</kbd> · <kbd>E</kbd> · <kbd>Enter</kbd>'}</p><p>금색 ▼ 표시가 다음에 갈 곳이에요. 등불사장 위쪽 작업대를 왼쪽부터 차례로 돌면 소원등 하나가 완성돼요.</p><p>완성한 등은 마당 왼쪽 <b>소원등 걸이대</b>에 걸고, 마당 가운데 <b>장엄등</b> 앞에서 점등해요. 등은 몇 개든 더 만들 수 있어요.</p><p>마당 오른쪽 <b>마당 방명록</b>에서는 글을 남기거나, 지금 들어와 있는 법우들과 이야기를 나눌 수 있어요.</p><p style="color:#8a7a66;font-size:13px">${shared?'걸린 소원등은 법우들이 같은 마당에서 함께 봐요. 다른 법우가 등을 걸면 내 화면 걸이줄에도 새 등이 걸립니다.':'지금은 내가 건 소원등이 이 브라우저에만 저장돼요.'} 공간 배치는 등불사장을 바탕으로 상상해 그린 거예요.</p>`;const b=el('button','btn','닫기');b.onclick=closeModal;m.append(h,b);};
 
 /* ---------- update ---------- */
 function canStand(x,y){const hw=.26;const s=(a,b)=>{const tx=Math.floor(a),ty=Math.floor(b);if(tx<0||ty<0||tx>=W||ty>=H)return true;return solid[ty][tx];};return!(s(x-hw,y-.12)||s(x+hw,y-.12)||s(x-hw,y+.18)||s(x+hw,y+.18));}
@@ -488,6 +670,7 @@ function drawBig(c,lit,t){
   c.fillStyle='#f0cf73';c.font='700 15px "Gowun Batang",serif';c.textAlign='center';c.textBaseline='middle';c.fillText('청년회 장엄등',18*T,18.93*T);
 }
 function drawStone(o,lit){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,16,5);ctx.fillStyle='#9a958b';ctx.fillRect(x-14,y-10,28,8);ctx.fillRect(x-5,y-30,10,22);ctx.fillStyle='#a9a398';ctx.fillRect(x-12,y-48,24,18);ctx.fillStyle=lit?'#ffd36b':'#5a554e';ctx.fillRect(x-6,y-44,12,10);ctx.fillStyle='#7f7a71';ctx.beginPath();ctx.moveTo(x-18,y-48);ctx.lineTo(x,y-60);ctx.lineTo(x+18,y-48);ctx.closePath();ctx.fill();}
+function drawBoardSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-50,y-62,100,32,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('마당 방명록',x,y-52);ctx.fillStyle='#bba169';ctx.font='400 10px "Noto Sans KR",sans-serif';ctx.fillText('글 남기기 · 이야기',x,y-39);}
 function drawSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-46,y-58,92,28,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('소원등 걸이대',x,y-44);}
 function drawTree(o){const x=(o.x+1)*T,y=(o.y+2)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-6,30,9);ctx.fillStyle='#6b4630';ctx.fillRect(x-6,y-34,12,30);[['#3f6e46',0,-58,34],['#4f8456',-14,-66,24],['#5a9461',12,-72,22],['#67a36d',2,-80,16]].forEach(([c,dx,dy,r])=>{ctx.fillStyle=c;circ(ctx,x+dx,y+dy,r);});}
 function drawPerson(px,py,o,dir,moving,t){
@@ -527,7 +710,7 @@ function render(t){
   const x0=Math.max(0,Math.floor(camX/T)),y0=Math.max(0,Math.floor(camY/T)),x1=Math.min(W-1,Math.ceil((camX+viewW)/T)),y1=Math.min(H-1,Math.ceil((camY+viewH)/T));
   drawTiles(x0,y0,x1,y1);
   const night=state.night;
-  const dr=objects.map(o=>({y:o.sortY,f:()=>{if(o.kind==='table')drawTable(o,t);else if(o.kind==='shelf')drawShelf(o);else if(o.kind==='rack')drawRack(o);else if(o.kind==='dragon')drawDragon();else if(o.kind==='big')drawBig(ctx,night,t);else if(o.kind==='stone')drawStone(o,night);else if(o.kind==='sign')drawSign(o);else if(o.kind==='tree')drawTree(o);}}));
+  const dr=objects.map(o=>({y:o.sortY,f:()=>{if(o.kind==='table')drawTable(o,t);else if(o.kind==='shelf')drawShelf(o);else if(o.kind==='rack')drawRack(o);else if(o.kind==='dragon')drawDragon();else if(o.kind==='big')drawBig(ctx,night,t);else if(o.kind==='stone')drawStone(o,night);else if(o.kind==='sign')drawSign(o);else if(o.kind==='board')drawBoardSign(o);else if(o.kind==='tree')drawTree(o);}}));
   NPCS.forEach(n=>dr.push({y:n.y*T,f:()=>drawPerson(n.x*T,n.y*T,n.o,n.dir,false,t)}));
   dr.push({y:player.y*T,f:()=>{drawPerson(player.x*T,player.y*T,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48'},player.dir,player.moving,player.walk);if(state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-62,26,state.craft,{lit:state.stage>=4,wire:1,paper:state.stage>=2?1:0});}});
   dr.sort((a,b)=>a.y-b.y).forEach(d=>d.f());

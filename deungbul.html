@@ -49,6 +49,30 @@ canvas#game{display:block}
 .btn.ghost{background:#eadcc0;color:var(--ink);margin-top:8px}
 .card label{display:block;font-size:13px;color:#6b5a48;margin:4px 0 6px}
 .card textarea{width:100%;border:2px solid #e2d3b4;border-radius:10px;padding:10px 12px;font:inherit;font-size:16px;resize:none;background:#fffaf0;margin-bottom:10px;font-family:'Gowun Batang',serif}
+.card input{width:100%;border:2px solid #e2d3b4;border-radius:10px;padding:10px 12px;font:inherit;font-size:16px;background:#fffaf0;margin-bottom:8px;color:var(--ink)}
+.card .row{display:flex;gap:8px;align-items:flex-start}
+.card .row input{margin-bottom:0}
+.card .row .btn{width:auto;flex:none;padding:12px 18px;font-size:15px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{flex:1;padding:9px 4px;border:2px solid #e2d3b4;background:#fffaf0;border-radius:10px;font:inherit;font-size:14px;cursor:pointer;color:#6b5a48}
+.tab.sel{border-color:var(--accent);background:#fff0e6;color:var(--ink);font-weight:700}
+.blist{height:40vh;min-height:170px;overflow:auto;margin-bottom:10px;border:1px solid var(--line);border-radius:10px;background:#fffaf0;padding:8px}
+.blist .empty{color:#9a8a76;font-size:13px;text-align:center;padding:26px 8px;line-height:1.6}
+.post{padding:8px 2px;border-bottom:1px dashed var(--line)}
+.post:last-child{border-bottom:none}
+.post .meta{display:flex;align-items:center;gap:8px;font-size:12px;color:#9a8a76;margin-bottom:3px}
+.post .meta b{color:#6b4a2f;font-size:13px}
+.post .meta .sp{flex:1}
+.post .body{font-size:14px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.post .delrow{display:flex;gap:6px;margin-top:6px}
+.post .delrow input{margin-bottom:0;padding:7px 10px;font-size:14px}
+.linkbtn{border:none;background:none;color:#9a8a76;font:inherit;font-size:12px;cursor:pointer;text-decoration:underline;padding:2px 4px}
+.linkbtn.warn{color:var(--accent)}
+.msg{padding:4px 2px;font-size:14px;line-height:1.5;word-break:break-word}
+.msg b{color:#6b4a2f;margin-right:6px}
+.msg .t{color:#b5a68f;font-size:11px;margin-left:6px}
+.msg.mine b{color:var(--accent)}
+.note{font-size:12px;color:#9a8a76;line-height:1.5;margin:0 0 8px}
 .card .help p{margin:0 0 8px;font-size:14px;line-height:1.6}
 .card .help kbd{background:#eadcc0;border-radius:5px;padding:1px 7px;font-size:12px;font-family:inherit}
 #toast{position:fixed;top:16px;left:50%;transform:translate(-50%,-90px);background:#2b1d14;color:#fbf4e4;padding:10px 18px;border-radius:999px;font-size:14px;transition:transform .35s;z-index:30;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.35)}

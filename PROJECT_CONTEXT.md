@@ -45,19 +45,25 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 
 - Entry: `deungbul.html`
 - Script: `src/deungbul/game.js`
-- Supabase access: `src/deungbul/lanternsApi.js`
-- Shared table: `public.lanterns` (생성 SQL은 `supabase/lanterns.sql`)
+- Supabase client: `src/deungbul/supabaseClient.js` (소원등·방명록이 하나를 공유)
+- Lanterns: `src/deungbul/lanternsApi.js` -> `public.lanterns` (`supabase/lanterns.sql`)
+- Board/chat: `src/deungbul/boardApi.js` -> `public.posts`, `public.messages` (`supabase/board.sql`)
 - 걸이줄 칸 42개, 최신 42개만 표시
-- 환경변수나 테이블이 없으면 localStorage 폴백
+- 방명록 글 최근 50개, 채팅 최근 50줄
+- 환경변수나 테이블이 없으면 localStorage 폴백 (게임은 그대로 동작)
+- 방명록 글 삭제: 닉네임+비밀번호를 SHA-256 으로 해시해서 저장하고, `delete_post` 함수가 서버에서 비교
 
 ## Supabase
 
 - Project ref: `vsnbzwofscqeeewscozp`
 - API URL: `https://vsnbzwofscqeeewscozp.supabase.co`
-- Tables: `public.books`, `public.lanterns`
+- Tables: `public.books`, `public.lanterns`, `public.posts`, `public.messages`
+- Function: `public.delete_post(uuid, text)` (security definer)
 - RLS: enabled
 - Current policy: temporary public MVP access for `anon` and `authenticated`
 - `public.lanterns`: select + insert 만 공개, update/delete 없음
+- `public.posts`: select(비밀번호 해시 제외) + insert 만 공개, 삭제는 `delete_post` 로만
+- `public.messages`: select + insert 만 공개, 삭제 수단 없음
 - Frontend key type: publishable key only
 - Vercel preview env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` configured
 - `service_role`, secret key, database password: not used

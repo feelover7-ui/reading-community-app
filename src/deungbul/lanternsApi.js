@@ -1,13 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from './supabaseClient.js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey)
-
-const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSession: false } })
-  : null
+export { isSupabaseConfigured, disconnectRealtime } from './supabaseClient.js'
 
 const TABLE = 'lanterns'
 
@@ -64,19 +57,6 @@ export async function insertLantern(lantern) {
   }
 
   return fromRow(data)
-}
-
-// 공유 마당을 포기할 때 realtime 재연결 시도까지 멈춘다.
-export function disconnectRealtime() {
-  if (!supabase) {
-    return
-  }
-
-  try {
-    supabase.realtime.disconnect()
-  } catch (e) {
-    // 이미 끊겼으면 무시
-  }
 }
 
 // Realtime이 꺼져 있으면 아무 일도 일어나지 않는다. 게임 쪽 주기적 새로고침이 보조한다.

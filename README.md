@@ -69,8 +69,11 @@ http://localhost:5173/deungbul.html
 링크만 공유하면 누구나 접속할 수 있습니다. 걸린 소원등까지 **같이 보려면** Supabase에 `public.lanterns` 테이블이 있어야 합니다.
 
 1. Supabase 대시보드 > SQL Editor 를 엽니다.
-2. `supabase/lanterns.sql` 내용을 붙여넣고 실행합니다.
-3. 배포 환경에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` 가 등록되어 있는지 확인합니다.
+2. `supabase/lanterns.sql` 내용을 붙여넣고 실행합니다. (소원등)
+3. `supabase/board.sql` 내용을 붙여넣고 실행합니다. (방명록 · 채팅)
+4. 배포 환경에 `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` 가 등록되어 있는지 확인합니다.
+
+두 SQL 모두 여러 번 실행해도 안전합니다.
 
 동작 확인은 화면 왼쪽 위 소임 상자 맨 아래 줄로 합니다.
 
@@ -81,6 +84,17 @@ http://localhost:5173/deungbul.html
 
 테이블이나 환경변수가 없으면 게임은 그대로 돌아가고 소원등만 내 브라우저에 저장됩니다.
 
+### 마당 방명록 (게시판 + 채팅)
+
+마당 오른쪽 `마당 방명록` 간판 앞에서 Space 를 누르면 열립니다. 탭이 두 개입니다.
+
+- **글 남기기**: 닉네임과 글을 남기면 모두가 봅니다. 최근 50개가 보입니다.
+- **이야기 나누기**: 지금 들어와 있는 법우들과 주고받는 한 줄 대화입니다. 최근 50줄이 남습니다.
+
+글을 쓸 때 비밀번호를 같이 정하면 나중에 본인이 지울 수 있습니다. 비밀번호는 그대로 보내지 않고 브라우저에서 SHA-256 해시로 바꿔서 저장하며, 해시는 다시 읽을 수 없게 컬럼 권한으로 막아 두었습니다. 삭제는 Postgres 함수 `delete_post` 가 서버에서 해시를 비교해서 처리합니다.
+
+이 기능을 쓰려면 `supabase/board.sql` 도 실행해야 합니다. 실행 전에는 방명록을 열었을 때 "방명록 표가 아직 없어요 (board.sql 실행 필요)" 라고 뜹니다. 게임과 소원등은 그대로 동작합니다.
+
 ### 동작 방식
 
 - 소원등을 걸면 `public.lanterns` 에 한 줄이 들어갑니다.
@@ -90,7 +104,7 @@ http://localhost:5173/deungbul.html
 - 로그인이 없어서 "내 등" 구분은 브라우저마다 만든 임의 ID로 합니다.
 - 점등(밤 장면)은 각자 화면에서 개별로 켜집니다.
 
-주의: `public.lanterns` 도 `public.books` 와 같은 임시 공개 MVP 정책입니다. 누구나 읽고 쓸 수 있으니 공개 링크를 아는 사람만 들어오는 환경에서 씁니다.
+주의: `public.lanterns`, `public.posts`, `public.messages` 모두 `public.books` 와 같은 임시 공개 MVP 정책입니다. 링크를 아는 사람이면 누구나 글을 남길 수 있습니다. 방명록 글은 비밀번호로 본인이 지울 수 있지만, 채팅은 지우는 기능이 없어서 문제가 되는 줄은 Supabase 대시보드에서 직접 지워야 합니다.
 
 ## 테스트 방법
 
