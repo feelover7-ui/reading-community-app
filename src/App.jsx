@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { deleteBookFromSupabase, fetchBooksFromSupabase, saveBookToSupabase } from './lib/booksApi'
 import { searchBooks } from './lib/bookSearchApi'
 import { isSupabaseConfigured } from './lib/supabaseClient'
@@ -43,18 +43,42 @@ const sampleBooks = [
   },
 ]
 
+function normalizeBooks(value) {
+  if (!Array.isArray(value)) return sampleBooks
+  const seen = new Set()
+  return value.filter((book) => {
+    if (!book || typeof book.id !== 'string' || !book.id || seen.has(book.id) ||
+        typeof book.title !== 'string' || typeof book.author !== 'string') return false
+    seen.add(book.id)
+    return true
+  }).map((book) => ({
+    ...book,
+    title: book.title.slice(0, 200),
+    author: book.author.slice(0, 120),
+    status: book.status === 'done' ? 'done' : 'reading',
+    progress: book.status === 'done' ? 100 : clampProgress(book.progress),
+  }))
+}
+
 function loadBooks() {
   try {
     const savedBooks = localStorage.getItem(STORAGE_KEY)
-    return savedBooks ? JSON.parse(savedBooks) : sampleBooks
+    return savedBooks ? normalizeBooks(JSON.parse(savedBooks)) : sampleBooks
   } catch {
     return sampleBooks
   }
 }
 
 function saveBooks(books) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(books))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(books))
+    return true
+  } catch {
+    return false
+  }
 }
+
+const newBookId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 function clampProgress(value) {
   return Math.min(100, Math.max(0, Number(value) || 0))
@@ -68,13 +92,13 @@ function BookCard({ book, onDelete }) {
           <h3>{book.title}</h3>
           <p>{book.author}</p>
         </div>
-        <button type="button" className="delete-button" onClick={() => onDelete(book.id)}>
+        <button type="button" className="delete-button" aria-label={`${book.title} 삭제`} onClick={() => onDelete(book.id)}>
           삭제
         </button>
       </div>
       <div className="progress-row">
         <span>{book.progress}%</span>
-        <div className="progress-track" aria-label={`${book.title} 진행률 ${book.progress}%`}>
+        <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={book.progress} aria-label={`${book.title} 진행률`}>
           <div className="progress-fill" style={{ width: `${book.progress}%` }} />
         </div>
       </div>
@@ -106,7 +130,7 @@ function SearchResultCard({ book, onAdd }) {
   return (
     <article className="result-card">
       <div className="cover-box">
-        {coverUrl ? <img src={coverUrl} alt={`${book.title} 표지`} /> : <span>표지 없음</span>}
+        {coverUrl ? <img src={coverUrl} alt={`${book.title} 표지`} loading="lazy" onError={(event) => { event.currentTarget.hidden = true }} /> : <span>표지 없음</span>}
       </div>
       <div className="result-card__body">
         <h3>{book.title}</h3>
@@ -134,6 +158,11 @@ function SearchResultCard({ book, onAdd }) {
 
 export default function App() {
   const [books, setBooks] = useState(loadBooks)
+  const booksRef = useRef(books)
+  const localRevision = useRef(0)
+  const bookWrites = useRef(new Map())
+  const searchRequest = useRef({ id: 0, controller: null })
+  const [storageError, setStorageError] = useState('')
   const [syncStatus, setSyncStatus] = useState(isSupabaseConfigured ? 'Supabase 연결 확인 중' : 'localStorage 저장 중')
   const [query, setQuery] = useState('')
   const [libraryQuery, setLibraryQuery] = useState('')
@@ -166,6 +195,7 @@ export default function App() {
 
   useEffect(() => {
     let ignore = false
+    const revision = localRevision.current
 
     async function loadRemoteBooks() {
       if (!isSupabaseConfigured) {
@@ -178,11 +208,17 @@ export default function App() {
           return
         }
 
-        if (remoteBooks.length > 0) {
-          setBooks(remoteBooks)
-          saveBooks(remoteBooks)
+        if (localRevision.current !== revision) {
+          setSyncStatus('현재 기록을 유지했습니다. 새로고침하면 서버 기록을 다시 확인합니다.')
+          return
         }
-        setSyncStatus('Supabase와 동기화됨')
+        if (remoteBooks.length > 0) {
+          const normalized = normalizeBooks(remoteBooks)
+          booksRef.current = normalized
+          setBooks(normalized)
+          if (!saveBooks(normalized)) setStorageError('이 브라우저에 저장할 수 없습니다. 새로고침 전에 기록을 확인해 주세요.')
+        }
+        setSyncStatus(remoteBooks.length ? '서버 기록 불러오기 완료' : '서버에 책이 없어 이 브라우저 기록을 표시합니다.')
       } catch {
         if (!ignore) {
           setSyncStatus('Supabase 연결 실패, localStorage 사용 중')
@@ -197,21 +233,39 @@ export default function App() {
     }
   }, [])
 
-  function updateBooks(nextBooks) {
+  useEffect(() => () => {
+    searchRequest.current.controller?.abort()
+  }, [])
+
+  function updateBooks(change) {
+    const nextBooks = change(booksRef.current)
+    localRevision.current++
+    booksRef.current = nextBooks
     setBooks(nextBooks)
-    saveBooks(nextBooks)
+    setStorageError(saveBooks(nextBooks) ? '' : '이 브라우저에 저장할 수 없습니다. 새로고침하면 변경 사항이 사라질 수 있습니다.')
+  }
+
+  function queueBookWrite(id, operation) {
+    const previous = bookWrites.current.get(id) || Promise.resolve()
+    const next = previous.catch(() => {}).then(operation)
+    bookWrites.current.set(id, next)
+    const cleanup = () => {
+      if (bookWrites.current.get(id) === next) bookWrites.current.delete(id)
+    }
+    next.then(cleanup, cleanup)
+    return next
   }
 
   async function addBook(nextBook) {
-    updateBooks([nextBook, ...books])
+    updateBooks((current) => [nextBook, ...current])
 
     try {
-      await saveBookToSupabase(nextBook)
+      await queueBookWrite(nextBook.id, () => saveBookToSupabase(nextBook))
       if (isSupabaseConfigured) {
-        setSyncStatus('Supabase와 동기화됨')
+        setSyncStatus('이 책을 서버에 저장했습니다.')
       }
     } catch {
-      setSyncStatus('Supabase 저장 실패, localStorage에 보관됨')
+      setSyncStatus('서버 저장에 실패했습니다. 브라우저 저장 상태도 확인해 주세요.')
     }
   }
 
@@ -226,7 +280,7 @@ export default function App() {
 
     const progress = form.status === 'done' ? 100 : clampProgress(form.progress)
     const nextBook = {
-      id: `book-${Date.now()}`,
+      id: `book-${newBookId()}`,
       title,
       author,
       status: form.status,
@@ -234,7 +288,7 @@ export default function App() {
       source: 'manual',
     }
 
-    await addBook(nextBook)
+    void addBook(nextBook)
     setForm({
       title: '',
       author: '',
@@ -244,23 +298,28 @@ export default function App() {
   }
 
   async function deleteBook(id) {
-    updateBooks(books.filter((book) => book.id !== id))
+    updateBooks((current) => current.filter((book) => book.id !== id))
 
     try {
-      await deleteBookFromSupabase(id)
+      await queueBookWrite(id, () => deleteBookFromSupabase(id))
       if (isSupabaseConfigured) {
-        setSyncStatus('Supabase와 동기화됨')
+        setSyncStatus('이 책을 서버에서 삭제했습니다.')
       }
     } catch {
-      setSyncStatus('Supabase 삭제 실패, localStorage만 변경됨')
+      setSyncStatus('서버 삭제에 실패했습니다. 새로고침하면 책이 다시 보일 수 있습니다.')
     }
   }
 
   async function handleLibrarySearch(event) {
     event.preventDefault()
     const keyword = libraryQuery.trim()
+    const requestId = ++searchRequest.current.id
+    searchRequest.current.controller?.abort()
+    const controller = new AbortController()
+    searchRequest.current.controller = controller
 
     if (!keyword) {
+      setIsSearching(false)
       setHasSearched(false)
       setLibraryResults([])
       setSearchError('')
@@ -272,19 +331,25 @@ export default function App() {
     setHasSearched(true)
 
     try {
-      const results = await searchBooks(keyword)
+      const results = await searchBooks(keyword, { signal: controller.signal })
+      if (requestId !== searchRequest.current.id) return
       setLibraryResults(results)
     } catch (error) {
+      if (requestId !== searchRequest.current.id || controller.signal.aborted) return
       setLibraryResults([])
       setSearchError(error.message || '검색 중 오류가 발생했습니다.')
     } finally {
-      setIsSearching(false)
+      if (requestId === searchRequest.current.id) setIsSearching(false)
     }
   }
 
   async function addLibraryBook(book) {
+    if (booksRef.current.some((entry) => entry.openLibraryKey === book.key)) {
+      setSyncStatus('이미 서재에 추가한 책입니다.')
+      return
+    }
     const nextBook = {
-      id: `open-library-${book.key}-${Date.now()}`,
+      id: `open-library-${newBookId()}`,
       title: book.title,
       author: book.author,
       status: 'reading',
@@ -305,7 +370,8 @@ export default function App() {
         <p className="eyebrow">함께 읽고 기록하는 작은 서재</p>
         <h1>독서 커뮤니티</h1>
         <p className="hero-copy">읽는 중인 책과 완독한 책을 나누어 관리하고, 새로고침 후에도 기록을 유지합니다.</p>
-        <p className="sync-status">{syncStatus}</p>
+        <p className="sync-status" role="status">{syncStatus}</p>
+        {storageError ? <p className="status-text status-text--error" role="alert">{storageError}</p> : null}
         <div className="stats">
           <div>
             <strong>{books.length}</strong>
@@ -339,6 +405,8 @@ export default function App() {
             <input
               value={form.title}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
+              required
+              maxLength={200}
               placeholder="읽고 싶은 책"
             />
           </label>
@@ -347,6 +415,8 @@ export default function App() {
             <input
               value={form.author}
               onChange={(event) => setForm({ ...form, author: event.target.value })}
+              required
+              maxLength={120}
               placeholder="저자 이름"
             />
           </label>
@@ -405,7 +475,7 @@ export default function App() {
           </button>
         </form>
 
-        {searchError ? <p className="status-text status-text--error">{searchError}</p> : null}
+        {searchError ? <p className="status-text status-text--error" role="alert">{searchError}</p> : null}
         {isSearching ? <p className="status-text">도서를 검색하고 있습니다.</p> : null}
         {!isSearching && hasSearched && !searchError && libraryResults.length === 0 ? (
           <p className="status-text">검색 결과가 없습니다.</p>
