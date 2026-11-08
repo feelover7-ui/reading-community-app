@@ -357,6 +357,7 @@ requestAnimationFrame(loop)
 
 if (import.meta.env.DEV) window.__warp = (x, y) => { player.x = x; player.y = y; player.vx = 0; player.vy = 0; player.moving = false; peers.send(true) }
 if (import.meta.env.DEV) window.__look = (x, y) => faceTowards(player.x, player.y, x, y)
+if (import.meta.env.DEV) window.__cam = () => ({ cam: world.camera.position.toArray().map(v => +v.toFixed(2)), me: meBody.position.toArray().map(v => +v.toFixed(2)), vis: meBody.visible, player: [player.x, player.y] })
 if (import.meta.env.DEV) window.__three = () => ({
   colorSpace: world.renderer.outputColorSpace,
   toneMapping: world.renderer.toneMapping,
