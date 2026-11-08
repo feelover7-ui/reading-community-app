@@ -28,15 +28,23 @@ const BOW_KEY = 'hanmaum-deungbul-bow'
 const BOW_CYCLE = 2.4            // 한 배에 걸리는 시간(초)
 const BOW_CYCLE_QUIET = 1.2      // 동작 줄이기에서는 짧게
 const bow = { on: false, goal: 0, done: 0, t: 0, spot: null }
-const today = () => new Date().toISOString().slice(0, 10)
+// 본원 기준 오늘은 한국 시간(UTC+9) 자정에 바뀐다.
+const today = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+let countDay = today(), dayCheckAt = 0
 function readBowTotal () {
   try {
     const raw = JSON.parse(readStore(BOW_KEY) || '{}')
-    return raw && raw.d === today() && Number.isFinite(raw.n) ? Math.max(0, Math.min(99999, raw.n)) : 0
+    return raw && raw.d === today() && Number.isFinite(raw.n) ? Math.floor(Math.max(0, Math.min(99999, raw.n))) : 0
   } catch (e) { return 0 }
 }
 let bowTotal = readBowTotal()
-function saveBowTotal () { writeStore(BOW_KEY, JSON.stringify({ d: today(), n: bowTotal })) }
+function saveBowTotal () { writeStore(BOW_KEY, JSON.stringify({ d: countDay, n: bowTotal })) }
+function syncBowDay () {
+  const day = today()
+  if (day === countDay) return
+  countDay = day; bowTotal = 0
+  saveBowTotal(); updateCount()
+}
 
 /* 한 배를 다섯 마디로 나눈다. 합장 → 무릎 → 엎드림 → 무릎 → 일어섬 */
 function bowFrame (u) {
@@ -172,6 +180,7 @@ function openBowPicker (c) {
   m.append(close)
 }
 function startBow (c, goal) {
+  syncBowDay()
   bow.on = true; bow.goal = goal; bow.done = 0; bow.t = 0; bow.spot = c
   player.x = c.x; player.y = c.y; player.dir = 'up'
   player.vx = 0; player.vy = 0; player.moving = false
@@ -430,6 +439,8 @@ function drawSpotPins () {
 
 /* ---------- 갱신 ---------- */
 function update (dt) {
+  const now = Date.now()
+  if (now - dayCheckAt >= 1000) { dayCheckAt = now; syncBowDay() }
   if (bow.on) {
     // 절하는 중에는 걸음을 멈춘다. 방향키를 누르면 그만둔다.
     const pressed = keys.has('a') || keys.has('d') || keys.has('w') || keys.has('s') ||
