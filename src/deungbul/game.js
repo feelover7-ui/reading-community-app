@@ -1207,11 +1207,6 @@ function pickedName(){
   setNick(name);
   return name;
 }
-function enterDoryang(){
-  if(started||!pickedName())return;
-  if(fadeEl)fadeEl.classList.add('on');
-  setTimeout(()=>{location.href='/doryang.html?from=title';},320);
-}
 function enterYard(){
   if(started)return;
   const name=pickedName();
@@ -1254,8 +1249,6 @@ if(namein){
   if(!isTouch)setTimeout(()=>{try{namein.focus();}catch(e){}},400);
 }
 document.getElementById('startb').onclick=enterYard;
-const tourb=document.getElementById('tourb');
-if(tourb)tourb.onclick=enterDoryang;
 
 // 도량에서 문으로 들어온 경우. 이름과 모습이 이미 있으면 묻지 않고 바로 문 앞에서 시작한다.
 try{
