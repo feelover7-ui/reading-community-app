@@ -144,3 +144,23 @@ body{background:#dce5cb}
 
 .location-note{margin-left:auto;flex:none;font-size:10px;color:var(--muted);font-weight:400}
 .place-row b{width:auto;min-width:25px;padding:0 3px}
+
+/* 좁은 화면에서도 이동·확대 버튼의 터치 영역과 안전 여백을 확보한다. */
+.skip:focus{z-index:80}
+.map-tools button{min-width:44px;min-height:44px}
+.enter-craft{max-width:calc(100vw - 24px);white-space:normal;line-height:1.5;bottom:max(164px,calc(env(safe-area-inset-bottom) + 152px))}
+@media(max-width:760px){
+ .map-tools{bottom:max(172px,calc(env(safe-area-inset-bottom) + 160px))}
+ .enter-craft{bottom:max(230px,calc(env(safe-area-inset-bottom) + 218px));font-size:14px;padding:10px 16px}
+ .guide[open]{max-height:calc(100dvh - 310px)}
+ .model-note{bottom:max(88px,calc(env(safe-area-inset-bottom) + 76px))}
+}
+@media(max-height:500px){
+ .guide[open]{max-height:calc(100dvh - 90px)}
+ .map-tools{bottom:max(16px,env(safe-area-inset-bottom))}
+ .enter-craft{bottom:16px;left:45%;max-width:calc(100vw - 340px);font-size:12px;padding:8px}
+}
+@media(max-width:520px) and (max-height:500px){
+ .enter-craft{left:12px;transform:none;bottom:76px;max-width:calc(100vw - 174px)}
+ .map-tools{max-width:calc(100vw - 174px)}
+}
