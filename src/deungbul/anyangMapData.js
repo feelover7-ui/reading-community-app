@@ -33,7 +33,7 @@ export const places=[
  {id:'craft',number:'체험',name:'등불사장 작업장',category:'소원등 만들기',x:43,y:76,arrival:[49,86],
   description:'나만의 소원등을 만들고 법우들과 이야기를 나누는 기존 게임으로 이동합니다.',
   note:'탐방 게임을 위해 추가한 작업장입니다. 실제 본원 시설의 위치를 나타내지 않습니다.',
-  href:'/deungbul.html'}
+  href:'/deungbul.html?from=doryang'}
 ]
 export const startPosition={x:66,y:90}
 export const obstacles=[

@@ -1,13 +1,14 @@
 import { supabase } from './supabaseClient.js'
 
-const CHANNEL = 'deungbul-yard'
+const DEFAULT_CHANNEL = 'deungbul-yard'
+const DEFAULT_BOUNDS = { w: 36, h: 26 }
 const validId = (id) => typeof id === 'string' && id.length > 0 && id.length <= 64
 const text = (value, max) => typeof value === 'string' ? value.slice(0, max) : ''
-function cleanMeta(meta = {}) {
+function cleanMeta(meta = {}, bounds = DEFAULT_BOUNDS) {
   if (!meta || typeof meta !== 'object') meta = {}
   const out = { nick: text(meta.nick, 12), sx: meta.sx === 'f' ? 'f' : 'm' }
-  if (Number.isFinite(meta.x) && meta.x >= 0 && meta.x < 36 &&
-      Number.isFinite(meta.y) && meta.y >= 0 && meta.y < 26) {
+  if (Number.isFinite(meta.x) && meta.x >= 0 && meta.x <= bounds.w &&
+      Number.isFinite(meta.y) && meta.y >= 0 && meta.y <= bounds.h) {
     out.x = meta.x; out.y = meta.y
   }
   out.vx = Number.isFinite(meta.vx) ? Math.max(-5, Math.min(5, meta.vx)) : 0
@@ -21,12 +22,12 @@ function cleanMeta(meta = {}) {
 // - presence: 누가 들어오고 나갔는지, 닉네임이 무엇인지
 // - broadcast 'pos': 걸어다니는 위치 (DB에 저장하지 않는다)
 // - broadcast 'say': 말풍선에 띄울 한 줄 (기록은 messages 테이블이 따로 맡는다)
-export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay, onLit, onReady }) {
+export function joinYard({ ownerId, channel: channelName = DEFAULT_CHANNEL, bounds = DEFAULT_BOUNDS, onJoin, onLeave, onSync, onPose, onSay, onLit, onReady }) {
   if (!supabase) {
     return null
   }
 
-  const channel = supabase.channel(CHANNEL, {
+  const channel = supabase.channel(channelName, {
     config: { presence: { key: ownerId }, broadcast: { self: false } },
   })
 
@@ -35,7 +36,7 @@ export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay, onLi
     for (const key of Object.keys(state || {})) {
       if (key === ownerId || !validId(key)) continue
       const meta = (state[key] || [])[0]
-      if (meta) out.push({ id: key, meta: cleanMeta(meta) })
+      if (meta) out.push({ id: key, meta: cleanMeta(meta, bounds) })
     }
     return out
   }
@@ -48,7 +49,7 @@ export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay, onLi
   channel.on('presence', { event: 'join' }, ({ key, newPresences }) => {
     if (key === ownerId || !validId(key)) return
     const meta = (newPresences || [])[0]
-    onJoin && onJoin(key, cleanMeta(meta))
+    onJoin && onJoin(key, cleanMeta(meta, bounds))
   })
 
   channel.on('presence', { event: 'leave' }, ({ key }) => {
@@ -58,7 +59,7 @@ export function joinYard({ ownerId, onJoin, onLeave, onSync, onPose, onSay, onLi
 
   channel.on('broadcast', { event: 'pos' }, ({ payload }) => {
     if (payload && validId(payload.id) && payload.id !== ownerId) {
-      const pose = cleanMeta(payload)
+      const pose = cleanMeta(payload, bounds)
       if (pose.x !== undefined && pose.y !== undefined) onPose && onPose(payload.id, pose)
     }
   })

@@ -41,8 +41,15 @@ body.night .map-lantern{filter:drop-shadow(0 0 10px #ffc968)}
 .pin strong{display:grid;place-items:center;min-width:24px;height:24px;border-radius:8px;background:#eee5cb;color:#5f4b27;font-size:12px}
 .pin[aria-pressed=true]{background:var(--green);border-color:var(--green);color:white;z-index:2}
 .pin[aria-pressed=true] strong{background:#ecce89;color:#3b3427}
+.enter-craft{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:30;border:none;border-radius:999px;padding:14px 26px;background:#c8402f;color:#fff;font:700 16px 'Noto Sans KR',sans-serif;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,.35)}
+.enter-craft[hidden]{display:none}
+#fade{position:fixed;inset:0;background:#1b140f;opacity:0;pointer-events:none;transition:opacity .32s;z-index:60}
+#fade.on{opacity:1}
+@media (max-width:520px){.enter-craft{bottom:150px;font-size:15px;padding:13px 20px}}
 .traveler{position:absolute;left:50%;top:88%;width:36px;height:54px;transform:translate(-50%,-100%);pointer-events:none;transition:left .4s linear,top .4s linear;z-index:1}
 .traveler canvas{display:block;width:36px;height:54px;image-rendering:pixelated}
+.traveler.peer{z-index:0}
+.peer-name{position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);white-space:nowrap;background:rgba(43,29,20,.78);color:#fff6e2;font:700 11px 'Noto Sans KR',sans-serif;padding:2px 8px;border-radius:8px}
 .map-bottom{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 22px}
 #map-help{margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.8}
 .current{margin:0;color:var(--green);font-size:13px;font-weight:700}

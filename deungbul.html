@@ -92,6 +92,8 @@ canvas#game{display:block;touch-action:none}
 .msg .t{margin-left:6px;color:var(--muted);font-size:11px}
 .msg.mine b{color:var(--accent)}
 .note{font-size:12px;color:var(--muted);line-height:1.7;margin:0 0 12px}
+#fade{position:fixed;inset:0;background:#1b140f;opacity:0;pointer-events:none;transition:opacity .32s;z-index:60}
+#fade.on{opacity:1}
 #chatlog{position:fixed;left:12px;bottom:78px;display:none;flex-direction:column;justify-content:flex-end;gap:4px;width:min(420px,calc(100vw - 24px));max-height:132px;overflow:hidden;z-index:11;pointer-events:none}
 #chatlog.show{display:flex}
 #chatlog div{align-self:flex-start;max-width:100%;padding:6px 10px;border-radius:9px;background:rgba(34,25,16,.82);color:#fff4de;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
@@ -219,6 +221,7 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
 <div id="dialog" role="button" tabindex="0" aria-label="대화 계속하기" aria-describedby="dname dtext"><div class="name" id="dname"></div><div class="text" id="dtext" aria-live="polite"></div><div class="next">▼ 계속</div></div>
 <div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="fade" aria-hidden="true"></div>
 <div id="chatlog"></div>
 <div id="chatbar">
   <input id="chatnick" aria-label="대화 닉네임" type="text" maxlength="12" placeholder="닉네임" autocomplete="off">
@@ -255,7 +258,7 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
         <div id="namehint" aria-live="polite">법우들에게 이 이름과 모습으로 보여요</div>
       </div>
       <button id="startb">마당에 들어가기</button>
-      <a class="tour-link" href="/doryang.html" target="_blank" rel="noopener noreferrer">안양 본원 도량 둘러보기 <span>새 창</span></a>
+      <a class="tour-link" href="/doryang.html">안양 본원 도량 둘러보기</a>
       <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업 Space<br>이야기 Enter · 마당 메뉴로 바로 작업하기</div>
     </section>
   </div>

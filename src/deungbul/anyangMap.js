@@ -1,4 +1,5 @@
 import { places, canWalk, startPosition } from './anyangMapData.js'
+import { joinYard } from './presence.js'
 import { drawPixelPerson, walkFrame } from './pixelCharacter.js'
 
 const byId=id=>document.getElementById(id)
@@ -158,11 +159,28 @@ function setPosition(x,y){
   position={x,y}
   traveler.style.left=x+'%'
   traveler.style.top=y+'%'
+  updateEnter()
+  sendGroundsPose()
   walkingUntil=moved&&!reducedMotion?performance.now()+420:0
   cameraFocus=null
   updateCamera()
   if(!avatarFrame)avatarFrame=requestAnimationFrame(paintAvatar)
 }
+/* ---------- 등불사장과 오가기 ---------- */
+const craft=places.find(p=>p.id==='craft')
+const enterBtn=byId('enter-craft'), fadeEl=byId('fade')
+function travel(url){
+  if(fadeEl)fadeEl.classList.add('on')
+  leaveGrounds()
+  setTimeout(()=>{location.href=url},320)
+}
+function nearCraft(){
+  if(!craft||!craft.arrival)return false
+  return Math.hypot(position.x-craft.arrival[0],position.y-craft.arrival[1])<10
+}
+function updateEnter(){ if(enterBtn)enterBtn.hidden=!nearCraft() }
+if(enterBtn)enterBtn.onclick=()=>travel(craft&&craft.href||'/deungbul.html?from=doryang')
+
 function selectPlace(place){
   if(place.onMap!==false)setPosition(...place.arrival)
   if(place.id==='seven'){cameraFocus={x:place.x,y:place.y};updateCamera()}
@@ -176,7 +194,8 @@ function selectPlace(place){
   byId('visited').textContent=visited.size+' / '+places.length
   const action=byId('place-action')
   action.href=place.href||place.source
-  action.textContent=place.href?'소원등 만들러 가기':'공식 안내 보기 · 새 창'
+  action.textContent=place.href?'작업장 들어가기':'공식 안내 보기 · 새 창'
+  action.onclick=place.href?(e=>{e.preventDefault();travel(place.href)}):null
   if(place.href){action.removeAttribute('target');action.removeAttribute('rel')}
   else{action.target='_blank';action.rel='noopener noreferrer'}
   for(const current of places){
@@ -260,5 +279,104 @@ if(skip)skip.addEventListener('click',e=>{
   placesSection.tabIndex=-1
   placesSection.focus({preventScroll:true})
 })
+
+/* ---------- 도량에 같이 들어와 있는 법우들 ----------
+   등불사장과 같은 방식이지만 좌표계가 달라 채널을 따로 쓴다. */
+const NICK_KEY='hanmaum-deungbul-nick', SEX_KEY='hanmaum-deungbul-sex', OWNER_KEY='hanmaum-deungbul-owner'
+const readStore=k=>{try{return localStorage.getItem(k)||''}catch(e){return ''}}
+const rid=()=>Math.random().toString(36).slice(2,10)
+const myNick=readStore(NICK_KEY).trim()||'손님', mySex=readStore(SEX_KEY)==='f'?'f':'m'
+const groundsId=(readStore(OWNER_KEY)||'beopu-'+rid())+'-'+rid()
+const PEER_COLORS=['#5d7fb8','#3f7a5c','#a4603f','#8f6fb5','#c4733f','#3f7a7a','#9b5a7a','#6b7a3f']
+const strHash=t=>{let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return Math.abs(h)}
+const groundsPeers=new Map()
+let grounds=null, lastGroundsAt=0, groundsTimer=0
+const peerLayer=byId('surface')
+
+function peerEl(id,meta){
+  let p=groundsPeers.get(id)
+  if(!p){
+    if(groundsPeers.size>=40)return null
+    const el=document.createElement('div')
+    el.className='traveler peer'
+    const cv=document.createElement('canvas');cv.width=48;cv.height=72
+    const tag=document.createElement('span');tag.className='peer-name'
+    el.append(cv,tag)
+    peerLayer.append(el)
+    p={id,el,cv,tag,ctx:cv.getContext('2d'),nick:'',sex:'m',dir:'down',drawn:''}
+    groundsPeers.set(id,p)
+  }
+  return p
+}
+function paintPeer(p){
+  const key=p.sex+':'+p.dir+':'+p.nick
+  if(key===p.drawn)return
+  p.drawn=key
+  p.ctx.clearRect(0,0,p.cv.width,p.cv.height)
+  const look={body:PEER_COLORS[strHash(p.id)%PEER_COLORS.length],hair:'#2b1d14',pants:'#3b3b48',long:p.sex==='f'}
+  drawPixelPerson(p.ctx,p.cv.width/2,p.cv.height,look,p.dir,false,0,2)
+  p.tag.textContent=(p.nick||'법우').slice(0,12)
+}
+function placePeer(id,meta){
+  const p=peerEl(id,meta)
+  if(!p||!meta)return
+  if(meta.nick)p.nick=meta.nick
+  if(meta.sx)p.sex=meta.sx
+  if(meta.dir)p.dir=meta.dir
+  if(Number.isFinite(meta.x)&&Number.isFinite(meta.y)){
+    p.el.style.left=meta.x+'%'
+    p.el.style.top=meta.y+'%'
+  }
+  paintPeer(p)
+}
+function dropPeer(id){
+  const p=groundsPeers.get(id)
+  if(p){p.el.remove();groundsPeers.delete(id)}
+}
+function sendGroundsPose(force){
+  if(!grounds||!grounds.joined)return
+  const now=Date.now()
+  if(!force&&now-lastGroundsAt<300){
+    clearTimeout(groundsTimer)
+    groundsTimer=setTimeout(()=>sendGroundsPose(true),320)
+    return
+  }
+  lastGroundsAt=now
+  grounds.sendPose({x:+position.x.toFixed(1),y:+position.y.toFixed(1),dir:facing,nick:myNick,sx:mySex})
+}
+function leaveGrounds(){
+  if(grounds){grounds.leave();grounds=null}
+  for(const id of [...groundsPeers.keys()])dropPeer(id)
+}
+function startGrounds(){
+  grounds=joinYard({
+    ownerId:groundsId,
+    channel:'deungbul-grounds',
+    bounds:{w:100,h:100},
+    onReady:()=>sendGroundsPose(true),
+    onJoin:(id,meta)=>{placePeer(id,meta);setTimeout(()=>sendGroundsPose(true),140)},
+    onLeave:dropPeer,
+    onSync:list=>{
+      const alive=new Set()
+      for(const {id,meta} of list){alive.add(id);placePeer(id,meta)}
+      for(const id of [...groundsPeers.keys()])if(!alive.has(id))dropPeer(id)
+    },
+    onPose:(id,pose)=>placePeer(id,pose),
+  })
+  if(grounds)grounds.track({nick:myNick,sx:mySex,x:position.x,y:position.y,dir:facing})
+}
+window.addEventListener('pagehide',leaveGrounds)
+
 setZoom(1)
 setPosition(position.x,position.y)
+// 등불사장에서 문으로 나온 경우 작업장 문 앞에 세운다
+try{
+  if(new URLSearchParams(location.search).get('from')==='deungbul'&&craft&&craft.arrival){
+    if(fadeEl){fadeEl.classList.add('on');requestAnimationFrame(()=>fadeEl.classList.remove('on'))}
+    setPosition(craft.arrival[0],craft.arrival[1])
+    byId('walk-status').textContent='등불사장 작업장 앞으로 나왔어요'
+  }
+}catch(e){}
+startGrounds()
+updateEnter()
+

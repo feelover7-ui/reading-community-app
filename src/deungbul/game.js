@@ -116,7 +116,8 @@ function drawLantern(c,x,y,s,L,o={}){
 const tile=[],solid=[];
 for(let y=0;y<H;y++){tile[y]=[];solid[y]=[];for(let x=0;x<W;x++){let t=y<=12?'wood':'yard';if(x===0||x===W-1||y===0||y===H-1)t='fence';tile[y][x]=t;solid[y][x]=t==='fence';}}
 const setWall=(x,y)=>{tile[y][x]='wall';solid[y][x]=true;};
-for(let x=1;x<=34;x++){setWall(x,1);if(!(x>=16&&x<=19))setWall(x,12);}
+// 위쪽 벽 x=15,16 은 본원 도량으로 나가는 문이다.
+for(let x=1;x<=34;x++){if(!(x>=15&&x<=16))setWall(x,1);if(!(x>=16&&x<=19))setWall(x,12);}
 for(let y=1;y<=12;y++){setWall(1,y);setWall(34,y);}
 const objects=[];
 function addObj(o){objects.push(o);if(o.solid)for(let yy=o.y;yy<o.y+o.h;yy++)for(let xx=o.x;xx<o.x+o.w;xx++)solid[yy][xx]=true;return o;}
@@ -136,6 +137,7 @@ addObj({x:14,y:13,w:1,h:1,solid:true,kind:'stone',sortY:14*T});
 addObj({x:21,y:13,w:1,h:1,solid:true,kind:'stone',sortY:14*T});
 addObj({x:8,y:17,w:1,h:1,solid:true,kind:'sign',sortY:18*T});
 addObj({x:20,y:10,w:1,h:1,solid:true,kind:'board',sortY:11*T});
+addObj({x:15,y:1,w:2,h:1,kind:'gate',sortY:2*T});
 addObj({x:2,y:21,w:2,h:2,solid:true,kind:'tree',sortY:23*T});
 addObj({x:32,y:21,w:2,h:2,solid:true,kind:'tree',sortY:23*T});
 
@@ -429,6 +431,18 @@ function bigLantern(){
   const b=el('button','btn ghost','나만 낮으로 돌아가기');b.onclick=()=>{dayOverride=true;applyNight();closeModal();toast('내 화면만 낮으로 돌렸어요');};
   m.append(a,b);
 }
+/* ---------- 본원 도량과 오가기 ---------- */
+const GATE_SPOT={x:15.5,y:2.6};
+const fadeEl=document.getElementById('fade');
+function travelTo(url){
+  if(fadeEl)fadeEl.classList.add('on');
+  stopYard();
+  setTimeout(()=>{location.href=url;},320);
+}
+function leaveToDoryang(){
+  say('본원 도량',['등불사장 문을 열고 나가요.','도량을 천천히 둘러보고 다시 들러요.'],()=>travelTo('/doryang.html?from=deungbul'));
+}
+
 /* ---------- 마당 방명록 · 이야기 나누기 ---------- */
 const NICK_KEY='hanmaum-deungbul-nick';
 const SEX_KEY='hanmaum-deungbul-sex';
@@ -913,6 +927,7 @@ const INTERACT=[
   {x:8.5,y:18.45,name:'소원등 걸이대',fn:hangSign,mark:[8.5,16.35],key:'sign'},
   {x:18,y:20.45,name:'장엄등',fn:bigLantern,mark:[18,12.9],key:'big'},
   {x:20.5,y:11.45,name:'방명록',fn:openBoard,mark:[20.5,9.35],key:'board'},
+  {x:15.5,y:2.5,name:'본원 도량으로 나가기',fn:leaveToDoryang,mark:[15.5,1.1],key:'gate'},
 ];
 function nearest(){let best=null,bd=1.25;for(const it of INTERACT){const d=Math.hypot(it.x-player.x,it.y-player.y);if(d<bd){bd=d;best=it;}}return best;}
 function targetKey(){if(state.stage>0)return['frame','paper','paint','light','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';return null;}
@@ -1087,6 +1102,15 @@ function drawBig(c,lit,t){
   c.fillStyle='#f0cf73';c.font='700 15px "Gowun Batang",serif';c.textAlign='center';c.textBaseline='middle';c.fillText('청년회 장엄등',18*T,18.93*T);
 }
 function drawStone(o,lit){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,16,5);ctx.fillStyle='#9a958b';ctx.fillRect(x-14,y-10,28,8);ctx.fillRect(x-5,y-30,10,22);ctx.fillStyle='#a9a398';ctx.fillRect(x-12,y-48,24,18);ctx.fillStyle=lit?'#ffd36b':'#5a554e';ctx.fillRect(x-6,y-44,12,10);ctx.fillStyle='#7f7a71';ctx.beginPath();ctx.moveTo(x-18,y-48);ctx.lineTo(x,y-60);ctx.lineTo(x+18,y-48);ctx.closePath();ctx.fill();}
+function drawGate(o){
+  const x=(o.x+1)*T,y=(o.y+1)*T;
+  ctx.fillStyle='#3a2616';ctx.fillRect(x-T-4,y-T-10,2*T+8,10);
+  ctx.fillStyle='#5a3b26';ctx.fillRect(x-T-4,y-T,8,T);ctx.fillRect(x+T-4,y-T,8,T);
+  ctx.fillStyle='#2b1d14';rr(ctx,x-38,y-T-34,76,26,5);ctx.fill();
+  ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.fillStyle='#f0cf73';ctx.font='700 12px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('본원 도량',x,y-T-21);
+}
 function drawBoardSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-50,y-62,100,32,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('방명록',x,y-52);ctx.fillStyle='#bba169';ctx.font='400 10px "Noto Sans KR",sans-serif';ctx.fillText('글 남기기 · 이야기',x,y-39);}
 function drawSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-46,y-58,92,28,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('소원등 걸이대',x,y-44);}
 function drawTree(o){const x=(o.x+1)*T,y=(o.y+2)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-6,30,9);ctx.fillStyle='#6b4630';ctx.fillRect(x-6,y-34,12,30);[['#3f6e46',0,-58,34],['#4f8456',-14,-66,24],['#5a9461',12,-72,22],['#67a36d',2,-80,16]].forEach(([c,dx,dy,r])=>{ctx.fillStyle=c;circ(ctx,x+dx,y+dy,r);});}
@@ -1119,7 +1143,7 @@ function render(t){
   const x0=Math.max(0,Math.floor(camX/T)),y0=Math.max(0,Math.floor(camY/T)),x1=Math.min(W-1,Math.ceil((camX+viewW)/T)),y1=Math.min(H-1,Math.ceil((camY+viewH)/T));
   drawTiles(x0,y0,x1,y1);
   const night=state.night;
-  const dr=objects.map(o=>({y:o.sortY,f:()=>{if(o.kind==='table')drawTable(o,t);else if(o.kind==='shelf')drawShelf(o);else if(o.kind==='rack')drawRack(o);else if(o.kind==='dragon')drawDragon();else if(o.kind==='big')drawBig(ctx,night,t);else if(o.kind==='stone')drawStone(o,night);else if(o.kind==='sign')drawSign(o);else if(o.kind==='board')drawBoardSign(o);else if(o.kind==='tree')drawTree(o);}}));
+  const dr=objects.map(o=>({y:o.sortY,f:()=>{if(o.kind==='table')drawTable(o,t);else if(o.kind==='shelf')drawShelf(o);else if(o.kind==='rack')drawRack(o);else if(o.kind==='dragon')drawDragon();else if(o.kind==='big')drawBig(ctx,night,t);else if(o.kind==='stone')drawStone(o,night);else if(o.kind==='sign')drawSign(o);else if(o.kind==='board')drawBoardSign(o);else if(o.kind==='gate')drawGate(o);else if(o.kind==='tree')drawTree(o);}}));
   NPCS.forEach(n=>dr.push({y:n.y*T,f:()=>drawPerson(n.x*T,n.y*T,n.o,n.dir,false,t)}));
   peers.forEach(p=>{if(p.x>=x0-2&&p.x<=x1+2&&p.y>=y0-2&&p.y<=y1+3)dr.push({y:p.y*T,f:()=>drawPeer(p,night)});});
   dr.push({y:player.y*T,f:()=>{drawPerson(player.x*T,player.y*T,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48',long:isLong(mySex)},player.dir,player.moving,player.walk);if(started)nameTag(player.x*T,player.y*T,nickNow()||'나',night,true);if(state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-CARRY_Y,26,state.craft,{lit:state.stage>=4,wire:1,paper:state.stage>=2?1:0});}});
@@ -1219,4 +1243,19 @@ if(namein){
   if(!isTouch)setTimeout(()=>{try{namein.focus();}catch(e){}},400);
 }
 document.getElementById('startb').onclick=enterYard;
+
+// 도량에서 문으로 들어온 경우. 이름과 모습이 이미 있으면 묻지 않고 바로 문 앞에서 시작한다.
+try{
+  if(new URLSearchParams(location.search).get('from')==='doryang'){
+    if(fadeEl){fadeEl.classList.add('on');requestAnimationFrame(()=>fadeEl.classList.remove('on'));}
+    if(nickNow()&&mySex){
+      player.x=GATE_SPOT.x;player.y=GATE_SPOT.y;player.dir='down';
+      ac();started=true;
+      document.getElementById('title').classList.add('hide');
+      try{cv.focus({preventScroll:true});}catch(e){}
+      startYard();updateHere();renderChatLog();
+      setTimeout(()=>toast('등불사장에 들어왔어요'),400);
+    }
+  }
+}catch(e){}
 })();
