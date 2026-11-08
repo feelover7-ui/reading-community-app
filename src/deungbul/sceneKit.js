@@ -4,6 +4,7 @@
 import { joinYard } from './presence.js'
 
 export const SPEED = 4.3          // 칸/초. 등불사장과 같다.
+export const SAY_MS = 6000        // 말풍선이 떠 있는 시간
 export const PEER_MAX = 120
 const POSE_ERR = .35, POSE_BEAT = 1600, POSE_AGE = 1.5
 
@@ -54,18 +55,32 @@ const CODE_KEYS = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyE: 'e', Space
 export const keyName = e => CODE_KEYS[e.code] || (typeof e.key === 'string' ? e.key.toLowerCase() : '')
 const typingTarget = t => !!t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')
 
-export function bindKeys ({ onAction, onEscape, isModalOpen }) {
+export function bindKeys ({ onAction, onEscape, isModalOpen, onModalAction, onEnter }) {
   const keys = new Set()
   addEventListener('keydown', e => {
     if (e.isComposing || e.keyCode === 229) return
     if (e.ctrlKey || e.altKey || e.metaKey) return
     if (typingTarget(e.target)) return
-    if (isModalOpen && isModalOpen()) { if (e.key === 'Escape' && onEscape) onEscape(); return }
+    if (isModalOpen && isModalOpen()) {
+      if (e.key === 'Escape') { if (onEscape) onEscape(); return }
+      // 창이 떠 있을 때 Space 를 한 번 더 누르면 그 창의 기본 단추를 누른다.
+      const tagInModal = e.target && e.target.tagName
+      const k = keyName(e)
+      if ((k === ' ' || k === 'e') && tagInModal !== 'BUTTON' && tagInModal !== 'A') {
+        e.preventDefault()
+        if (!e.repeat && onModalAction) onModalAction()
+      }
+      return
+    }
     // 창을 닫으면 초점이 그 창을 연 버튼으로 돌아간다. 버튼에 초점이 있어도
     // 걷기는 되어야 한다. Space 만 그 버튼을 누르는 키라서 넘긴다.
     const tag = e.target && e.target.tagName
     const onControl = tag === 'BUTTON' || tag === 'A'
     const name = keyName(e)
+    if (e.key === 'Enter') {
+      if (onControl) return
+      e.preventDefault(); if (!e.repeat && onEnter) onEnter(); return
+    }
     if (name === ' ' || name === 'e') {
       if (onControl && name === ' ') return
       e.preventDefault(); if (!e.repeat && onAction) onAction(); return
@@ -137,7 +152,7 @@ export function stepPlayer (player, keys, joy, dt, canStand, frozen) {
 const PEER_COLORS = ['#5d7fb8', '#3f7a5c', '#a4603f', '#8f6fb5', '#c4733f', '#3f7a7a', '#9b5a7a', '#6b7a3f']
 const strHash = t => { let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0; return Math.abs(h) }
 
-export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, getSelf, onChange, isPaused }) {
+export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, getSelf, onChange, isPaused, onSay }) {
   const peers = new Map()
   let yard = null, lastAt = 0, timer = 0, greet = 0, dirty = true
   let lastSent = { x: 0, y: 0, vx: 0, vy: 0, dir: '', bow: false, at: 0 }
@@ -239,10 +254,23 @@ export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, ge
           for (const item of list) { alive.add(item.id); apply(item.id, item.meta, true) }
           for (const id of [...peers.keys()]) if (!alive.has(id)) { peers.delete(id); mark() }
         },
-        onPose: (id, pose) => apply(id, pose, false)
+        onPose: (id, pose) => apply(id, pose, false),
+        onSay: (id, data) => {
+          const p = peerOf(id, data && data.nick)
+          if (!p) return
+          p.say = String((data && data.text) || '').slice(0, 200)
+          p.sayUntil = Date.now() + SAY_MS
+          onSay && onSay(id, p.nick, p.say)
+        }
       })
       if (yard) yard.track({ nick, sx: sex, x: self.x, y: self.y, dir: self.dir })
       mark()
+    },
+    say (text) {
+      const t = String(text || '').slice(0, 200)
+      if (!t || !yard || !yard.joined) return false
+      yard.sendSay(t, nick)
+      return true
     },
     stop () {
       clearTimeout(timer); timer = 0
@@ -269,9 +297,12 @@ export function createModal (modalWrap, card, { onClose } = {}) {
   const m = {
     el,
     open: false,
+    primary: null,          // Space 한 번 더 눌렀을 때 할 일
+    runPrimary () { if (m.open && typeof m.primary === 'function') m.primary() },
     close () {
       if (!m.open) return
-      m.open = false; modalWrap.classList.remove('show'); card.innerHTML = ''
+      m.open = false; m.primary = null
+      modalWrap.classList.remove('show'); card.innerHTML = ''
       for (const [node, inert] of blocked) node.inert = inert
       blocked.clear()
       const back = returnFocus
@@ -293,7 +324,7 @@ export function createModal (modalWrap, card, { onClose } = {}) {
           blocked.set(node, node.inert); node.inert = true
         }
       }
-      m.open = true
+      m.open = true; m.primary = null
       card.innerHTML = ''
       const x = el('button', 'x', '✕'); x.setAttribute('aria-label', '닫기'); x.onclick = m.close
       const heading = el('h2', null, title); heading.id = 'scene-modal-title'
@@ -349,4 +380,101 @@ export function readIdentity () {
     // 소원등 주인은 브라우저별로 유지하고, 접속자는 탭별로 구분한다.
     id: (readStore(OWNER_KEY) || 'beopu-' + rid()) + '-' + rid()
   }
+}
+
+/* ---------- 말풍선 ---------- */
+export function drawBubble (ctx, x, y, lines, opt = {}) {
+  ctx.font = opt.font || '500 13px "Noto Sans KR",sans-serif'
+  let w = 0
+  lines.forEach(l => { w = Math.max(w, ctx.measureText(l).width) })
+  const pw = w + 20, ph = lines.length * 18 + 12
+  const bx = x - pw / 2, by = y - ph - 8
+  ctx.fillStyle = opt.bg || 'rgba(251,244,228,.97)'
+  rr(ctx, bx, by, pw, ph, 8); ctx.fill()
+  ctx.strokeStyle = opt.stroke || '#6b4a2f'; ctx.lineWidth = 1.5; ctx.stroke()
+  ctx.beginPath(); ctx.moveTo(x - 6, by + ph); ctx.lineTo(x, by + ph + 7); ctx.lineTo(x + 6, by + ph)
+  ctx.closePath(); ctx.fillStyle = opt.bg || 'rgba(251,244,228,.97)'; ctx.fill()
+  ctx.fillStyle = opt.color || '#2b1d14'
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+  lines.forEach((l, i) => ctx.fillText(l, x, by + 15 + i * 18))
+}
+export const wrapLines = (s, n) => {
+  const out = []; let cur = ''
+  for (const ch of s) {
+    cur += ch
+    if ((cur.length >= n && ch === ' ') || cur.length >= n + 3) { out.push(cur.trim()); cur = '' }
+  }
+  if (cur.trim()) out.push(cur.trim())
+  return out.slice(0, 3)
+}
+
+/* ---------- 한 줄 이야기 ----------
+   말풍선은 broadcast 로만 주고받고 DB 에 저장하지 않는다. */
+export function createChat ({ bar, log, input, sendBtn, toggleBtn, send, onOpenChange }) {
+  const lines = []
+  let open = false, sending = false
+  function draw () {
+    if (!log) return
+    if (!lines.length) { log.classList.remove('show'); log.innerHTML = ''; return }
+    log.classList.add('show'); log.innerHTML = ''
+    for (const l of lines.slice(-5)) {
+      const d = document.createElement('div')
+      if (l.mine) d.className = 'mine'
+      const b = document.createElement('b'); b.textContent = (l.nick || '법우').slice(0, 12)
+      d.append(b, document.createTextNode(l.text))
+      log.append(d)
+    }
+  }
+  const api = {
+    get isOpen () { return open },
+    push (nick, text, mine) {
+      const t = String(text || '').slice(0, 200)
+      if (!t) return
+      lines.push({ nick, text: t, mine })
+      if (lines.length > 30) lines.shift()
+      draw()
+    },
+    show () {
+      if (open) return
+      open = true; bar.classList.add('show')
+      try { input.focus() } catch (e) {}
+      onOpenChange && onOpenChange(true)
+    },
+    hide () {
+      if (!open) return
+      open = false; bar.classList.remove('show')
+      try { input.blur() } catch (e) {}
+      onOpenChange && onOpenChange(false)
+    },
+    toggle () { open ? api.hide() : api.show() }
+  }
+  function submit () {
+    if (sending) return
+    const text = (input.value || '').trim().slice(0, 200)
+    if (!text) { api.hide(); return }
+    sending = true
+    try { send(text) } finally { sending = false }
+    input.value = ''
+    api.hide()
+  }
+  input.addEventListener('keydown', e => {
+    if (e.isComposing || e.keyCode === 229) return
+    if (e.key === 'Enter') { e.preventDefault(); submit() }
+    else if (e.key === 'Escape') { e.preventDefault(); api.hide() }
+  })
+  if (sendBtn) sendBtn.addEventListener('click', submit)
+  if (toggleBtn) toggleBtn.addEventListener('click', () => api.toggle())
+  return api
+}
+
+/* ---------- 버튼을 누른 뒤 초점 되돌리기 ----------
+   마우스·손가락으로 누른 뒤 초점이 버튼에 남으면 다음 Space 가 그 버튼을
+   다시 누른다. 키보드(Enter)로 누른 경우는 초점을 그대로 둔다. */
+export function releaseFocus (node, back) {
+  if (!node) return
+  node.addEventListener('click', e => {
+    if (!e.detail) return                 // 키보드로 누른 경우
+    try { node.blur() } catch (err) {}
+    if (back) { try { back.focus({ preventScroll: true }) } catch (err) {} }
+  })
 }

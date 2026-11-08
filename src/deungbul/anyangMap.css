@@ -93,3 +93,26 @@ body.touch #bowbar{top:auto;bottom:max(140px,calc(env(safe-area-inset-bottom) + 
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+
+/* 한 줄 이야기 */
+#chatlog{position:fixed;left:12px;bottom:78px;display:none;flex-direction:column;justify-content:flex-end;gap:4px;width:min(420px,calc(100vw - 24px));max-height:132px;overflow:hidden;z-index:11;pointer-events:none}
+#chatlog.show{display:flex}
+#chatlog div{align-self:flex-start;max-width:100%;padding:6px 10px;border-radius:9px;background:rgba(34,25,16,.82);color:#fff4de;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+#chatlog b{color:#f0cf83;margin-right:6px}
+#chatlog div.mine b{color:#ffbc9b}
+#chatbar{position:fixed;left:12px;bottom:16px;transform:translateY(16px);width:min(540px,calc(100vw - 24px));display:none;gap:8px;z-index:12;opacity:0;transition:opacity .15s,transform .15s}
+#chatbar.show{display:flex;opacity:1;transform:translateY(0)}
+#chatbar input{flex:1;min-width:0;min-height:48px;padding:12px;border:1px solid #a08256;border-radius:12px;background:var(--paper);color:var(--ink);font-size:16px;box-shadow:var(--shadow);user-select:text;-webkit-user-select:text}
+#chatbar button{flex:none;border:0;border-radius:12px;padding:0 16px;background:var(--accent);color:#fff;font-weight:700;font-size:14px;box-shadow:var(--shadow)}
+body:has(#chatbar.show) #hud{visibility:hidden}
+body.touch #chatlog{bottom:188px;max-height:90px;width:calc(100vw - 24px)}
+body.touch #chatbar{bottom:max(130px,calc(env(safe-area-inset-bottom) + 124px))}
+
+/* 좁은 화면에서는 이야기창을 위로 올린다. 아래는 조이스틱과 버튼 자리다. */
+@media (max-width:560px){
+  #chatbar{bottom:auto;top:max(112px,calc(env(safe-area-inset-top) + 100px));left:12px;gap:6px}
+  body.touch #chatbar{bottom:auto;top:max(112px,calc(env(safe-area-inset-top) + 100px))}
+  #chatbar button{padding:0 12px}
+  #chatlog,body.touch #chatlog{bottom:auto;top:max(170px,calc(env(safe-area-inset-top) + 158px));max-height:120px;width:calc(100vw - 24px)}
+  body:has(#chatbar.show) #hud{visibility:hidden}
+}

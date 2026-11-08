@@ -6,8 +6,10 @@ import { T, W, H, structures, spots, cushions, MAT, DOOR, startPosition, canStan
 import { drawPixelPerson, drawPixelBow, BOW_FRAMES } from './pixelCharacter.js'
 import {
   hash, rr, circ, ell, createView, camera, bindKeys, bindJoystick, stepPlayer,
-  createPeers, createModal, nameTag, readIdentity, readStore, writeStore
+  createPeers, createModal, nameTag, readIdentity, readStore, writeStore,
+  createChat, drawBubble, wrapLines, SAY_MS, releaseFocus
 } from './sceneKit.js'
+import { createBgm } from './bgm.js'
 
 const byId = id => document.getElementById(id)
 const cv = byId('game'), ctx = cv.getContext('2d')
@@ -64,7 +66,9 @@ const el = modal.el
 /* ---------- 키와 조이스틱 ---------- */
 const keys = bindKeys({
   onAction: () => action(),
-  onEscape: () => { if (bow.on) stopBow('멈췄어요') },
+  onEnter: () => chat.toggle(),
+  onModalAction: () => modal.runPrimary(),
+  onEscape: () => { if (modal.open) modal.close(); else if (chat.isOpen) chat.hide(); else if (bow.on) stopBow('멈췄어요') },
   isModalOpen: () => modal.open
 })
 const joy = bindJoystick(byId('joy'))
@@ -81,7 +85,8 @@ const peers = createPeers({
   canStand,
   getSelf: () => ({ x: player.x, y: player.y, vx: player.vx, vy: player.vy, dir: player.dir, moving: player.moving, bow: bow.on }),
   onChange: () => updateHere(),
-  isPaused: () => traveling
+  isPaused: () => traveling,
+  onSay: (id, nick, text) => chat.push(nick, text, false)
 })
 
 const statusEl = byId('status'), countEl = byId('count'), hereEl = byId('here')
@@ -138,6 +143,7 @@ function promptNow () {
 }
 function action () {
   if (traveling || modal.open) return
+  if (chat.isOpen) { chat.hide(); return }
   if (bow.on) { stopBow('멈췄어요'); return }
   const p = promptNow()
   if (p) p.run()
@@ -153,6 +159,7 @@ function openSpot (s) {
   a.textContent = '공식 안내 보기 · 새 창'
   const close = el('button', 'btn ghost', '닫기'); close.onclick = modal.close
   m.append(a, close)
+  modal.primary = modal.close
 }
 
 const BOW_CHOICES = [
@@ -215,6 +222,30 @@ byId('helpb').onclick = () => {
 }
 byId('backb').addEventListener('click', e => { e.preventDefault(); travel('/doryang.html?from=beopdang') })
 
+/* ---------- 한 줄 이야기 ---------- */
+let myLine = '', myLineUntil = 0
+const chat = createChat({
+  bar: byId('chatbar'), log: byId('chatlog'),
+  input: byId('chatmsg'), sendBtn: byId('chatsend'), toggleBtn: byId('chatb'),
+  send: text => {
+    if (!peers.say(text)) { setStatus('지금은 혼자 있는 법당이라 이야기를 나눌 수 없어요.'); return }
+    chat.push(me.nick, text, true)
+    myLine = text; myLineUntil = Date.now() + SAY_MS
+  },
+  onOpenChange: open => { if (!open) { keys.clear(); joy.reset(); try { cv.focus({ preventScroll: true }) } catch (e) {} } }
+})
+
+/* ---------- 배경음악 ---------- */
+const bgm = createBgm()
+const bgmBtn = byId('bgmb')
+function paintBgm () {
+  bgmBtn.textContent = bgm.on ? '🎵' : '🔈'
+  bgmBtn.setAttribute('aria-pressed', String(bgm.on))
+  bgmBtn.setAttribute('aria-label', bgm.on ? '배경음악 끄기' : '배경음악 켜기')
+}
+bgmBtn.onclick = () => { bgm.toggle(); paintBgm() }
+paintBgm()
+
 const hudEl = byId('hud'), hudH = byId('hudh')
 function toggleHud () {
   const open = !hudEl.classList.toggle('collapsed')
@@ -222,6 +253,8 @@ function toggleHud () {
   hudH.querySelector('small').textContent = open ? '접기' : '펼치기'
 }
 hudH.addEventListener('click', toggleHud)
+for (const id of ['act', 'helpb', 'bgmb', 'chatb', 'bowstop', 'backb']) releaseFocus(byId(id), cv)
+releaseFocus(hudH, cv)
 hudH.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return
   e.preventDefault(); e.stopPropagation(); toggleHud()
@@ -459,7 +492,7 @@ function update (dt) {
       }
     }
   } else {
-    stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open)
+    stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open || chat.isOpen)
   }
   peers.update(dt)
   peers.send()
@@ -497,7 +530,17 @@ function render (t) {
 
   drawSpotPins()
 
-  if (!modal.open && !bow.on) {
+  // 말풍선
+  const sayNow = Date.now()
+  const sayStyle = { font: '500 13px "Noto Sans KR",sans-serif' }
+  for (const p of peers.peers.values()) {
+    if (!p.say || p.sayUntil <= sayNow) continue
+    drawBubble(ctx, p.x * T, p.y * T - 76, wrapLines(p.say, 14), sayStyle)
+  }
+  const myBubble = myLine && myLineUntil > sayNow
+  if (myBubble) drawBubble(ctx, player.x * T, player.y * T - 76, wrapLines(myLine, 14), sayStyle)
+
+  if (!modal.open && !bow.on && !chat.isOpen && !myBubble) {
     const p = promptNow()
     if (p) {
       const label = (isTouch ? '살펴보기 · ' : 'Space · ') + p.label

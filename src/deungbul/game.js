@@ -2,6 +2,8 @@ import { normalizeLantern, isSupabaseConfigured, fetchLanterns, insertLantern, s
 import { canHash, hashPassword, fetchPosts, insertPost, deletePost, fetchMessages, insertMessage, subscribeBoard } from './boardApi.js'
 import { joinYard } from './presence.js'
 import { drawPixelPerson } from './pixelCharacter.js'
+import { releaseFocus } from './sceneKit.js'
+import { createBgm } from './bgm.js'
 
 (()=>{
 'use strict';
@@ -991,6 +993,12 @@ function resetJoy(){joy.id=null;joy.x=0;joy.y=0;knob.style.transform='';}
 const joyEnd=e=>{if(joy.id!==e.pointerId)return;resetJoy();};
 joyEl.addEventListener('pointerup',joyEnd);joyEl.addEventListener('pointercancel',joyEnd);joyEl.addEventListener('lostpointercapture',joyEnd);
 document.getElementById('act').addEventListener('click',action);
+/* 배경음악. 음원 파일 없이 Web Audio 로 만든다. */
+const bgm=createBgm(),bgmBtn=document.getElementById('bgmb');
+function paintBgm(){bgmBtn.textContent=bgm.on?'🎵':'🔈';bgmBtn.setAttribute('aria-pressed',String(bgm.on));bgmBtn.setAttribute('aria-label',bgm.on?'배경음악 끄기':'배경음악 켜기');}
+bgmBtn.onclick=()=>{bgm.toggle();paintBgm();};paintBgm();
+/* 마우스·손가락으로 누른 뒤 초점이 버튼에 남으면 다음 Space 가 그 버튼을 다시 누른다. */
+for(const id of ['act','chatb','snd','helpb','bgmb','yardmenub','hudh'])releaseFocus(document.getElementById(id),cv);
 document.getElementById('snd').onclick=e=>{muted=!muted;e.currentTarget.textContent=muted?'🔇':'🔊';e.currentTarget.setAttribute('aria-label',muted?'소리 켜기':'소리 끄기');e.currentTarget.setAttribute('aria-pressed',String(muted));};
 document.getElementById('helpb').onclick=()=>{if(!started)return;const m=modalShell('도움말',null);const h=el('div','help');h.innerHTML=`<p><b>이동</b> ${isTouch?'왼쪽 조이스틱':'<kbd>방향키</kbd> 또는 <kbd>WASD</kbd>'}<br><b>작업·대화</b> ${isTouch?'오른쪽 <b>작업</b> 버튼':'<kbd>Space</kbd> 또는 <kbd>E</kbd>'}<br><b>한 줄 이야기</b> ${isTouch?'오른쪽 위 <b>💬</b> 버튼':'<kbd>Enter</kbd>'}</p><p>같은 마당에 들어와 있는 법우들이 캐릭터로 보여요. 이야기를 보내면 머리 위에 말풍선이 떠요.</p><p>금색 ▼ 표시가 다음에 갈 곳이에요. 등불사장 위쪽 작업대를 왼쪽부터 차례로 돌면 소원등 하나가 완성돼요.</p><p>완성한 등은 마당 왼쪽 <b>소원등 걸이대</b>에 걸고, 마당 가운데 <b>장엄등</b> 앞에서 점등해요. 등은 몇 개든 더 만들 수 있어요.</p><p>들어오자마자 오른쪽에 있는 <b>방명록</b>에서는 글을 남기거나, 지금 들어와 있는 법우들과 이야기를 나눌 수 있어요.</p><p style="color:#8a7a66;font-size:13px">${shared?'걸린 소원등은 법우들이 같은 마당에서 함께 봐요. 다른 법우가 등을 걸면 내 화면 걸이줄에도 새 등이 걸립니다.':'지금은 내가 건 소원등이 이 브라우저에만 저장돼요.'} 공간 배치는 등불사장을 바탕으로 상상해 그린 거예요.</p>`;const b=el('button','btn','닫기');b.onclick=closeModal;m.append(h,b);};
 

@@ -6,8 +6,10 @@ import { T, W, H, places, structures, trees, startPosition, canStand, CRAFT_DOOR
 import { drawPixelPerson } from './pixelCharacter.js'
 import {
   hash, rr, circ, ell, createView, camera, bindKeys, bindJoystick, stepPlayer,
-  createPeers, createModal, nameTag, readIdentity
+  createPeers, createModal, nameTag, readIdentity, createChat, drawBubble, wrapLines,
+  SAY_MS, releaseFocus
 } from './sceneKit.js'
+import { createBgm } from './bgm.js'
 
 const byId = id => document.getElementById(id)
 const cv = byId('game'), ctx = cv.getContext('2d')
@@ -30,15 +32,17 @@ const myLook = { body: '#e3a83f', hair: '#2b1d14', pants: '#3b3b48', long: mySex
 
 /* ---------- 땅 ---------- */
 const PATHS = [
-  [6, 22, 42, 25],    // 앞마당을 가로지르는 큰 길
-  [8, 24, 11, 26],    // 작업장 문 앞
-  [20, 6, 23, 23],    // 가운데 세로 길
-  [11, 9, 30, 12],    // 북쪽 가로 길
-  [41, 9, 43, 23],    // 요사채·연구원 쪽 세로 길
-  [26, 12, 30, 14],   // 본관 뒤로 도는 길
+  [8, 22, 42, 25],    // 법당 앞을 가로지르는 큰 길
+  [20, 6, 23, 25],    // 가운데 세로 길
+  [33, 8, 37, 14],    // 작업장 문에서 내려오는 길
+  [12, 11, 37, 13],   // 위쪽 가로 길
+  [9, 8, 14, 11],     // 동상 마당
+  [26, 13, 29, 23],   // 법당 서쪽
+  [41, 9, 43, 25],    // 법당 동쪽
+  [13, 21, 22, 23],   // 연못 아래
   [22, 25, 26, 31],   // 주차장 입구
   [29, 25, 33, 32],   // 출구
-  [33, 23, 39, 25]    // 측문 앞
+  [23, 10, 26, 12]    // 구정탑 둘레
 ]
 const onPath = (x, y) => PATHS.some(p => x >= p[0] && x < p[2] && y >= p[1] && y < p[3])
 
@@ -143,94 +147,27 @@ function drawStructure (s, t) {
         circ(ctx, sx - r * .3, top + h * .4 - 15 - i * 17, r * .3)
       }
       ctx.fillStyle = '#f6dc8e'; circ(ctx, sx, top - 4, 6)
-      break
-    }
-    case 'hanok': {
-      ctx.fillStyle = '#b98f5e'; ctx.fillRect(x, y + h * .46, w, h * .54)
-      ctx.fillStyle = '#8f6a42'
-      for (let i = 0; i <= s.w; i++) ctx.fillRect(x + i * T - 4, y + h * .46, 8, h * .54)
-      ctx.fillStyle = '#f0e2c6'
-      for (let i = 0; i < s.w - 1; i++) ctx.fillRect(x + i * T + 8, y + h * .55, T - 12, h * .28)
-      hanokRoof(x, y, w, h * .5)
-      dancheong(x + 10, y + h * .44, w - 20)
-      break
-    }
-    case 'tiled': {
-      ctx.fillStyle = '#e0cdae'; ctx.fillRect(x, y + h * .4, w, h * .6)
-      windows(x + 8, y + h * .52, w - 16, h * .36, 3, 2, '#6d8498')
-      hanokRoof(x, y, w, h * .44)
-      break
-    }
-    case 'modern': {
-      ctx.fillStyle = '#9b8572'; ctx.fillRect(x, y + 10, w, h - 10)
-      ctx.fillStyle = '#806d5d'; ctx.fillRect(x, y + 10, w, 7)
-      windows(x + 8, y + 26, w - 16, h - 42, 6, 3, '#4d6c86')
-      roofTiles(x - 4, y, w + 8, 12, '#44525f', '#55677a')
-      break
-    }
-    case 'brick': {
-      ctx.fillStyle = '#e6d6bd'; ctx.fillRect(x, y + 12, w, h - 12)
-      windows(x + 8, y + 26, w - 16, h - 40, 4, 2, '#5c7a90')
-      roofTiles(x - 5, y, w + 10, 14, '#8d3a2c', '#a84a39')
-      break
-    }
-    case 'stone': {
-      ctx.fillStyle = '#cfc3ae'; ctx.fillRect(x, y, w, h)
-      ctx.fillStyle = 'rgba(120,105,84,.35)'
-      for (let r = 0; r * 16 < h; r++) for (let c = 0; c * 26 < w; c++) {
-        ctx.fillRect(x + c * 26 + (r % 2 ? 13 : 0), y + r * 16, 24, 1.5)
-      }
-      ctx.fillStyle = '#b6a98f'; ctx.fillRect(x, y, w, 10)
-      windows(x + 10, y + 30, w - 20, h - 76, 2, 4, '#5d7488')
-      // 아래쪽 출입구와 처마
-      ctx.fillStyle = '#7a5433'; ctx.fillRect(x + w / 2 - 20, y + h - 44, 40, 44)
-      ctx.fillStyle = '#f0cf73'; ctx.fillRect(x + w / 2 - 16, y + h - 40, 32, 5)
-      ctx.fillStyle = '#9e9077'; ctx.fillRect(x - 4, y + h - 52, w + 8, 9)
-      ctx.fillStyle = '#bdb096'
-      for (let i = 0; i < 4; i++) ctx.fillRect(x + w, y + h * .35 + i * 9, 10 - i * 2, 8)
-      break
-    }
-    case 'colonnade': {
-      ctx.fillStyle = '#e8dcc2'; ctx.fillRect(x, y, w, h - 16)
-      roofTiles(x - 4, y - 8, w + 8, 14, '#55677a', '#6b7d90')
-      dancheong(x + 10, y + 10, w - 20)
-      // 창과 가운데 문
-      ctx.fillStyle = '#6d8498'
-      for (let i = 0; i < s.w; i++) {
-        if (i === Math.floor(s.w / 2)) continue
-        ctx.fillRect(x + i * T + 9, y + 26, T - 18, h - 52)
-      }
-      const dx0 = x + Math.floor(s.w / 2) * T
-      ctx.fillStyle = '#7a5433'; ctx.fillRect(dx0 + 6, y + 24, T - 12, h - 40)
-      ctx.fillStyle = '#f0cf73'; ctx.fillRect(dx0 + 10, y + 28, T - 20, 5)
-      // 앞의 기둥
-      ctx.fillStyle = '#f6efdd'
-      for (let i = 0; i < s.w; i++) ctx.fillRect(x + i * T + 10, y + h - 16, 12, 16)
-      ctx.fillStyle = 'rgba(90,75,55,.25)'; ctx.fillRect(x, y + h - 4, w, 4)
-      break
-    }
-    case 'gatehouse': {
-      ctx.fillStyle = '#d9c7a8'; ctx.fillRect(x + T, y + 10, w - T * 2, h - 10)
-      windows(x + T + 8, y + 22, w - T * 2 - 16, h - 36, 3, 1, '#60788c')
-      roofTiles(x + T - 6, y, w - T * 2 + 12, 12, '#44525f', '#5a6b7d')
-      ctx.fillStyle = '#6b4a2f'; ctx.fillRect(x, y + 6, T * .6, h - 6); ctx.fillRect(x + w - T * .6, y + 6, T * .6, h - 6)
-      ctx.fillStyle = '#8a5e3c'; ctx.fillRect(x, y, w, 10)
-      break
-    }
-    case 'small': {
-      ctx.fillStyle = '#ded0b6'; ctx.fillRect(x, y + 12, w, h - 12)
-      windows(x + 8, y + 26, w - 16, h - 40, 3, 2, '#5f7a8e')
-      roofTiles(x - 5, y, w + 10, 14, '#4b5a52', '#5d6e65')
+      // 앞면 가운데 출입구. 여기로 들어간다.
+      const dw = T * 1.6, dx = x + w / 2 - dw / 2, dy = y + h - T * 1.1
+      ctx.fillStyle = '#5a3b26'; ctx.fillRect(dx - 6, dy - 8, dw + 12, 10)
+      ctx.fillStyle = '#3a2616'; ctx.fillRect(dx, dy, dw, T * 1.1)
+      ctx.fillStyle = '#c99a62'; ctx.fillRect(dx + 5, dy + 5, dw - 10, T * 1.1 - 5)
+      ctx.fillStyle = '#8a5e3c'; ctx.fillRect(dx + dw / 2 - 2, dy + 5, 4, T * 1.1 - 5)
+      ctx.fillStyle = '#f0cf73'
+      circ(ctx, dx + dw / 2 - 9, dy + T * .6, 3); circ(ctx, dx + dw / 2 + 9, dy + T * .6, 3)
       break
     }
     case 'craft': {
+      // 문이 마당 쪽(아래)을 향한다.
+      roofTiles(x - 6, y, w + 12, h * .34, '#6b4630', '#8a5e3c')
       ctx.fillStyle = '#b07c45'; ctx.fillRect(x, y + h * .34, w, h * .66)
       ctx.fillStyle = 'rgba(80,45,15,.18)'
       for (let i = 1; i < 6; i++) ctx.fillRect(x, y + h * .34 + i * (h * .66 / 6), w, 2)
-      roofTiles(x - 6, y, w + 12, h * .36, '#6b4630', '#8a5e3c')
-      const dx = CRAFT_DOOR.x * T, dw = CRAFT_DOOR.w * T
-      ctx.fillStyle = '#3a2616'; ctx.fillRect(dx + 4, y + h * .34, dw - 8, h * .66)
-      ctx.fillStyle = '#f0cf73'; ctx.fillRect(dx + 8, y + h * .34 + 6, dw - 16, 6)
+      const dx = CRAFT_DOOR.x * T, dw = CRAFT_DOOR.w * T, dy = CRAFT_DOOR.y * T
+      ctx.fillStyle = '#3a2616'; ctx.fillRect(dx + 4, dy - T * .5, dw - 8, T * 1.5)
+      ctx.fillStyle = '#f0cf73'; ctx.fillRect(dx + 8, dy - T * .5 + 6, dw - 16, 6)
+      ctx.fillStyle = '#8a5e3c'; ctx.fillRect(dx, dy + T - 6, dw, 6)
+      // 간판
       ctx.fillStyle = '#2e1d12'; rr(ctx, x + w / 2 - 66, y + h * .3 - 14, 132, 26, 5); ctx.fill()
       ctx.strokeStyle = '#d9a531'; ctx.lineWidth = 2; ctx.stroke()
       ctx.fillStyle = '#f0cf73'; ctx.font = '700 15px "Gowun Batang",serif'
@@ -314,7 +251,9 @@ function drawPins () {
 /* ---------- 이동 ---------- */
 const keys = bindKeys({
   onAction: () => action(),
+  onEnter: () => chat.toggle(),
   isModalOpen: () => modal.open,
+  onModalAction: () => modal.runPrimary(),
   onEscape: () => modal.close()
 })
 const joy = bindJoystick(byId('joy'))
@@ -324,8 +263,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { key
 /* ---------- 가까운 장소 ---------- */
 const craftPlace = places.find(p => p.id === 'craft')
 function atCraftDoor () {
-  return Math.abs(player.x - (CRAFT_DOOR.x + CRAFT_DOOR.w / 2)) < 1.2 &&
-    player.y > CRAFT_DOOR.y - 1.6 && player.y < CRAFT_DOOR.y + .4
+  return Math.abs(player.x - (CRAFT_DOOR.x + CRAFT_DOOR.w / 2)) < 1.3 &&
+    player.y > CRAFT_DOOR.y + .4 && player.y < CRAFT_DOOR.y + 2.4
 }
 function nearest () {
   let best = null, bd = 2.4
@@ -337,7 +276,8 @@ function nearest () {
 }
 function action () {
   if (traveling || modal.open) return
-  if (atCraftDoor() && craftPlace) { travel(craftPlace.href); return }
+  if (chat.isOpen) { chat.hide(); return }
+  if (atCraftDoor() && craftPlace) { openPlace(craftPlace); return }
   const p = nearest()
   if (p) openPlace(p)
 }
@@ -356,15 +296,16 @@ function openPlace (p) {
   const m = modalShell(p.name, p.category)
   m.append(el('p', 'note', p.description))
   if (p.note) m.append(el('p', 'note', p.note))
-  if (p.href) {
-    const go = el('button', 'btn', '등불사장 작업장 들어가기')
-    go.onclick = () => { closeModal(); travel(p.href) }
+  const dest = p.enter || p.href
+  if (dest) {
+    const label = p.enterLabel || (p.href ? '등불사장 작업장 들어가기' : '들어가기')
+    const go = el('button', 'btn', label + (isTouch ? '' : ' · Space'))
+    const run = () => { closeModal(); travel(dest) }
+    go.onclick = run
+    modal.primary = run
     m.append(go)
-  }
-  if (p.enter) {
-    const go = el('button', 'btn', p.enterLabel || '들어가기')
-    go.onclick = () => { closeModal(); travel(p.enter) }
-    m.append(go)
+  } else {
+    modal.primary = closeModal
   }
   if (p.source) {
     const a = document.createElement('a')
@@ -402,6 +343,7 @@ function openList () {
   m.append(wrap)
   const close = el('button', 'btn ghost', '닫기'); close.onclick = closeModal
   m.append(close)
+  modal.primary = closeModal
 }
 byId('listb').onclick = openList
 byId('nightb').onclick = e => {
@@ -422,6 +364,30 @@ byId('helpb').onclick = () => {
   m.append(h, b)
 }
 
+/* ---------- 한 줄 이야기 ---------- */
+let myLine = '', myLineUntil = 0
+const chat = createChat({
+  bar: byId('chatbar'), log: byId('chatlog'),
+  input: byId('chatmsg'), sendBtn: byId('chatsend'), toggleBtn: byId('chatb'),
+  send: text => {
+    if (!peers.say(text)) { setStatus('지금은 혼자 둘러보는 중이라 이야기를 나눌 수 없어요.'); return }
+    chat.push(myNick, text, true)
+    myLine = text; myLineUntil = Date.now() + SAY_MS
+  },
+  onOpenChange: open => { if (!open) { keys.clear(); joy.reset(); try { cv.focus({ preventScroll: true }) } catch (e) {} } }
+})
+
+/* ---------- 배경음악 ---------- */
+const bgm = createBgm()
+const bgmBtn = byId('bgmb')
+function paintBgm () {
+  bgmBtn.textContent = bgm.on ? '🎵' : '🔈'
+  bgmBtn.setAttribute('aria-pressed', String(bgm.on))
+  bgmBtn.setAttribute('aria-label', bgm.on ? '배경음악 끄기' : '배경음악 켜기')
+}
+bgmBtn.onclick = () => { bgm.toggle(); paintBgm() }
+paintBgm()
+
 const hudEl = byId('hud'), hudH = byId('hudh')
 function toggleHud () {
   const open = !hudEl.classList.toggle('collapsed')
@@ -429,6 +395,8 @@ function toggleHud () {
   hudH.querySelector('small').textContent = open ? '접기' : '펼치기'
 }
 hudH.addEventListener('click', toggleHud)
+for (const id of ['listb', 'act', 'helpb', 'nightb', 'bgmb', 'chatb']) releaseFocus(byId(id), cv)
+releaseFocus(hudH, cv)
 // 좁은 화면에서는 접은 채로 연다. 등불사장과 같은 기준(640px)을 쓴다.
 if (view.vw < 640) {
   hudEl.classList.add('collapsed')
@@ -468,7 +436,8 @@ const peers = createPeers({
   canStand,
   getSelf: () => ({ x: player.x, y: player.y, vx: player.vx, vy: player.vy, dir: player.dir, moving: player.moving, bow: false }),
   onChange: () => updateHere(),
-  isPaused: () => traveling
+  isPaused: () => traveling,
+  onSay: (id, nick, text) => chat.push(nick, text, false)
 })
 const sendGroundsPose = force => peers.send(force)
 function updateHere () {
@@ -492,13 +461,13 @@ function updateHere () {
 
 /* ---------- 갱신 ---------- */
 function update (dt) {
-  stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open)
+  stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open || chat.isOpen)
   peers.update(dt)
   peers.send()
   const at = atCraftDoor()
   if (at !== doorArmed) {
     doorArmed = at
-    setStatus(at ? '작업장 문 앞이에요. 살펴보기로 들어갈 수 있어요.' : '도량을 천천히 둘러보세요.')
+    setStatus(at ? '작업장 문 앞이에요. 살펴보기를 두 번 누르면 들어갑니다.' : '도량을 천천히 둘러보세요.')
   }
 }
 let doorArmed = false
@@ -538,12 +507,28 @@ function render (t) {
 
   drawPins()
 
+  // 말풍선
+  const sayNow = Date.now()
+  const sayStyle = {
+    font: '500 13px "Noto Sans KR",sans-serif',
+    bg: night ? 'rgba(30,24,48,.94)' : 'rgba(251,244,228,.97)',
+    color: night ? '#ffe7a8' : '#2b1d14',
+    stroke: night ? '#d9a531' : '#6b4a2f'
+  }
+  for (const p of peers.peers.values()) {
+    if (!p.say || p.sayUntil <= sayNow) continue
+    if (p.x < x0 - 3 || p.x > x1 + 3 || p.y < y0 - 3 || p.y > y1 + 3) continue
+    drawBubble(ctx, p.x * T, p.y * T - 76, wrapLines(p.say, 14), sayStyle)
+  }
+  const myBubble = myLine && myLineUntil > sayNow
+  if (myBubble) drawBubble(ctx, player.x * T, player.y * T - 76, wrapLines(myLine, 14), sayStyle)
+
   if (night) {
     ctx.fillStyle = 'rgba(10,14,40,.6)'
     ctx.fillRect(camX, camY, viewW, viewH)
   }
 
-  if (!modal.open) {
+  if (!modal.open && !chat.isOpen && !(myLine && myLineUntil > Date.now())) {
     const door = atCraftDoor() && craftPlace
     const p = door ? craftPlace : nearest()
     if (p) {
@@ -587,7 +572,7 @@ if (fromDoor) {
   if (fadeEl) { fadeEl.classList.add('on'); requestAnimationFrame(() => fadeEl.classList.remove('on')) }
   if (fromDoor === 'deungbul' && craftPlace) {
     player.x = craftPlace.arrival[0]; player.y = craftPlace.arrival[1]; player.dir = 'down'
-    setStatus('등불사장 작업장 앞으로 나왔어요. 다시 들어가려면 문 앞에서 살펴보기.')
+    setStatus('등불사장 작업장 앞으로 나왔어요. 다시 들어가려면 문 앞에서 살펴보기를 두 번.')
     doorArmed = atCraftDoor()   // 도착 안내가 바로 덮이지 않게 한다
   }
   // 대법당에서 내려온 경우 본관 앞에 세운다.
