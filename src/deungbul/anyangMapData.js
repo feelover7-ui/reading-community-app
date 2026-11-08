@@ -1,36 +1,47 @@
-// 장소 이름과 설명은 공식 도량 안내를 참고했습니다.
-// x/y/arrival과 충돌 사각형은 게임 시안 좌표이며 실제 배치나 GPS가 아닙니다.
-const base = 'https://hanmaum.org/content/'
-export const places = [
-  { id:'hall', number:1, name:'대법당', category:'예불과 마음공부', x:36, y:43, arrival:[50,62],
-    description:'안양 본원의 대법당에는 석가모니불을 모시고 있습니다. 법당 안의 단청과 목탱화 등도 공식 도량 안내에서 살펴볼 수 있습니다.',
-    note:'이 시안에서는 건물 외부와 안내만 제공합니다. 실내 이동은 아직 구현하지 않았습니다.',
-    source:base+'one_tour_02?me_code=1070300000' },
-  { id:'seven', number:2, name:'칠보탑 · 우주탑', category:'법당 지붕 위의 상징', x:50, y:17, arrival:[50,62],
-    description:'5층 법당 지붕 위의 칠보탑은 일곱 개의 황금빛 구로 이루어져 있습니다. 이 맵에서는 법당 앞에서 그 모습을 살펴봅니다.',
-    note:'지붕 위로 이동하는 장소가 아닙니다.',
-    source:base+'one_tour_06?me_code=1070700000' },
-  { id:'nine', number:3, name:'구정탑 · 도량탑', category:'마당의 탑', x:62, y:72, arrival:[68,82],
-    description:'본원 마당에는 아홉 개의 둥근 구로 이루어진 구정탑이 있습니다. 탑의 유래와 의미는 공식 안내에서 확인할 수 있습니다.',
-    note:'탑과 주변 길의 크기는 탐방 시안에 맞춰 단순화했습니다.',
-    source:base+'one_tour_07?me_code=1070800000' },
-  { id:'statue', number:4, name:'대행선사 동상', category:'가르침을 이어가는 자리', x:80, y:50, arrival:[82,63],
-    description:'본원에는 대행선사의 동상과 이를 받치는 심주석이 있습니다. 심주석은 심주관 내부에서 볼 수 있는 기둥으로 소개되어 있습니다.',
-    note:'심주석은 심주관 내부의 별도 공간입니다. 현재 그림은 실제 동상 외형을 대조하기 전의 임시 표시입니다.',
-    source:base+'one_tour_08?me_code=1070900000' },
-  { id:'seosan', number:5, name:'서산정 · 부도탑', category:'조용히 머무는 공간', x:80, y:20, arrival:[79,35],
-    description:'서산정은 대행선사께서 노년에 머무셨던 한식 목조 건물입니다. 공식 안내에서는 부도탑도 함께 소개하고 있습니다.',
-    note:'주변 공간과 다른 건물 사이의 거리·방향은 아직 확인하지 않았습니다.',
-    source:base+'one_tour_09?me_code=1070a00000' },
-  { id:'craft', number:6, name:'등불사장', category:'소원등 만들기 체험', x:21, y:66, arrival:[25,79],
-    description:'골조를 엮고 한지를 바른 뒤 나만의 소원을 담아 보세요. 기존 등불사장에서 법우들과 소원등과 이야기를 나눌 수 있습니다.',
-    note:'게임에 연결한 체험 공간입니다. 실제 도량 내 등불사장의 위치를 표시한 것은 아닙니다.',
-    href:'/deungbul.html' }
+// 공식 조감도 one_tour_01.jpg를 2026-11-08 직접 확인한 뒤 상대 배치를 교정했습니다.
+// 아래 좌표는 게임용 축척이며 GPS·실측 좌표나 실제 출입 가능 구역이 아닙니다.
+const base='https://hanmaum.org/content/'
+const overview=base+'one_tour_01?me_code=1070000000'
+export const places=[
+ {id:'hall',number:1,name:'본관 · 대법당',category:'앞쪽 오른편의 본관',x:69,y:65,arrival:[66,85],
+  description:'공식 조감도에서 앞쪽 오른편의 큰 건물이 본관입니다. 대법당은 본관 5층에 있으며, 칠보탑은 지붕 위에 세워져 있습니다.',
+  note:'실내와 층별 이동은 아직 구현하지 않았습니다. 창과 지붕은 조감도에서 확인한 특징을 간략화했습니다.',
+  source:base+'one_tour_02?me_code=1070300000'},
+ {id:'annex',number:2,name:'별관',category:'본관 뒤쪽의 건물',x:82,y:23,arrival:[70,36],
+  description:'조감도에서 본관 뒤쪽에 별관으로 표시된 건물을 반영했습니다. 본관과 다른 현대식 건물 형태로 구분합니다.',
+  note:'실내 용도와 실제 통행 가능 구역은 별도 확인이 필요합니다.',source:overview},
+ {id:'simju',number:4,name:'심주관',category:'왼편의 단차 있는 건물',x:25,y:53,arrival:[34,69],
+  description:'왼편 건물군의 단차와 계단 관계를 조감도에 맞춰 다시 구성했습니다. 공식 설명에서 심주석은 심주관 1·2층을 관통하는 기둥으로 소개됩니다.',
+  note:'심주석은 실내 공간입니다. 야외의 독립된 돌기둥처럼 표시하지 않습니다.',
+  source:base+'one_tour_08?me_code=1070900000'},
+ {id:'nine',number:6,name:'구정탑 · 도량탑',category:'중앙 마당의 탑',x:54,y:40,arrival:[59,36],
+  description:'아홉 개의 둥근 구로 이루어진 구정탑을 중앙의 단차 있는 마당 쪽에 배치했습니다. 본관 지붕 위 칠보탑과 구분합니다.',
+  note:'탑의 크기는 본관과의 관계를 고려해 줄였으며, 실측 비율은 아닙니다.',
+  source:base+'one_tour_07?me_code=1070800000'},
+ {id:'seven',number:7,name:'칠보탑 · 우주탑',category:'본관 지붕 위',x:65,y:28,arrival:[66,85],
+  description:'칠보탑은 별도의 석탑이 아니라 본관 지붕 위의 일곱 개 황금빛 구입니다. 지도에서 선택하면 지붕 쪽을 살펴보고, 캐릭터는 본관 앞에 머뭅니다.',
+  note:'지붕 위로 걷는 장소가 아닙니다.',
+  source:base+'one_tour_06?me_code=1070700000'},
+ {id:'statue',number:8,name:'대행선사 동상',category:'왼편 위쪽 동상 공간',x:24,y:20,arrival:[24,31],
+  description:'공식 조감도에서 왼편 위쪽의 동상 공간을 반영했습니다. 동상 주변의 화엄석과 연화좌대를 간략한 형태로 표현합니다.',
+  note:'동상의 세부 형상은 상징적으로 단순화했습니다. 실제 심주석은 심주관 내부에 있습니다.',
+  source:base+'one_tour_08?me_code=1070900000'},
+ {id:'seosan',number:'안내',name:'서산정 · 부도탑',category:'공식 안내로 살펴보기',onMap:false,
+  description:'서산정과 부도탑은 공식 도량 안내에 소개되어 있습니다. 확보한 조감도에서 위치를 확정하지 못했으므로 지도에 임의의 정자나 위치 표식을 그리지 않았습니다.',
+  note:'이 항목을 선택해도 지도 속 캐릭터를 이동시키지 않습니다.',
+  source:base+'one_tour_09?me_code=1070a00000'},
+ {id:'craft',number:'체험',name:'등불사장',category:'별도 체험 화면',onMap:false,
+  description:'나만의 소원등을 만들고 법우들과 이야기를 나누는 기존 게임으로 이동합니다.',
+  note:'실제 본원 내 등불사장의 위치를 확인하지 못해 도량 위의 임의 건물과 표식을 제거했습니다.',
+  href:'/deungbul.html'}
 ]
-export const obstacles = [
-  [34,34,32,23], [59,56,6,22], [74,40,15,17], [70,14,20,18], [13,58,19,15]
+export const startPosition={x:66,y:90}
+export const obstacles=[
+ [60,50,20,30], [76,39,12,29], [73,14,17,24],
+ [43,16,16,14], [12,43,31,19], [43,40,25,10],
+ [18,15,12,12], [52,30,5,8], [90,28,8,20]
 ]
-export function canWalk(x,y) {
-  return Number.isFinite(x) && Number.isFinite(y) && x>=5 && x<=95 && y>=6 && y<=94 &&
-    !obstacles.some(([left,top,width,height])=>x>left&&x<left+width&&y>top&&y<top+height)
+export function canWalk(x,y){
+ return Number.isFinite(x)&&Number.isFinite(y)&&x>=5&&x<=95&&y>=6&&y<=94&&
+  !obstacles.some(([left,top,width,height])=>x>left&&x<left+width&&y>top&&y<top+height)
 }
