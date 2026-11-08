@@ -187,3 +187,11 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - `node_modules/`, `dist/`, `.env*`, `.vercel/`, `work/`, `outputs/`는 커밋하지 않습니다.
 - `.env.example`은 커밋할 수 있습니다.
 - GitHub 저장소는 `https://github.com/feelover7-ui/reading-community-app.git`입니다.
+
+## 원본 맵 복원과 80명 동시 캐릭터 후속 작업
+
+- 사용자 요청에 따른 구현 계획은 docs/ORIGINAL_MAP_80_PLAYERS.md, 시험 계약은 docs/REALTIME_80_ACCEPTANCE.json입니다. 현재는 설계이며 구현/검증 결과가 아닙니다.
+- 향후 구현에서 기존 40명 표시 상한을 대체하고 같은 장면의 자기 1명+상대 79명을 캐릭터로 표시합니다. 거리별 세부 표현은 줄일 수 있지만 40명 분방이나 NPC로 대체해 통과 처리하지 않습니다.
+- 원본 HTML 구도/외형 복원은 별도 preview부터 진행합니다. 이전 삭제 건물·법당 명칭·작업장 위치 요청은 유지하고 차이를 기록합니다. 기존 타일 좌표 유지 규칙은 이 이식 preview에서 좌표 변환표와 충돌 검증을 갖춰 변경할 수 있습니다.
+- Cloudflare DO relay와 실제 80개 WebSocket 부하/실기기 시험을 단계별로 진행하며, 설계 수치와 무료 비용 예측은 성능 보장이 아닙니다. 읽기 홈페이지는 수정하지 않습니다.
+- Claude 인계 명령: .claude/commands/original-map-80.md. PR #7/#8과 상태/충돌을 확인하고 자동 머지하지 않습니다.
