@@ -967,16 +967,20 @@ document.getElementById('yardmenub').onclick=openYardMenu;
 
 /* ---------- input ---------- */
 const keys=new Set();
+/* 한글 입력 상태에서는 e.key 가 'ㅈ' 처럼 와서 WASD 가 안 먹는다. 글자 키는 e.code 를 먼저 본다. */
+const CODE_KEYS={KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',KeyE:'e',Space:' '};
+const keyName=e=>CODE_KEYS[e.code]||(typeof e.key==='string'?e.key.toLowerCase():'');
 addEventListener('keydown',e=>{
   if(e.isComposing||e.keyCode===229)return;
   const tg=e.target.tagName;if(tg==='TEXTAREA'||tg==='INPUT'||tg==='BUTTON'||e.target.isContentEditable)return;
   if(modalOpen){if(e.key==='Escape')closeModal();return;}
   if(e.key==='Enter'){e.preventDefault();if(!e.repeat){if(dialog)advance();else openChat();}return;}
-  if(e.key===' '||e.key==='e'||e.key==='E'){e.preventDefault();if(!e.repeat)action();return;}
+  const name=keyName(e);
+  if(name===' '||name==='e'){e.preventDefault();if(!e.repeat)action();return;}
   if(e.key.startsWith('Arrow'))e.preventDefault();
-  keys.add(e.key.toLowerCase());
+  keys.add(name);
 });
-addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+addEventListener('keyup',e=>keys.delete(keyName(e)));
 addEventListener('blur',()=>{keys.clear();resetJoy();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){keys.clear();resetJoy();}});
 const joyEl=document.getElementById('joy'),knob=joyEl.querySelector('i');const joy={x:0,y:0,id:null};

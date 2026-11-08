@@ -5,6 +5,7 @@ import { drawPixelPerson, walkFrame } from './pixelCharacter.js'
 const byId=id=>document.getElementById(id)
 const scene=byId('scene'), surface=byId('surface'), viewport=byId('viewport')
 const pins=byId('pins'), list=byId('place-list'), traveler=byId('traveler')
+const guideEl=byId('guide')
 const visited=new Set(), pinButtons=new Map(), listButtons=new Map()
 let zoom=1, position={...startPosition}, cameraFocus=null
 const WORLD_WIDTH=1920
@@ -239,10 +240,28 @@ function move(dx,dy){
     byId('walk-status').textContent='도량을 천천히 둘러보는 중'
   }else byId('walk-status').textContent='건물과 탑을 피해 길을 따라 이동해 주세요.'
 }
-viewport.addEventListener('keydown',e=>{
-  if(e.target!==viewport)return
-  const directions={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}
-  if(directions[e.key]){e.preventDefault();move(...directions[e.key])}
+/* 방향키와 WASD 를 창 전체에서 받는다. 지도를 눌러 초점을 잡지 않아도 걸을 수 있어야 한다.
+   WASD 는 e.code 로 본다. 한글 입력 상태에서는 e.key 가 'ㅈ' 처럼 와서 못 쓴다. */
+const ARROW_DIRS={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]}
+const WASD_DIRS={KeyW:[0,-1],KeyS:[0,1],KeyA:[-1,0],KeyD:[1,0]}
+const WASD_KEYS={w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]}
+function typingTarget(target){
+  if(!target||target===viewport)return false
+  if(target.isContentEditable)return true
+  return target.tagName==='INPUT'||target.tagName==='TEXTAREA'||target.tagName==='SELECT'
+}
+addEventListener('keydown',e=>{
+  if(e.isComposing||e.keyCode===229)return
+  if(e.ctrlKey||e.altKey||e.metaKey)return
+  if(traveling||typingTarget(e.target))return
+  const wasd=WASD_DIRS[e.code]||WASD_KEYS[typeof e.key==='string'?e.key.toLowerCase():'']
+  if(wasd){e.preventDefault();move(wasd[0],wasd[1]);return}
+  const arrow=ARROW_DIRS[e.key]
+  if(!arrow)return
+  // 안내를 펼쳐 읽는 중에는 방향키로 화면을 넘길 수 있게 둔다. 걷기는 WASD 로 한다.
+  if(guideEl&&e.target instanceof Node&&guideEl.contains(e.target))return
+  e.preventDefault()
+  move(arrow[0],arrow[1])
 })
 for(const button of document.querySelectorAll('[data-dx]'))button.onclick=()=>move(Number(button.dataset.dx),Number(button.dataset.dy))
 function viewSize(){
