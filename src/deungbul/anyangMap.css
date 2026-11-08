@@ -116,3 +116,12 @@ body.touch #chatbar{bottom:max(130px,calc(env(safe-area-inset-bottom) + 124px))}
   #chatlog,body.touch #chatlog{bottom:auto;top:max(170px,calc(env(safe-area-inset-top) + 158px));max-height:120px;width:calc(100vw - 24px)}
   body:has(#chatbar.show) #hud{visibility:hidden}
 }
+
+/* 3D 화면 위 글자 */
+#prompt{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);display:none;padding:9px 18px;border-radius:999px;background:rgba(200,64,47,.95);color:#fff;font-weight:700;font-size:14px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:6;pointer-events:none}
+body.touch #prompt{bottom:150px}
+.tag3d{position:fixed;transform:translate(-50%,-100%);padding:3px 9px;border-radius:999px;background:rgba(43,29,20,.82);color:#fbf4e4;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:3}
+.tag3d.mine{background:rgba(200,64,47,.92)}
+.bubble3d{position:fixed;transform:translate(-50%,-100%);max-width:220px;padding:6px 12px;border:1.5px solid #6b4a2f;border-radius:10px;background:rgba(251,244,228,.97);color:#2b1d14;font-size:13px;line-height:1.45;text-align:center;pointer-events:none;z-index:4}
+.pin3d{position:fixed;transform:translate(-50%,-100%);padding:3px 10px;border:1.4px solid #d9a531;border-radius:999px;background:rgba(43,29,20,.82);color:#fbf4e4;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:2}
+.pin3d.seen{background:rgba(47,111,79,.92);border-color:#9ed3ad}

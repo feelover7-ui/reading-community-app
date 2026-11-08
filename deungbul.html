@@ -212,6 +212,14 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
 .tour-link:hover{background:#e8d8b8}
 #title .sexbtn{display:flex;align-items:center;justify-content:center;gap:10px}
 #title .sexbtn canvas{display:block!important;flex:none;width:24px!important;height:36px!important;max-width:none;margin:0;image-rendering:pixelated}
+#prompt{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);display:none;padding:9px 18px;border-radius:999px;background:rgba(200,64,47,.95);color:#fff;font-weight:700;font-size:14px;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3);z-index:6;pointer-events:none}
+body.touch #prompt{bottom:178px}
+.tag3d{position:fixed;transform:translate(-50%,-100%);padding:3px 9px;border-radius:999px;background:rgba(43,29,20,.82);color:#fbf4e4;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:3}
+.tag3d.mine{background:rgba(200,64,47,.92)}
+.tag3d.npc{background:rgba(43,29,20,.9)}
+.bubble3d{position:fixed;transform:translate(-50%,-100%);max-width:220px;padding:6px 12px;border:1.5px solid #6b4a2f;border-radius:10px;background:rgba(251,244,228,.97);color:#2b1d14;font-size:13px;line-height:1.45;text-align:center;pointer-events:none;z-index:4}
+.bubble3d.wish{font-family:'Gowun Batang',serif;font-weight:700;font-size:15px}
+canvas#game{display:block;touch-action:none;cursor:grab}
 </style>
 </head>
 <body>
@@ -223,6 +231,7 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
 <div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="fade" aria-hidden="true"></div>
+<div id="prompt" role="status"></div>
 <div id="chatlog"></div>
 <div id="chatbar">
   <input id="chatnick" aria-label="대화 닉네임" type="text" maxlength="12" placeholder="닉네임" autocomplete="off">
