@@ -134,3 +134,6 @@ body{background:#dce5cb}
 }
 
 .guide summary{position:sticky;top:0;background:var(--paper);z-index:1}
+
+.location-note{margin-left:auto;flex:none;font-size:10px;color:var(--muted);font-weight:400}
+.place-row b{width:auto;min-width:25px;padding:0 3px}
