@@ -51,7 +51,7 @@ export function camera (ctx, view, T, W, H, px, py) {
 
 /* ---------- 키 ---------- */
 /* 한글 입력 상태에서는 e.key 가 'ㅈ' 처럼 와서 WASD 가 안 먹는다. 글자 키는 e.code 를 먼저 본다. */
-const CODE_KEYS = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyE: 'e', Space: ' ' }
+const CODE_KEYS = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyE: 'e', KeyQ: 'q', KeyR: 'r', Space: ' ' }
 export const keyName = e => CODE_KEYS[e.code] || (typeof e.key === 'string' ? e.key.toLowerCase() : '')
 const typingTarget = t => !!t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')
 

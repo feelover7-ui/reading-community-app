@@ -1,7 +1,7 @@
 /* 대법당 3D 장면.
    2D 때와 같은 타일 좌표(beopdangData)를 받아 안쪽을 세웁니다.
    공식 안내의 내부 사진을 보고 특징만 줄여 직접 만들었습니다. 사진을 복제하지 않습니다. */
-import { THREE, hash3, makePerson } from './three3d.js'
+import { THREE, hash3, makePerson, createPeerLayer } from './three3d.js'
 import { W, H, structures, cushions, MAT, DOOR, spots } from './beopdangData.js'
 
 function woodTexture (world) {
@@ -223,34 +223,4 @@ export function buildHall (world) {
 }
 
 export const PEER_3D_MAX = 40
-export function createHallPeers (world) {
-  const bodies = new Map()
-  return {
-    bodies,
-    sync (peers, quiet) {
-      let shown = 0
-      for (const p of peers.values()) {
-        let b = bodies.get(p.id)
-        if (!b) {
-          if (shown >= PEER_3D_MAX) continue
-          b = makePerson(world, { body: p.color, hair: '#2b1d14', pants: '#3b3b48', long: p.sex === 'f' })
-          bodies.set(p.id, b)
-        }
-        shown++
-        b.visible = true
-        // 절하는 중이면 낮게 웅크린다
-        const bow = p.bow ? Math.abs(Math.sin(Date.now() / 1200)) : 0
-        b.position.set(p.x, 0, p.y)
-        b.scale.set(1, p.bow ? .45 + (1 - bow) * .3 : 1, 1)
-        if (p.moving) b.rotation.y = Math.atan2(p.vx || 0, p.vy || 0)
-        else if (p.bow) b.rotation.y = Math.PI
-        const parts = b.userData.parts
-        if (parts && parts.legL) {
-          const sw = p.moving && !quiet ? Math.sin(p.walk * 11) * .6 : 0
-          parts.legL.rotation.x = sw; parts.legR.rotation.x = -sw
-        }
-      }
-      for (const [id, b] of bodies) if (!peers.has(id)) { world.scene.remove(b); bodies.delete(id) }
-    }
-  }
-}
+export function createHallPeers (world) { return createPeerLayer(world, { bowing: true }) }

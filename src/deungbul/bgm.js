@@ -16,7 +16,7 @@ const writeOn = on => {
 
 export function createBgm () {
   let ctx = null, master = null, drone = null, timer = 0, woke = false
-  let on = readOn()
+  let on = readOn(), pageActive = true
 
   function ensure () {
     if (ctx) return ctx
@@ -57,18 +57,20 @@ export function createBgm () {
     g.gain.linearRampToValueAtTime(level, when + .01)
     g.gain.exponentialRampToValueAtTime(.0001, when + 4.5)
     g.connect(master)
+    let voices = 3
     for (const [mul, vol, type] of [[1, 1, 'sine'], [2.01, .3, 'sine'], [3.02, .12, 'triangle']]) {
       const o = ctx.createOscillator()
       o.type = type; o.frequency.value = freq * mul
       const og = ctx.createGain(); og.gain.value = vol
       o.connect(og); og.connect(g)
+      o.onended = () => { o.disconnect(); og.disconnect(); if (--voices === 0) g.disconnect() }
       o.start(when); o.stop(when + 4.6)
     }
   }
 
   function schedule () {
-    clearTimeout(timer)
-    if (!on || !ctx) return
+    clearTimeout(timer); timer = 0
+    if (!on || !ctx || document.hidden || !pageActive) return
     const now = ctx.currentTime
     const root = NOTES[Math.floor(Math.random() * NOTES.length)]
     bell(root, now + .05, .22)
@@ -89,30 +91,33 @@ export function createBgm () {
     get on () { return on },
     /* 사람이 처음 누르거나 키를 눌렀을 때 소리를 깨운다. */
     wake () {
-      if (woke || !on) return
+      if (!on || document.hidden || !pageActive) return
+      if (woke && timer && ctx?.state === 'running') return
       if (!ensure()) return
       woke = true
       if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-      startDrone(); fade(.5, 2.5); schedule()
+      startDrone(); fade(.5, 2.5)
+      if (!timer) schedule()
     },
     toggle () {
       on = !on
       writeOn(on)
-      if (on) { woke = false; api.wake() } else { clearTimeout(timer); timer = 0; fade(0, .6) }
+      if (on) { woke = false; api.wake() } else api.stop()
       return on
     },
-    stop () { clearTimeout(timer); timer = 0; fade(0, .3) }
+    stop () { clearTimeout(timer); timer = 0; woke = false; fade(0, .3) }
   }
 
   // 첫 눌림·키 입력에서 깨운다. 한 번이면 충분하다.
   const kick = () => { api.wake() }
   addEventListener('pointerdown', kick, { passive: true })
   addEventListener('keydown', kick)
-  addEventListener('pagehide', () => api.stop())
+  addEventListener('pagehide', () => { pageActive = false; api.stop() })
+  addEventListener('pageshow', e => { pageActive = true; if (e.persisted && ctx && on) api.wake() })
   document.addEventListener('visibilitychange', () => {
     if (!ctx) return
-    if (document.hidden) fade(0, .4)
-    else if (on && woke) fade(.5, 1.2)
+    if (document.hidden) api.stop()
+    else if (on && pageActive) api.wake()
   })
   return api
 }
