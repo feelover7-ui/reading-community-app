@@ -31,6 +31,16 @@
 
 수정 전 production의 등불사장·도량·대법당 페이지가 각각 HTTP 200인 것도 확인했습니다. 이것은 수정본 브라우저 실행 검증을 뜻하지 않습니다.
 
+## Vercel 미리보기에서 추가 확인한 결과
+
+코드 커밋 `852471d14a947b6b6886e1cc1556a0a1b9a38814`의 자동 배포 `dpl_GgwqhJgyrLUqpYNv4meremHkU1Pz`가 READY입니다. Vite 로그에 `built in 3.95s`와 `Deployment completed`를 확인했습니다.
+
+- 미리보기: https://goal-windows-codex-mvp-node-js-2-bjno7dybz-ami18.vercel.app/deungbul.html
+- 수정본 세 페이지가 모두 HTTP 200이고, 중복을 제외한 연결 자산 6개도 HTTP 200 및 맞는 JS/CSS Content-Type입니다.
+- 공용 3D 포함 청크에 500kB 초과 경고가 있습니다(최소화 561.49kB, gzip 144.24kB). 빌드는 성공했으며, 이 경고를 없애려고 크기 제한을 늘리거나 동등한 다운로드를 단순 분할하지 않았습니다.
+- 이는 원격 빌드와 HTTP 검사 결과입니다. 실제 WebGL 렌더링·클릭·모바일 성능·DB 검증과 구분합니다.
+- 아래 로컬 실행 제한은 여전히 해당합니다. PR 본문은 사용자 요청대로 '검증 못 했음'만 유지합니다.
+
 ## 검증 한계
 
 검증 못 했음
