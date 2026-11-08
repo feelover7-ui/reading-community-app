@@ -314,50 +314,116 @@ export function createLabelLayer (camera) {
 
 /* ---------- 사람 ----------
    도트 캐릭터 대신 쓰는 간단한 3D 인형. 외부 모델을 받지 않습니다. */
+/* 자세표. 원본 HTML(buildPerson/applyPose)의 값을 그대로 가져왔습니다.
+   절은 몸 전체를 누르지 않고 합장 → 무릎 → 엎드림 → 일어섬으로 관절을 움직입니다. */
+export const POSE = {
+  stand: { y: 0, bend: 0, legX: 0, legY: 0, armX: 0, armZ: -.08, swing: 1 },
+  hap:   { y: 0, bend: 0, legX: 0, legY: 0, armX: -1.2, armZ: .62, swing: 0 },
+  bow:   { y: 0, bend: .95, legX: 0, legY: 0, armX: -1.2, armZ: .62, swing: 0 },
+  kneel: { y: -.3, bend: .05, legX: 1.45, legY: 0, armX: -1.2, armZ: .62, swing: 0 },
+  prost: { y: -.3, bend: 1.32, legX: 1.45, legY: 0, armX: -.3, armZ: .12, swing: 0 },
+  sit:   { y: -.33, bend: .06, legX: -1.45, legY: .95, armX: -.62, armZ: .5, swing: 0 }
+}
+export function lerpPose (a, b, k) {
+  const o = {}
+  for (const key in POSE.stand) o[key] = a[key] + (b[key] - a[key]) * k
+  return o
+}
+
+/* 사람 인형. 원본과 같은 뼈대(다리·상체·팔·머리 그룹)라 자세를 줄 수 있습니다. */
 export function makePerson (world, o = {}) {
   const g = new THREE.Group()
+  const body = new THREE.Group(); g.add(body)
   const skin = world.M('#f1c9a0')
-  const parts = {}
-  const body = o.body || '#e3a83f'
+  const bodyColor = o.body || '#e3a83f'
+  const pants = o.pants || '#3b3b48'
+  const hipY = .44
+  const fem = !!o.long
+  const sh = fem ? .16 : .19
+
+  const legs = [-1, 1].map(sgn => {
+    const lg = new THREE.Group()
+    lg.position.set(sgn * .085, hipY, 0)
+    lg.rotation.order = 'YXZ'
+    body.add(lg)
+    world.box(.12, .38, .13, pants, 0, -.19, 0, lg)
+    world.box(.13, .07, .2, '#2a2320', 0, -.41, .03, lg)
+    return lg
+  })
+
+  const upper = new THREE.Group(); upper.position.y = hipY; body.add(upper)
   if (o.kasa) {
-    world.mesh(new THREE.CylinderGeometry(.2, .3, .82, 14), world.M(body), 0, .41, 0, g)
-    const band = world.box(.62, .09, .03, o.kasa, 0, .62, .235, g)
-    band.rotation.z = -.65
+    world.mesh(new THREE.CylinderGeometry(.2, .3, .66, 14), world.M(bodyColor), 0, .33, 0, upper)
+    const band = world.box(.62, .09, .03, o.kasa, 0, .28, sh + .005, upper)
+    band.rotation.z = -.7
   } else {
-    parts.legL = world.box(.11, .42, .13, o.pants || '#3b3b48', -.08, .21, 0, g)
-    parts.legR = world.box(.11, .42, .13, o.pants || '#3b3b48', .08, .21, 0, g)
-    for (const l of [parts.legL, parts.legR]) { l.geometry.translate(0, -.21, 0); l.position.y = .42 }
-    world.mesh(new THREE.CylinderGeometry(.19, .22, .46, 14), world.M(body), 0, .65, 0, g)
-    if (o.apron) world.box(.28, .32, .02, o.apron, 0, .6, .215, g)
+    world.mesh(new THREE.CylinderGeometry(sh, fem ? .155 : .17, .48, 16), world.M(bodyColor), 0, .24, 0, upper)
+    if (o.apron) world.box(.26, .34, .02, o.apron, 0, .18, (fem ? .155 : .17) + .012, upper)
   }
-  const headY = o.kasa ? 1.0 : 1.07
-  world.mesh(new THREE.SphereGeometry(.19, 18, 14), skin, 0, headY, 0, g)
+
+  const arms = [-1, 1].map(sgn => {
+    const a = new THREE.Group()
+    a.position.set(sgn * (sh + .045), .44, 0)
+    a.rotation.order = 'YXZ'
+    upper.add(a)
+    world.mesh(new THREE.CylinderGeometry(.052, .046, .4, 10), world.M(o.sleeve || bodyColor), 0, -.2, 0, a)
+    world.mesh(new THREE.SphereGeometry(.05, 10, 8), skin, 0, -.43, 0, a)
+    return a
+  })
+  world.mesh(new THREE.CylinderGeometry(.06, .07, .08, 10), skin, 0, .51, 0, upper)
+
+  const head = new THREE.Group(); head.position.y = .66; upper.add(head)
+  world.mesh(new THREE.SphereGeometry(.19, 18, 14), skin, 0, 0, 0, head)
   if (o.hair) {
     const hair = world.mesh(new THREE.SphereGeometry(.2, 18, 10, 0, Math.PI * 2, 0, Math.PI * .52),
-      world.M(o.hair), 0, headY + .01, -.01, g)
+      world.M(o.hair), 0, .01, -.01, head)
     hair.rotation.x = -.25
-    if (o.long) {
-      const back = world.box(.3, .34, .14, o.hair, 0, headY - .2, -.1, g)
-      back.castShadow = true
-    }
+    if (o.long) world.box(.3, .34, .14, o.hair, 0, -.2, -.1, head)
   }
   const eye = world.M('#2b1d14')
-  for (const x of [-.07, .07]) world.mesh(new THREE.SphereGeometry(.024, 8, 6), eye, x, headY + .01, .175, g)
-  g.userData.parts = parts
+  for (const x of [-.068, .068]) world.mesh(new THREE.SphereGeometry(fem ? .027 : .024, 8, 6), eye, x, .01, .172, head)
+
+  // legL/legR 은 예전 이름입니다. 남겨 두면 옛 코드가 그대로 돕니다.
+  g.userData.parts = { body, upper, legs, arms, head, legL: legs[0], legR: legs[1] }
   world.scene.add(g)
   return g
 }
 
-/* 걷는 모습. 동작 줄이기면 다리를 흔들지 않는다. */
-export function stepPerson (g, x, z, face, moving, walk, quiet) {
+/* 자세를 적용합니다. walking 이면 걷는 흔들림을 얹습니다. */
+export function applyPose (g, pose, walkPhase = 0, walking = false) {
+  const u = g && g.userData && g.userData.parts
+  if (!u || !u.legs) return
+  const sw = walking ? Math.sin(walkPhase * 11) : 0
+  u.body.position.y = pose.y + (walking ? Math.abs(sw) * .03 : 0)
+  u.upper.rotation.x = pose.bend
+  u.legs[0].rotation.x = pose.legX + sw * .55
+  u.legs[1].rotation.x = pose.legX - sw * .55
+  u.legs[0].rotation.y = pose.legY
+  u.legs[1].rotation.y = -pose.legY
+  const as = sw * .5 * pose.swing
+  u.arms[0].rotation.x = pose.armX - as
+  u.arms[1].rotation.x = pose.armX + as
+  u.arms[0].rotation.z = pose.armZ
+  u.arms[1].rotation.z = -pose.armZ
+}
+
+/* 절 한 배의 진행도(0~1)를 자세로 바꿉니다.
+   합장 → 무릎 → 엎드림 → 무릎 → 합장. 동작 줄이기에서는 합장으로 고정합니다. */
+export function bowPose (u, quiet) {
+  if (quiet) return POSE.hap
+  const t = ((u % 1) + 1) % 1
+  if (t < .18) return POSE.hap
+  if (t < .40) return lerpPose(POSE.hap, POSE.kneel, (t - .18) / .22)
+  if (t < .62) return lerpPose(POSE.kneel, POSE.prost, (t - .40) / .22)
+  if (t < .84) return lerpPose(POSE.prost, POSE.kneel, (t - .62) / .22)
+  return lerpPose(POSE.kneel, POSE.hap, (t - .84) / .16)
+}
+
+export function stepPerson (g, x, z, face, moving, walk, quiet, pose) {
   if (!g) return
-  g.position.set(x, moving && !quiet ? Math.abs(Math.sin(walk * 11)) * .05 : 0, z)
+  g.position.set(x, 0, z)
   g.rotation.y = face
-  const p = g.userData.parts
-  if (!p || !p.legL) return
-  const sw = moving && !quiet ? Math.sin(walk * 11) * .6 : 0
-  p.legL.rotation.x = sw
-  p.legR.rotation.x = -sw
+  applyPose(g, pose || POSE.stand, walk, !!(moving && !quiet))
 }
 
 /* 사람 모습을 바꿔 끼울 때 쓰는 정리 */
@@ -413,6 +479,7 @@ export function createPeerLayer (world, opt = {}) {
   const faceOf = p => p.moving && Math.hypot(p.vx || 0, p.vy || 0) > .01
     ? Math.atan2(p.vx || 0, p.vy || 0)
     : (FACES[p.dir] ?? 0)
+  // 먼 사람은 관절이 없는 인스턴스라 자세를 줄 수 없습니다. 높이로만 절을 표시합니다.
   const crouchOf = (p, quiet) => bowing && p.bow
     ? (quiet ? .6 : .45 + (1 - Math.abs(Math.sin(Date.now() / 1200))) * .3)
     : 1
@@ -470,8 +537,8 @@ export function createPeerLayer (world, opt = {}) {
           body = makePerson(world, { body: p.color, hair: '#2b1d14', pants: '#3b3b48', long: p.sex === 'f' })
           body.userData.lookKey = key; bodies.set(p.id, body)
         }
-        stepPerson(body, p.x, p.y, bowing && p.bow ? Math.PI : faceOf(p), p.moving, p.walk, quiet)
-        body.scale.set(1, crouchOf(p, quiet), 1)
+        const pose = bowing && p.bow ? bowPose(Date.now() / 2400, quiet) : null
+        stepPerson(body, p.x, p.y, bowing && p.bow ? Math.PI : faceOf(p), p.moving, p.walk, quiet, pose)
       }
       stats.detailed = bodies.size
 

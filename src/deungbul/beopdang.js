@@ -7,7 +7,7 @@ import {
   bindKeys, bindJoystick, stepPlayer, createPeers, createModal, readIdentity,
   readStore, writeStore, createChat, SAY_MS, releaseFocus
 } from './sceneKit.js'
-import { createWorld, createFollower, createLabelLayer, makePerson, stepPerson, V3 } from './three3d.js'
+import { createWorld, createFollower, createLabelLayer, makePerson, stepPerson, bowPose, V3 } from './three3d.js'
 import { buildHall, createHallPeers } from './beopdangScene.js'
 import { createBgm } from './bgm.js'
 
@@ -309,9 +309,9 @@ function update (dt) {
   // 절할 때는 몸을 낮춘다
   const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
   const u = bow.on ? bow.t / cycle : 0
-  const crouch = bow.on ? (reducedMotion ? .6 : (u < .2 ? 1 : u < .38 ? .62 : u < .7 ? .34 : u < .88 ? .62 : 1)) : 1
-  stepPerson(meBody, player.x, player.y, bow.on ? Math.PI : player.face, player.moving, player.walk, reducedMotion)
-  meBody.scale.set(1, crouch, 1)
+  // 몸 전체를 누르지 않고 합장·무릎·엎드림 관절로 절합니다.
+  stepPerson(meBody, player.x, player.y, bow.on ? Math.PI : player.face, player.moving, player.walk, reducedMotion,
+    bow.on ? bowPose(u, reducedMotion) : null)
   peers.update(dt)
   peers.send()
   follower.follow(player.x, player.y, dt, world.blockers, CAM_BOUNDS)
