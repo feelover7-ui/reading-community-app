@@ -36,3 +36,19 @@ npm run deploy:staging   # 계정 권한이 있는 환경에서만
 
 - 행사 초대 토큰 발급·검증. 지금은 Origin 검사만 있고, 이것은 인증이 아닙니다.
 - 실제 비용·한도 계측. `docs/` 의 숫자는 계산 예시이지 측정값이 아닙니다.
+
+## 실제 WebSocket 시험
+
+Cloudflare 계정 없이 로컬 workerd 로 돌릴 수 있습니다.
+
+```bash
+npx wrangler dev --env="" --port 8787 --local
+```
+
+```bash
+node scripts/ws-load.mjs --n 80 --seconds 30
+```
+
+실제 세션 80개를 열어 로스터·snapshot 지연·RTT·81번째 거절을 봅니다.
+측정값은 `docs/ORIGINAL_MAP_80_RESULTS.md` 에 있습니다.
+같은 기계 안이라 지연이 실제 인터넷 값이 아닙니다.

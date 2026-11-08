@@ -96,6 +96,23 @@ test('80명까지 받고 81번째는 거절하되 기존 사람을 밀어내지 
   assert.equal(room.sessions.has(ids[0]), true)
 })
 
+test('유예 중인 사람도 자리를 차지해 명단이 80을 넘지 않는다', () => {
+  let t = 0
+  const room = createRoom({ now: () => t })
+  const ids = []
+  for (let i = 0; i < 80; i++) ids.push(room.join(validateHello(hello()).value).session.id)
+  for (let i = 0; i < 40; i++) room.drop(ids[i])          // 40명이 끊겼지만 아직 유예 중
+  assert.equal(room.size, 40)
+  assert.equal(room.pending.size, 40)
+  const over = room.join(validateHello(hello()).value)
+  assert.equal(over.ok, false)                            // 자리는 아직 80
+  assert.equal(room.roster().length, 80)
+  t = LIMITS.reconnectGraceMs + 1
+  room.sweep()
+  assert.equal(room.roster().length, 40)
+  assert.equal(room.join(validateHello(hello()).value).ok, true)
+})
+
 test('observer 한 명은 자기 빼고 79명을 본다', () => {
   const room = createRoom()
   for (let i = 0; i < 80; i++) room.join(validateHello(hello()).value)
