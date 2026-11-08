@@ -59,10 +59,17 @@ export function bindKeys ({ onAction, onEscape, isModalOpen }) {
   addEventListener('keydown', e => {
     if (e.isComposing || e.keyCode === 229) return
     if (e.ctrlKey || e.altKey || e.metaKey) return
-    if (typingTarget(e.target) || e.target.tagName === 'BUTTON') return
+    if (typingTarget(e.target)) return
     if (isModalOpen && isModalOpen()) { if (e.key === 'Escape' && onEscape) onEscape(); return }
+    // 창을 닫으면 초점이 그 창을 연 버튼으로 돌아간다. 버튼에 초점이 있어도
+    // 걷기는 되어야 한다. Space 만 그 버튼을 누르는 키라서 넘긴다.
+    const tag = e.target && e.target.tagName
+    const onControl = tag === 'BUTTON' || tag === 'A'
     const name = keyName(e)
-    if (name === ' ' || name === 'e') { e.preventDefault(); if (!e.repeat && onAction) onAction(); return }
+    if (name === ' ' || name === 'e') {
+      if (onControl && name === ' ') return
+      e.preventDefault(); if (!e.repeat && onAction) onAction(); return
+    }
     if (e.key === 'Escape') { if (onEscape) onEscape(); return }
     if (e.key.startsWith('Arrow')) e.preventDefault()
     keys.add(name)
@@ -267,9 +274,16 @@ export function createModal (modalWrap, card, { onClose } = {}) {
       m.open = false; modalWrap.classList.remove('show'); card.innerHTML = ''
       for (const [node, inert] of blocked) node.inert = inert
       blocked.clear()
-      onClose && onClose()
-      if (returnFocus?.isConnected && !returnFocus.inert) { try { returnFocus.focus({ preventScroll: true }) } catch (e) {} }
+      const back = returnFocus
       returnFocus = null
+      onClose && onClose()
+      // 창을 연 버튼으로 초점을 돌리면 그 버튼이 Space 를 가로채서, 다음 Space 가
+      // 작업 대신 버튼을 다시 누른다. 버튼·링크였으면 onClose 가 잡은 게임 화면
+      // 초점을 그대로 둔다.
+      const tag = back && back.tagName
+      if (back?.isConnected && !back.inert && tag !== 'BUTTON' && tag !== 'A') {
+        try { back.focus({ preventScroll: true }) } catch (e) {}
+      }
     },
     shell (title, sub) {
       if (!m.open) {
