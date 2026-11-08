@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="한마음선원 안양 본원의 주요 공간을 둘러보는 게임형 도량 탐방 시안">
+<title>안양 본원 도량 탐방 · 한마음선원</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/deungbul/anyangMap.css">
+</head>
+<body>
+<a class="skip" href="#places">장소 목록으로 바로가기</a>
+<div class="shell">
+  <header class="masthead">
+    <div><p class="eyebrow">한마음선원 · 안양 본원</p><h1>도량 둘러보기</h1><p class="intro">한 걸음씩 둘러보고, 나만의 등불도 밝혀 보세요.</p></div>
+    <a class="button secondary" href="/deungbul.html">등불사장으로</a>
+  </header>
+  <p class="model-note"><span>조감도 참고</span> 상대 배치를 옮긴 게임용 축척입니다.</p>
+  <main class="layout">
+    <section class="map-card" aria-labelledby="map-title">
+      <div class="map-top"><div><p class="eyebrow">도량 둘러보기</p><h2 id="map-title">오늘은 어디로 가 볼까요?</h2></div><button id="night" type="button" class="button secondary" aria-pressed="false">나만 밤 풍경</button></div>
+      <div class="map-tools" role="group" aria-label="지도 보기 조절">
+        <button id="zoomout" type="button" aria-label="지도 축소">−</button><output id="zoomlabel" aria-live="polite">100%</output><button id="zoomin" type="button" aria-label="지도 확대">＋</button><button id="reset" type="button">전체 보기</button><button id="follow" type="button">내 위치</button>
+      </div>
+      <div id="viewport" class="viewport" tabindex="0" role="region" aria-label="안양 본원 탐방 지도" aria-describedby="map-help">
+        <div id="surface" class="surface">
+          <svg id="scene" viewBox="0 0 1000 720" aria-hidden="true" focusable="false"></svg>
+          <div id="pins" class="pins"></div>
+          <div id="traveler" class="traveler" role="img" aria-label="내 도트 캐릭터"><canvas id="traveler-sprite" width="48" height="72" aria-hidden="true"></canvas></div>
+        </div>
+      </div>
+      <div class="map-bottom">
+        <div><p id="map-help">장소를 누르면 안내와 함께 이동해요.<br>지도에 초점을 두고 방향키로 걷거나 아래 이동 버튼을 이용하세요.</p><p id="walk-status" class="current">본관 앞에서 탐방 시작</p></div>
+        <div class="dpad" role="group" aria-label="캐릭터 이동">
+          <button data-dx="0" data-dy="-1" class="up" type="button" aria-label="위로 이동">↑</button><button data-dx="-1" data-dy="0" class="left" type="button" aria-label="왼쪽으로 이동">←</button><span aria-hidden="true">이동</span><button data-dx="1" data-dy="0" class="right" type="button" aria-label="오른쪽으로 이동">→</button><button data-dx="0" data-dy="1" class="down" type="button" aria-label="아래로 이동">↓</button>
+        </div>
+      </div>
+    </section>
+    <details class="guide" id="guide"><summary>도량 안내 · 장소 목록</summary><div class="guide-body">
+      <section class="detail" aria-labelledby="place-title">
+        <p id="place-category" class="eyebrow">안양 본원</p>
+        <div aria-live="polite" aria-atomic="true"><h2 id="place-title">천천히 둘러보세요</h2><p id="place-description">지도나 장소 목록에서 가 보고 싶은 곳을 골라 보세요. 등불사장에서는 소원등을 만들고 법우들과 이야기를 나눌 수 있습니다.</p></div>
+        <p id="place-note" class="small">공식 조감도의 상대 배치를 참고했습니다. 실제 출입 경로와 실측 비율은 아닙니다.</p>
+        <a id="place-action" class="button primary" href="/deungbul.html">소원등 만들러 가기</a>
+      </section>
+      <section class="places" id="places" aria-labelledby="places-title"><div class="list-heading"><h2 id="places-title">둘러볼 곳</h2><span id="visited">0 / 8</span></div><div id="place-list"></div></section>
+      <footer><p>경기도 안양시 만안구 경수대로 1282 · 한마음선원 안양 본원</p><p>장소 정보: <a href="https://hanmaum.org/content/one_tour_01?me_code=1070000000" target="_blank" rel="noopener noreferrer">한마음선원 공식 도량 안내 (새 창)</a> · 실제 방문은 공식 안내를 확인해 주세요.</p></footer></div></details>
+  </main>
+
+</div>
+<script type="module" src="/src/deungbul/anyangMap.js"></script>
+</body>
+</html>
