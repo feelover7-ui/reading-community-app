@@ -1,7 +1,7 @@
 /* 등불사장 3D 장면.
    2D 때 쓰던 타일 좌표와 데이터를 그대로 받아 세웁니다. y 는 3D 의 z 입니다.
    소원등은 기존 2D 그림을 그대로 그려 넣은 판(sprite)으로 띄웁니다. */
-import { THREE, hash3, makePerson } from './three3d.js'
+import { THREE, hash3, makePerson, createCutaway } from './three3d.js'
 
 const MAT = {
   wall: '#5e3d27', wallTop: '#3e2818', wood: '#b07c45', woodDark: '#7a4f28',
@@ -53,12 +53,17 @@ export function buildYard (world, d) {
     m.position.set(x, -1, z); m.scale.y = .55; scene.add(m)
   }
 
-  /* 벽. 카메라와 캐릭터 사이에 오면 옅어진다. */
+  /* 벽. 카메라와 캐릭터 사이에 오면 옅어지고, 카메라가 담 밖으로 나가도 걷힌다. */
+  const cut = createCutaway()
   function wall (x0, z0, x1, z1, h = 2.3) {
     const m = box(x1 - x0, h, z1 - z0, M(MAT.wall, { transparent: true }), (x0 + x1) / 2, h / 2, (z0 + z1) / 2)
     world.addFade(m)
     const cap = box(x1 - x0 + .06, .12, z1 - z0 + .06, M(MAT.wallTop, { transparent: true }), (x0 + x1) / 2, h + .06, (z0 + z1) / 2)
     m.userData.attach.push(cap)
+    const axis = (x1 - x0) < (z1 - z0) ? 'x' : 'z'
+    const at = axis === 'x' ? (x0 + x1) / 2 : (z0 + z1) / 2
+    cut.add(m, axis, at, axis === 'x' ? W / 2 : H / 2)
+    cut.add(cap, axis, at, axis === 'x' ? W / 2 : H / 2)
     return m
   }
   wall(1, 1, 15, 2); wall(17, 1, 35, 2)        // 위쪽 벽, 가운데는 문
@@ -278,6 +283,7 @@ export function buildYard (world, d) {
 
   return {
     setHung, setNight, marker, npcMeshes, bigMeshes, hungObjs: () => hungObjs,
+    cutaway: (cam, dt) => cut.apply(cam, dt),
     lanternSprite, scene,
     update (t, camera) {
       for (const b of billboards) b.quaternion.copy(camera.quaternion)

@@ -20,12 +20,13 @@ export function createWorld (cv, opt = {}) {
   scene.background = dayBg.clone()
   scene.fog = new THREE.Fog(dayBg.clone(), opt.fogNear || 34, opt.fogFar || 80)
 
-  const camera = new THREE.PerspectiveCamera(45, 1, .1, 240)
+  const camera = new THREE.PerspectiveCamera(opt.fov || 45, 1, .1, 240)
   function resize () {
     const w = window.innerWidth, h = window.innerHeight
     renderer.setSize(w, h, false)
     camera.aspect = w / h
-    camera.fov = w < h ? 60 : 45      // 좁은 화면에서는 더 넓게 본다
+    const baseFov = opt.fov || 45
+    camera.fov = w < h ? baseFov + 15 : baseFov   // 좁은 화면에서는 더 넓게 본다
     camera.updateProjectionMatrix()
   }
   addEventListener('resize', resize); resize()
@@ -141,6 +142,41 @@ export function createWorld (cv, opt = {}) {
   }
 }
 
+/* ---------- 걷어내기 ----------
+   카메라가 벽 바깥이나 천장 위로 나가면 그 부분만 옅게 해 안이 보이게 합니다.
+   가리는 것을 막아 세우는 대신 걷어내는 쪽이, 좁은 곳에서 화면이 막히지 않습니다. */
+export function createCutaway () {
+  const parts = []
+  return {
+    /* axis 'x'|'z' 와 그 자리(at), 공간의 가운데(mid). 카메라가 바깥쪽이면 옅어진다. */
+    add (m, axis, at, mid) {
+      if (!m) return m
+      m.material.transparent = true
+      parts.push({ m, axis, at, outside: at < mid ? -1 : 1 })
+      return m
+    },
+    /* 카메라가 이 높이보다 위로 가면 옅어진다(천장·지붕). */
+    addAbove (m, y) {
+      if (!m) return m
+      m.material.transparent = true
+      parts.push({ m, axis: 'y', at: y })
+      return m
+    },
+    apply (cam, dt) {
+      const k = Math.min(1, dt * 8)
+      for (const p of parts) {
+        const v = p.axis === 'x' ? cam.x : p.axis === 'z' ? cam.z : cam.y
+        const out = p.axis === 'y' ? v > p.at : (p.outside > 0 ? v > p.at : v < p.at)
+        const want = out ? .06 : 1
+        const mat = p.m.material
+        mat.opacity += (want - mat.opacity) * k
+        mat.depthWrite = mat.opacity > .9
+        p.m.visible = mat.opacity > .02
+      }
+    }
+  }
+}
+
 /* ---------- 뒤에서 따라오는 카메라 ----------
    마우스·손가락으로 끌면 돌아가고, 휠·Q·R 로도 돌립니다. */
 export function createFollower (cv, camera, opt = {}) {
@@ -199,9 +235,17 @@ export function createFollower (cv, camera, opt = {}) {
         pz + Math.cos(state.yaw) * dist * Math.cos(state.pitch)
       )
       // 방 안에서는 카메라가 벽 밖으로 나가지 않게 가둔다.
+      // 실내에서는 방 안에 가둔다. 가둬서 사람과 가까워진 만큼 위로 올려,
+      // 거리를 지키고 위에서 내려다보게 한다. 천장은 옅어지므로 가리지 않는다.
       if (bounds) {
-        if (bounds.x0 != null) want.x = Math.max(bounds.x0, Math.min(bounds.x1, want.x))
-        if (bounds.z0 != null) want.z = Math.max(bounds.z0, Math.min(bounds.z1, want.z))
+        const cx = bounds.x0 != null ? Math.max(bounds.x0, Math.min(bounds.x1, want.x)) : want.x
+        const cz = bounds.z0 != null ? Math.max(bounds.z0, Math.min(bounds.z1, want.z)) : want.z
+        if (cx !== want.x || cz !== want.z) {
+          const hx = cx - px, hz = cz - pz
+          const up = Math.sqrt(Math.max(0, dist * dist - (hx * hx + hz * hz)))
+          want.y = Math.max(want.y, .9 + up)
+        }
+        want.x = cx; want.z = cz
         if (bounds.yMax != null) want.y = Math.min(bounds.yMax, want.y)
       }
       const k = first ? 1 : 1 - Math.exp(-dt * 7)

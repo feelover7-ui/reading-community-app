@@ -1,7 +1,7 @@
 /* 도량 3D 장면.
    2D 때 쓰던 타일 좌표(anyangMapData)를 그대로 받아 3D 로 세웁니다.
    땅은 칸마다 평면을 두지 않고 큰 그림 한 장으로 만들어 붙입니다. */
-import { THREE, V3, hash3, makePerson } from './three3d.js'
+import { THREE, V3, hash3, makePerson, createCutaway } from './three3d.js'
 import { T, W, H, structures, trees, CRAFT_DOOR, places } from './anyangMapData.js'
 
 const PATHS = [
@@ -71,11 +71,15 @@ export function buildGrounds (world) {
   }
 
   /* 담장 */
-  const wallM = M('#6b5a45'), capM = M('#8a775c')
+  const cut = createCutaway()
   const wall = (x0, z0, x1, z1) => {
     const w = x1 - x0, d = z1 - z0
-    box(w, 1.5, d, wallM, x0 + w / 2, .75, z0 + d / 2)
-    box(w + .2, .18, d + .2, capM, x0 + w / 2, 1.58, z0 + d / 2)
+    const m = box(w, 1.5, d, M('#6b5a45', { transparent: true }), x0 + w / 2, .75, z0 + d / 2)
+    const cap = box(w + .2, .18, d + .2, M('#8a775c', { transparent: true }), x0 + w / 2, 1.58, z0 + d / 2)
+    const axis = w < d ? 'x' : 'z'
+    const at = axis === 'x' ? x0 + w / 2 : z0 + d / 2
+    const mid = axis === 'x' ? W / 2 : H / 2
+    cut.add(m, axis, at, mid); cut.add(cap, axis, at, mid)
   }
   wall(0, 0, W, 1); wall(0, H - 1, W, H); wall(0, 1, 1, H - 1); wall(W - 1, 1, W, H - 1)
 
@@ -163,6 +167,7 @@ export function buildGrounds (world) {
 
   return {
     craftDoorPos,
+    cutaway: (cam, dt) => cut.apply(cam, dt),
     update (camera) { for (const b of billboards) b.quaternion.copy(camera.quaternion) }
   }
 }

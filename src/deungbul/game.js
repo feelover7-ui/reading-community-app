@@ -1023,6 +1023,7 @@ function update(dt,t){
   follower.turn(keys,dt);
   follower.follow(player.x,player.y,dt,world3d.blockers);
   world3d.fadeOccluders(player.x,player.y,dt);
+  yard3d.cutaway(world3d.camera.position,dt);
   if(!reducedMotion&&state.night&&particles.length<80&&Math.random()<.5){const a=Math.random()*Math.PI*2;particles.push({x:18*T+Math.cos(a)*2.4*T,y:16.3*T+Math.sin(a)*2.4*T,vx:(Math.random()-.5)*12,vy:-18-Math.random()*26,age:0,life:2+Math.random()*2.5});}
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.age+=dt;p.x+=p.vx*dt+Math.sin(t*2+i)*.3;p.y+=p.vy*dt;if(p.age>p.life)particles.splice(i,1);}
 }

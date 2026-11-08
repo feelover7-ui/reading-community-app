@@ -245,7 +245,7 @@ function updateHere () {
 /* ---------- 3D 세계 ---------- */
 const world = createWorld(cv, { bg: '#c6dde8', nightBg: '#0a0f26', fogNear: 40, fogFar: 95, lookX: W / 2, lookZ: H / 2 })
 const grounds = buildGrounds(world)
-const follower = createFollower(cv, world.camera, { dist: 12, pitch: .62, min: 6, max: 22 })
+const follower = createFollower(cv, world.camera, { dist: 13, pitch: .78, min: 6, max: 22 })
 const labels = createLabelLayer(world.camera)
 const meBody = makePerson(world, myLook)
 const peerBodies = createPeerBodies(world)
@@ -266,6 +266,7 @@ function update (dt) {
   peerBodies.sync(peers.peers, reducedMotion)
   follower.follow(player.x, player.y, dt, world.blockers)
   world.fadeOccluders(player.x, player.y, dt)
+  grounds.cutaway(world.camera.position, dt)
   const at = atCraftDoor()
   if (at !== doorArmed) {
     doorArmed = at

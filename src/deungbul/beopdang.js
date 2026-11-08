@@ -266,14 +266,14 @@ if (window.innerWidth < 640) {
 }
 
 /* ---------- 3D 세계 ---------- */
-const world = createWorld(cv, { bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: true, light: .3, sunLight: .18, sky: '#ffe9c8', groundLight: '#6b4a32' })
+const world = createWorld(cv, { fov: 56, bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: true, light: .3, sunLight: .18, sky: '#ffe9c8', groundLight: '#6b4a32' })
 const hall = buildHall(world)
-const follower = createFollower(cv, world.camera, { dist: 9, pitch: .5, min: 3.5, max: 14, yaw: 0 })
+const follower = createFollower(cv, world.camera, { dist: 9, pitch: .42, min: 4, max: 14, yaw: 0 })
 const labels = createLabelLayer(world.camera)
 const meBody = makePerson(world, myLook)
 const hallPeers = createHallPeers(world)
 /* 법당 안이라 카메라를 방 안에 가둔다. */
-const CAM_BOUNDS = { yMax: 4.1 }
+const CAM_BOUNDS = null   // 벽은 걷어내므로 카메라를 방 안에 가두지 않는다
 
 function faceTowards (toX, toY) {
   player.face = Math.atan2(toX - player.x, toY - player.y)
@@ -315,6 +315,7 @@ function update (dt) {
   hallPeers.sync(peers.peers, reducedMotion)
   follower.follow(player.x, player.y, dt, world.blockers, CAM_BOUNDS)
   world.fadeOccluders(player.x, player.y, dt)
+  hall.enclosure(world.camera.position, dt)
 }
 
 /* ---------- 그리기 ---------- */
@@ -374,6 +375,7 @@ requestAnimationFrame(loop)
 
 if (import.meta.env.DEV) window.__warp = (x, y) => { player.x = x; player.y = y; player.vx = 0; player.vy = 0; player.moving = false; peers.send(true) }
 if (import.meta.env.DEV) window.__look = (x, y) => { player.face = Math.atan2(x - player.x, y - player.y); follower.state.yaw = player.face + Math.PI }
+if (import.meta.env.DEV) window.__cam = () => ({ pos: world.camera.position.toArray().map(v => +v.toFixed(2)), dist: +follower.state.dist.toFixed(2), yaw: +follower.state.yaw.toFixed(2), fade: world.fadeables.map(m => +m.material.opacity.toFixed(2)), blockers: world.blockers.length })
 if (import.meta.env.DEV) window.__beopdang = () => ({
   x: +player.x.toFixed(2), y: +player.y.toFixed(2), dir: player.dir, dist: +follower.state.dist.toFixed(1),
   traveling, modalOpen: modal.open, nick: me.nick, sex: me.sex,
