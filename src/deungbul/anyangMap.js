@@ -369,14 +369,22 @@ window.addEventListener('pagehide',leaveGrounds)
 
 setZoom(1)
 setPosition(position.x,position.y)
+// 이름과 모습은 등불사장 첫 화면에서 받는다. 없이 들어왔으면 그리로 보낸다.
+const hasIdentity=!!(readStore(NICK_KEY).trim()&&readStore(SEX_KEY))
+if(!hasIdentity)location.replace('/deungbul.html')
+
 // 등불사장에서 문으로 나온 경우 작업장 문 앞에 세운다
 try{
-  if(new URLSearchParams(location.search).get('from')==='deungbul'&&craft&&craft.arrival){
+  const came=new URLSearchParams(location.search).get('from')
+  if(came){
     if(fadeEl){fadeEl.classList.add('on');requestAnimationFrame(()=>fadeEl.classList.remove('on'))}
-    setPosition(craft.arrival[0],craft.arrival[1])
-    byId('walk-status').textContent='등불사장 작업장 앞으로 나왔어요'
+    // 작업장 문으로 나온 경우에만 그 앞에 세운다. 첫 화면에서 바로 왔으면 본관 앞에서 시작한다.
+    if(came==='deungbul'&&craft&&craft.arrival){
+      setPosition(craft.arrival[0],craft.arrival[1])
+      byId('walk-status').textContent='등불사장 작업장 앞으로 나왔어요'
+    }
   }
 }catch(e){}
-startGrounds()
+if(hasIdentity)startGrounds()
 updateEnter()
 

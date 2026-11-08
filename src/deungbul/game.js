@@ -1199,12 +1199,23 @@ function nameWarn(msg){
   namein.classList.remove('bad');void namein.offsetWidth;namein.classList.add('bad');
   try{namein.focus();}catch(e){}
 }
+// 첫 화면에서 이름과 모습을 받는다. 어디로 가든 이 화면을 거친다.
+function pickedName(){
+  const name=(namein?namein.value:'').trim().replace(/\s+/g,' ').slice(0,12);
+  if(!name){nameWarn('이름을 적어 주세요');return null;}
+  if(!mySex){sexWarn();return null;}
+  setNick(name);
+  return name;
+}
+function enterDoryang(){
+  if(started||!pickedName())return;
+  if(fadeEl)fadeEl.classList.add('on');
+  setTimeout(()=>{location.href='/doryang.html?from=title';},320);
+}
 function enterYard(){
   if(started)return;
-  const name=(namein?namein.value:'').trim().replace(/\s+/g,' ').slice(0,12);
-  if(!name){nameWarn('이름을 적어 주세요');return;}
-  if(!mySex){sexWarn();return;}
-  setNick(name);
+  const name=pickedName();
+  if(!name)return;
   ac();tok();started=true;
   document.getElementById('title').classList.add('hide');
   cv.focus({preventScroll:true});
@@ -1243,6 +1254,8 @@ if(namein){
   if(!isTouch)setTimeout(()=>{try{namein.focus();}catch(e){}},400);
 }
 document.getElementById('startb').onclick=enterYard;
+const tourb=document.getElementById('tourb');
+if(tourb)tourb.onclick=enterDoryang;
 
 // 도량에서 문으로 들어온 경우. 이름과 모습이 이미 있으면 묻지 않고 바로 문 앞에서 시작한다.
 try{
