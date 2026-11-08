@@ -7,7 +7,11 @@
 - Supabase는 `public.books` 테이블과 연결되어 있습니다.
 - 등불사장 페이지(`deungbul.html`)는 `public.lanterns`, `public.posts`, `public.messages` 테이블과 연결되어 있습니다.
 - Kakao 로그인은 아직 연결하지 않습니다.
-- `.env.local`은 만들지 않습니다.
+- `.env.local` 은 커밋하지 않습니다. 검증이 필요할 때만 publishable key 로 만들 수 있습니다.
+  이 규칙은 원래 `Supabase 는 아직 연결하지 않습니다` 와 한 묶음이던 1단계 범위 규칙이었고,
+  Supabase 를 붙인 뒤로 전제가 사라졌습니다. service_role·secret key 는 그대로 금지입니다.
+- `.env.local` 을 만들면 로컬이 운영 DB 에 바로 씁니다. 그 상태에서 소원등 걸기·방명록·채팅 쓰기는 하지 않습니다.
+  접속자·걷기·절하기처럼 DB 에 쓰지 않는 것만 확인합니다.
 - API key, service_role key, secret key를 커밋하지 않습니다.
 - Supabase publishable key만 프론트엔드에서 사용할 수 있습니다.
 - Supabase `service_role` key, secret key, database password는 프론트엔드에 넣지 않습니다.
@@ -196,7 +200,13 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 ## 원본 맵 복원과 80명 동시 캐릭터 후속 작업
 
 - docs/ORIGINAL_MAP_80_PLAYERS.md와 docs/REALTIME_80_ACCEPTANCE.json은 사용자 요청에 따른 설계/시험 계약이며 구현 결과가 아닙니다.
-- 향후 같은 장면의 자기 1명+상대 79명을 캐릭터로 표시합니다. 기존 40명 상한을 대체하고 거리별 세부 표현은 줄일 수 있지만 분방/NPC로 대체해 통과하지 않습니다.
+- 같은 장면의 자기 1명+상대 79명을 캐릭터로 표시합니다. `createPeerLayer` 가 가까운 16명은 관절 모델,
+  나머지는 공유 geometry 인스턴스로 그립니다. 멀다고 사람을 지우지 않고 화면 밖만 건너뜁니다.
+  상한과 경계값은 `PEER_LAYER_DEFAULTS` 한 곳에 있습니다. 분방/NPC로 대체해 통과하지 않습니다.
+- 통신은 `src/deungbul/realtime/` 의 어댑터로 고릅니다. 기본은 기존 Supabase 이고 relay 는 깃발이 있을 때만 씁니다.
+  둘을 동시에 켜지 않습니다. relay 서버는 `workers/lantern-room/` 에 있고 아직 배포하지 않았습니다.
+- 측정 결과는 `docs/ORIGINAL_MAP_80_RESULTS.md` 에 PASS/FAIL/NOT RUN 으로 적습니다.
+  개발 빌드의 `__fakePeers(n)` 는 그리기 성능 측정용이고 통신 합격 증거가 아닙니다.
 - 원본 외형 복원은 preview부터 진행합니다. 이전 삭제 건물·법당 명칭·작업장 위치는 유지합니다. 이식 preview는 좌표 변환표와 충돌 검증을 갖춰 기존 좌표를 변경할 수 있습니다.
 - Cloudflare DO relay와 실제 80개 WS/실기기 시험을 단계별로 진행하며 설계 수치와 무료 예산은 보장이 아닙니다. 독서 홈페이지는 수정하지 않습니다.
 - Claude 인계: .claude/commands/original-map-80.md. PR #7은 e797fea에 반영되었습니다. #8 상태를 확인하고 자동 머지하지 않습니다.

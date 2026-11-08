@@ -339,6 +339,26 @@ updateHUD();
 // npm run dev 에서만 쓰는 확인용 훅. 프로덕션 빌드에서는 통째로 빠진다.
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.vx=0;player.vy=0;player.moving=false;pushPose(true);};
 if(import.meta.env.DEV)window.__look=(x,y)=>{player.face=Math.atan2(x-player.x,y-player.y);follower.state.yaw=player.face+Math.PI;};
+/* 개발 전용 렌더 시험용 가짜 접속자. 통신 합격 증거가 아니라 그리기 성능 측정용이다.
+   docs/ORIGINAL_MAP_80_PLAYERS.md 의 '브라우저 렌더 fixture' 에 해당한다. */
+if(import.meta.env.DEV)window.__fakePeers=(n=80,spread=6)=>{
+  for(const id of [...peers.keys()])if(id.startsWith('fake:'))peers.delete(id);
+  const COL=['#e3a83f','#5d7fb8','#3f7a5c','#c8402f','#9b7ad1','#d98a3f','#6fb6e8','#8f8b80'];
+  const cols=Math.ceil(Math.sqrt(n))||1;
+  for(let i=0;i<n;i++){
+    // 카메라가 보는 쪽(위쪽)으로 격자를 깔아 실제로 화면에 들어오게 한다
+    const cx=(i%cols)-(cols-1)/2, cz=Math.floor(i/cols);
+    // tx,ty 는 추측 항법의 목표다. 플레이어 좌표를 넣으면 매 프레임 끌려와 겹친다.
+    const px=player.x+cx*(spread/6), py=player.y-1.6-cz*(spread/6);
+    peers.set('fake:'+i,{id:'fake:'+i,nick:'법우'+i,sex:i%2?'f':'m',
+      x:px, y:py, tx:px, ty:py, vx:0,vy:0,poseAt:Date.now(),dir:'down',
+      moving:false,walk:i*0.37,color:COL[i%COL.length],say:'',sayUntil:0,
+      last:Date.now(),placed:true});
+  }
+  return peers.size;
+};
+if(import.meta.env.DEV)window.__peerStats=()=>({...peerLayer.stats,state:peers.size});
+if(import.meta.env.DEV)window.__gpuInfo=()=>{const i=world3d.renderer.info;return{geometries:i.memory.geometries,textures:i.memory.textures,calls:i.render.calls,triangles:i.render.triangles};};
 if(import.meta.env.DEV)window.__deungbul=()=>({x:+player.x.toFixed(2),y:+player.y.toFixed(2),stage:state.stage,hung:state.lanterns.length,shared,mine:myCount(),me:OWNER,nick:nickNow(),joined:!!(yard&&yard.joined),gap:poseGap(),myLine:myLineUntil>Date.now()?myLine:'',sex:mySex,night:state.night,yardLit,peers:[...peers.values()].map(p=>({id:p.id,nick:p.nick,sex:p.sex,x:+p.x.toFixed(2),y:+p.y.toFixed(2),say:p.sayUntil>Date.now()?p.say:''}))});
 
 /* ---------- interactions ---------- */

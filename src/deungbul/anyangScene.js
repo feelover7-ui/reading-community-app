@@ -1,7 +1,7 @@
 /* 도량 3D 장면.
    2D 때 쓰던 타일 좌표(anyangMapData)를 그대로 받아 3D 로 세웁니다.
    땅은 칸마다 평면을 두지 않고 큰 그림 한 장으로 만들어 붙입니다. */
-import { THREE, V3, hash3, makePerson, createCutaway, createPeerLayer } from './three3d.js'
+import { THREE, V3, hash3, makePerson, createCutaway, createPeerLayer, PEER_LAYER_DEFAULTS } from './three3d.js'
 import { T, W, H, structures, trees, CRAFT_DOOR, places } from './anyangMapData.js'
 
 const PATHS = [
@@ -173,5 +173,5 @@ export function buildGrounds (world) {
 }
 
 /* 접속자 인형 모음. 3D 는 2D 보다 무거워 보이는 수를 줄인다. */
-export const PEER_3D_MAX = 40
+export const PEER_3D_MAX = PEER_LAYER_DEFAULTS.max
 export function createPeerBodies (world) { return createPeerLayer(world) }

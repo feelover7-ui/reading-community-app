@@ -28,7 +28,9 @@ export function createWorld (cv, opt = {}) {
     try { panel.focus() } catch (_) {}
     throw error
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
+  // 휴대폰은 해상도 배율을 1.25 로 시작한다. 80명 장면에서 픽셀 수가 성능을 먼저 잡아먹는다.
+  const coarse = matchMedia('(hover:none) and (pointer:coarse)').matches
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.25 : 2))
   renderer.shadowMap.enabled = opt.shadow !== false
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
@@ -372,38 +374,143 @@ export function disposePerson (world, g) {
 }
 
 /* 현재 화면에 가까운 법우만 인형으로 만든다. 퇴장·외형 변경 때 GPU 자원도 정리한다. */
-export function createPeerLayer (world, { max = 40, radius = 28, bowing = false } = {}) {
-  const bodies = new Map()
+export const PEER_LAYER_DEFAULTS = { max: 80, nearDetail: 16, nearIn: 9, nearOut: 11, radius: 48 }
+
+/* 같은 장면의 상대를 모두 인형으로 둔다.
+   가까운 사람은 관절이 있는 모델, 먼 사람은 geometry/material 을 공유하는
+   낮은 세부 인스턴스로 그린다. 멀다고 사람을 지우지 않는다(화면 밖만 건너뛴다). */
+export function createPeerLayer (world, opt = {}) {
+  const { max, nearDetail, nearIn, nearOut, radius } = { ...PEER_LAYER_DEFAULTS, ...opt }
+  const bowing = !!opt.bowing
+  const bodies = new Map()          // 관절 모델(가까운 사람)
+  const nearIds = new Set()         // 경계에서 떨리지 않게 상태를 기억한다
+  const stats = { total: 0, drawn: 0, detailed: 0, instanced: 0, offscreen: 0 }
+
+  /* 먼 사람용 공유 geometry/material. 인스턴스 하나당 사람 하나. */
+  const headGeo = new THREE.SphereGeometry(.19, 8, 6)
+  const bodyGeo = new THREE.CylinderGeometry(.19, .22, .46, 8)
+  const legGeo = new THREE.BoxGeometry(.28, .42, .13)
+  const headMat = new THREE.MeshLambertMaterial({ color: '#f1c9a0' })
+  const bodyMat = new THREE.MeshLambertMaterial({ color: '#ffffff' })
+  const legMat = new THREE.MeshLambertMaterial({ color: '#3b3b48' })
+  const mk = (geo, mat) => {
+    const m = new THREE.InstancedMesh(geo, mat, max)
+    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+    m.castShadow = false; m.receiveShadow = false
+    m.count = 0; m.frustumCulled = false
+    world.scene.add(m)
+    return m
+  }
+  const iHead = mk(headGeo, headMat), iBody = mk(bodyGeo, bodyMat), iLeg = mk(legGeo, legMat)
+  const dummy = new THREE.Object3D()
+  const tint = new THREE.Color()
+  // 화면 안인지는 실제 절두체로 본다. project() 로 좌표만 보면 카메라 뒤에 있는
+  // 사람도 범위 안으로 들어와 보이지 않는 사람을 그린 것으로 센다.
+  const frustum = new THREE.Frustum(), projScreen = new THREE.Matrix4()
+  const bound = new THREE.Sphere(new THREE.Vector3(), 1.1)
+
+  const FACES = { down: 0, up: Math.PI, left: -Math.PI / 2, right: Math.PI / 2 }
+  const faceOf = p => p.moving && Math.hypot(p.vx || 0, p.vy || 0) > .01
+    ? Math.atan2(p.vx || 0, p.vy || 0)
+    : (FACES[p.dir] ?? 0)
+  const crouchOf = (p, quiet) => bowing && p.bow
+    ? (quiet ? .6 : .45 + (1 - Math.abs(Math.sin(Date.now() / 1200))) * .3)
+    : 1
+
+  function dropDetailed (id) {
+    const body = bodies.get(id)
+    if (body) { disposePerson(world, body); bodies.delete(id) }
+  }
+
   return {
-    bodies,
+    bodies, stats,
     sync (peers, quiet, focus = { x: 0, y: 0 }) {
       const camera = world.camera
-      camera?.updateMatrixWorld()
-      const candidates = [...peers.values()].filter(p => {
-        if (Math.hypot(p.x - focus.x, p.y - focus.y) > radius) return false
-        if (!camera) return true
-        const v = V3(p.x, .8, p.y).project(camera)
-        return v.z > -1 && v.z < 1 && Math.abs(v.x) < 1.3 && Math.abs(v.y) < 1.3
-      }).sort((a, b) => Math.hypot(a.x - focus.x, a.y - focus.y) - Math.hypot(b.x - focus.x, b.y - focus.y)).slice(0, max)
-      const wanted = new Set(candidates.map(p => p.id))
-      for (const [id, body] of bodies) {
-        if (!wanted.has(id)) { disposePerson(world, body); bodies.delete(id) }
+      if (camera) {
+        camera.updateMatrixWorld()
+        projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+        frustum.setFromProjectionMatrix(projScreen)
       }
-      for (const p of candidates) {
+      const all = [...peers.values()]
+      stats.total = all.length
+
+      /* 화면 안에 있는 사람만 그린다. 상태는 모두 그대로 둔다. */
+      const shown = []
+      let offscreen = 0
+      for (const p of all) {
+        if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) continue
+        const d = Math.hypot(p.x - focus.x, p.y - focus.y)
+        if (d > radius) { offscreen++; continue }
+        if (camera) {
+          bound.center.set(p.x, .9, p.y)
+          if (!frustum.intersectsSphere(bound)) { offscreen++; continue }
+        }
+        shown.push({ p, d })
+      }
+      shown.sort((a, b) => a.d - b.d)
+      if (shown.length > max) { offscreen += shown.length - max; shown.length = max }
+      stats.offscreen = offscreen
+      stats.drawn = shown.length
+
+      /* 가까운 사람만 관절 모델. 경계에서는 들어올 때와 나갈 때 기준을 다르게 둔다. */
+      const near = []
+      for (const { p, d } of shown) {
+        const was = nearIds.has(p.id)
+        const keep = was ? d <= nearOut : d <= nearIn
+        if (keep && near.length < nearDetail) { near.push(p); nearIds.add(p.id) } else nearIds.delete(p.id)
+      }
+      const nearSet = new Set(near.map(p => p.id))
+      for (const id of [...bodies.keys()]) if (!nearSet.has(id)) dropDetailed(id)
+
+      for (const p of near) {
         const key = p.color + ':' + (p.sex === 'f' ? 'f' : 'm')
         let body = bodies.get(p.id)
-        if (body && body.userData.lookKey !== key) { disposePerson(world, body); bodies.delete(p.id); body = null }
+        if (body && body.userData.lookKey !== key) { dropDetailed(p.id); body = null }
         if (!body) {
           body = makePerson(world, { body: p.color, hair: '#2b1d14', pants: '#3b3b48', long: p.sex === 'f' })
           body.userData.lookKey = key; bodies.set(p.id, body)
         }
-        const faces = { down: 0, up: Math.PI, left: -Math.PI / 2, right: Math.PI / 2 }
-        const face = p.moving && Math.hypot(p.vx, p.vy) > .01 ? Math.atan2(p.vx, p.vy) : (faces[p.dir] ?? 0)
-        stepPerson(body, p.x, p.y, bowing && p.bow ? Math.PI : face, p.moving, p.walk, quiet)
-        const crouch = bowing && p.bow ? (quiet ? .6 : .45 + (1 - Math.abs(Math.sin(Date.now() / 1200))) * .3) : 1
-        body.scale.set(1, crouch, 1)
+        stepPerson(body, p.x, p.y, bowing && p.bow ? Math.PI : faceOf(p), p.moving, p.walk, quiet)
+        body.scale.set(1, crouchOf(p, quiet), 1)
       }
+      stats.detailed = bodies.size
+
+      /* 나머지는 인스턴스로. 모양·색·방향·절 상태가 보인다. */
+      let n = 0
+      for (const { p } of shown) {
+        if (nearSet.has(p.id)) continue
+        const crouch = crouchOf(p, quiet)
+        const yaw = bowing && p.bow ? Math.PI : faceOf(p)
+        tint.set(/^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#e3a83f')
+        dummy.rotation.set(0, yaw, 0)
+        dummy.scale.set(1, 1, 1)
+        dummy.position.set(p.x, .21 * crouch, p.y); dummy.scale.set(1, crouch, 1)
+        dummy.updateMatrix(); iLeg.setMatrixAt(n, dummy.matrix)
+        dummy.position.set(p.x, .65 * crouch, p.y)
+        dummy.updateMatrix(); iBody.setMatrixAt(n, dummy.matrix); iBody.setColorAt(n, tint)
+        dummy.position.set(p.x, 1.07 * crouch, p.y); dummy.scale.set(1, 1, 1)
+        dummy.updateMatrix(); iHead.setMatrixAt(n, dummy.matrix)
+        n++
+      }
+      for (const m of [iHead, iBody, iLeg]) {
+        m.count = n
+        m.instanceMatrix.needsUpdate = true
+        if (m.instanceColor) m.instanceColor.needsUpdate = true
+      }
+      stats.instanced = n
     },
-    clear () { for (const body of bodies.values()) disposePerson(world, body); bodies.clear() }
+    clear () {
+      for (const body of bodies.values()) disposePerson(world, body)
+      bodies.clear(); nearIds.clear()
+      for (const m of [iHead, iBody, iLeg]) m.count = 0
+      stats.total = stats.drawn = stats.detailed = stats.instanced = stats.offscreen = 0
+    },
+    /* 장면을 버릴 때만 부른다. 공유 geometry/material 은 여기서 한 번만 해제한다. */
+    destroy () {
+      this.clear()
+      for (const m of [iHead, iBody, iLeg]) world.scene.remove(m)
+      for (const g of [headGeo, bodyGeo, legGeo]) g.dispose()
+      for (const mt of [headMat, bodyMat, legMat]) mt.dispose()
+    }
   }
 }
