@@ -38,7 +38,9 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
           }
         }
       }
-      if (sessions.size >= maxSessions) return { ok: false, reason: 'room_full', waiting: true }
+      // 끊겨서 유예 중인 사람도 자리를 차지합니다. 살아 있는 수만 세면
+      // 유령이 남은 방에서 명단이 80을 넘어갑니다(실측 139).
+      if (sessions.size + pending.size >= maxSessions) return { ok: false, reason: 'room_full', waiting: true }
       const id = 'p' + (nextId++)
       const b = SCENE_BOUNDS[hello.sceneId] || SCENE_BOUNDS.yard
       const s = {
