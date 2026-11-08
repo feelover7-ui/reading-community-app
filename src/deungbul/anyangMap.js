@@ -355,6 +355,7 @@ try { cv.focus({ preventScroll: true }) } catch (e) {}
 requestAnimationFrame(loop)
 
 if (import.meta.env.DEV) window.__warp = (x, y) => { player.x = x; player.y = y; player.vx = 0; player.vy = 0; player.moving = false; peers.send(true) }
+if (import.meta.env.DEV) window.__look = (x, y) => faceTowards(player.x, player.y, x, y)
 if (import.meta.env.DEV) window.__three = () => ({
   colorSpace: world.renderer.outputColorSpace,
   toneMapping: world.renderer.toneMapping,

@@ -52,7 +52,7 @@ export function buildHall (world) {
   const wall = (x0, z0, x1, z1) => {
     const w = x1 - x0, d = z1 - z0
     const m = box(w, 3.6, d, wallM, x0 + w / 2, 1.8, z0 + d / 2)
-    world.addBlocker(world.addFade(m))
+    world.addFade(m)
     box(w + .1, .2, d + .1, M('#4a2f1d'), x0 + w / 2, 3.72, z0 + d / 2)
     return m
   }

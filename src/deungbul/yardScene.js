@@ -56,7 +56,7 @@ export function buildYard (world, d) {
   /* 벽. 카메라와 캐릭터 사이에 오면 옅어진다. */
   function wall (x0, z0, x1, z1, h = 2.3) {
     const m = box(x1 - x0, h, z1 - z0, M(MAT.wall, { transparent: true }), (x0 + x1) / 2, h / 2, (z0 + z1) / 2)
-    world.addFade(m); world.addBlocker(m)
+    world.addFade(m)
     const cap = box(x1 - x0 + .06, .12, z1 - z0 + .06, M(MAT.wallTop, { transparent: true }), (x0 + x1) / 2, h + .06, (z0 + z1) / 2)
     m.userData.attach.push(cap)
     return m
@@ -216,7 +216,7 @@ export function buildYard (world, d) {
   bigMeshes.push(mesh(new THREE.SphereGeometry(.85, 18, 14), bigM('#f2c037'), 0, 3.3, 0, big))
   const bigGlow = glowSprite('#ffb866', 7); bigGlow.position.set(0, 3.3, 0); bigGlow.material.opacity = 0; big.add(bigGlow)
   const bigLight = new THREE.PointLight('#ffb050', 0, 22, 2); bigLight.position.set(0, 3.3, 0); big.add(bigLight)
-  for (const m of bigMeshes) world.addBlocker(m)
+  for (const m of bigMeshes) world.addFade(m)
 
   /* 석등 불빛 */
   const stoneLights = []

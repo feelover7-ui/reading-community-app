@@ -273,7 +273,7 @@ const labels = createLabelLayer(world.camera)
 const meBody = makePerson(world, myLook)
 const hallPeers = createHallPeers(world)
 /* 법당 안이라 카메라를 방 안에 가둔다. */
-const CAM_BOUNDS = { x0: 1.8, x1: W - 1.8, z0: 1.8, z1: H - 1.8, yMax: 4.1 }
+const CAM_BOUNDS = { yMax: 4.1 }
 
 function faceTowards (toX, toY) {
   player.face = Math.atan2(toX - player.x, toY - player.y)
@@ -373,6 +373,7 @@ try { cv.focus({ preventScroll: true }) } catch (e) {}
 requestAnimationFrame(loop)
 
 if (import.meta.env.DEV) window.__warp = (x, y) => { player.x = x; player.y = y; player.vx = 0; player.vy = 0; player.moving = false; peers.send(true) }
+if (import.meta.env.DEV) window.__look = (x, y) => { player.face = Math.atan2(x - player.x, y - player.y); follower.state.yaw = player.face + Math.PI }
 if (import.meta.env.DEV) window.__beopdang = () => ({
   x: +player.x.toFixed(2), y: +player.y.toFixed(2), dir: player.dir, dist: +follower.state.dist.toFixed(1),
   traveling, modalOpen: modal.open, nick: me.nick, sex: me.sex,

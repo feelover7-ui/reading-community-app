@@ -200,8 +200,8 @@ export function createFollower (cv, camera, opt = {}) {
       )
       // 방 안에서는 카메라가 벽 밖으로 나가지 않게 가둔다.
       if (bounds) {
-        want.x = Math.max(bounds.x0, Math.min(bounds.x1, want.x))
-        want.z = Math.max(bounds.z0, Math.min(bounds.z1, want.z))
+        if (bounds.x0 != null) want.x = Math.max(bounds.x0, Math.min(bounds.x1, want.x))
+        if (bounds.z0 != null) want.z = Math.max(bounds.z0, Math.min(bounds.z1, want.z))
         if (bounds.yMax != null) want.y = Math.min(bounds.yMax, want.y)
       }
       const k = first ? 1 : 1 - Math.exp(-dt * 7)

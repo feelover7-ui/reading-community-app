@@ -338,6 +338,7 @@ function changed(){updateHUD();save();}
 updateHUD();
 // npm run dev 에서만 쓰는 확인용 훅. 프로덕션 빌드에서는 통째로 빠진다.
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.vx=0;player.vy=0;player.moving=false;pushPose(true);};
+if(import.meta.env.DEV)window.__look=(x,y)=>{player.face=Math.atan2(x-player.x,y-player.y);follower.state.yaw=player.face+Math.PI;};
 if(import.meta.env.DEV)window.__deungbul=()=>({x:+player.x.toFixed(2),y:+player.y.toFixed(2),stage:state.stage,hung:state.lanterns.length,shared,mine:myCount(),me:OWNER,nick:nickNow(),joined:!!(yard&&yard.joined),gap:poseGap(),myLine:myLineUntil>Date.now()?myLine:'',sex:mySex,night:state.night,yardLit,peers:[...peers.values()].map(p=>({id:p.id,nick:p.nick,sex:p.sex,x:+p.x.toFixed(2),y:+p.y.toFixed(2),say:p.sayUntil>Date.now()?p.say:''}))});
 
 /* ---------- interactions ---------- */

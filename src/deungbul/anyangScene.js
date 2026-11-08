@@ -74,7 +74,7 @@ export function buildGrounds (world) {
   const wallM = M('#6b5a45'), capM = M('#8a775c')
   const wall = (x0, z0, x1, z1) => {
     const w = x1 - x0, d = z1 - z0
-    world.addBlocker(box(w, 1.5, d, wallM, x0 + w / 2, .75, z0 + d / 2))
+    box(w, 1.5, d, wallM, x0 + w / 2, .75, z0 + d / 2)
     box(w + .2, .18, d + .2, capM, x0 + w / 2, 1.58, z0 + d / 2)
   }
   wall(0, 0, W, 1); wall(0, H - 1, W, H); wall(0, 1, 1, H - 1); wall(W - 1, 1, W, H - 1)
@@ -85,7 +85,7 @@ export function buildGrounds (world) {
     const cx = s.x + s.w / 2, cz = s.y + s.h / 2, w = s.w, d = s.h
     if (s.kind === 'main') {
       // 법당: 아래 몸체 + 큰 기와지붕 + 지붕 위 칠보탑
-      world.addBlocker(world.addFade(box(w, 3.4, d, M('#d8c0a2', { transparent: true }), cx, 1.7, cz)))
+      world.addFade(box(w, 3.4, d, M('#d8c0a2', { transparent: true }), cx, 1.7, cz))
       box(w + .2, .25, d + .2, M('#c3a98b'), cx, 3.5, cz)
       const roof = roofMesh(world, w + 1.6, d + 1.6, '#51627a', '#3d4b5c')
       roof.position.set(cx, 3.6, cz); roof.scale.y = 1.5; scene.add(roof)
@@ -109,10 +109,10 @@ export function buildGrounds (world) {
       }
       mesh(new THREE.SphereGeometry(.2, 12, 8), M('#f6dc8e'), sx, sy + 3.5, cz)
     } else if (s.kind === 'craft') {
-      world.addBlocker(world.addFade(box(w, 2.4, d, M('#b07c45', { transparent: true }), cx, 1.2, cz)))
+      world.addFade(box(w, 2.4, d, M('#b07c45', { transparent: true }), cx, 1.2, cz))
       const roof = roofMesh(world, w + 1.2, d + 1.2, '#8a5e3c', '#6b4630')
       roof.position.set(cx, 2.5, cz); scene.add(roof)
-      roof.traverse(o => { if (o.isMesh) world.addBlocker(o) })
+      roof.traverse(o => { if (o.isMesh) world.addFade(o) })
       // 마당 쪽 문
       box(CRAFT_DOOR.w - .3, 1.9, .16, '#3a2616', craftDoorPos.x, .95, s.y + d + .04)
       box(CRAFT_DOOR.w - .6, .18, .08, '#f0cf73', craftDoorPos.x, 1.75, s.y + d - .04)
