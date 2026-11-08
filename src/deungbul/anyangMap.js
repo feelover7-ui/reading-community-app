@@ -1,11 +1,11 @@
-import { places, canWalk } from './anyangMapData.js'
+import { places, canWalk, startPosition } from './anyangMapData.js'
 import { drawPixelPerson, walkFrame } from './pixelCharacter.js'
 
 const byId=id=>document.getElementById(id)
 const scene=byId('scene'), surface=byId('surface'), viewport=byId('viewport')
 const pins=byId('pins'), list=byId('place-list'), traveler=byId('traveler')
 const visited=new Set(), pinButtons=new Map(), listButtons=new Map()
-let zoom=1, position={x:50,y:88}, cameraFocus=null
+let zoom=1, position={...startPosition}, cameraFocus=null
 const WORLD_WIDTH=1920
 const spriteCanvas=byId('traveler-sprite'), spriteCtx=spriteCanvas.getContext('2d')
 const spriteLook={body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48'}
@@ -34,71 +34,100 @@ motionPreference.addEventListener?.('change',e=>{reducedMotion=e.matches;stopAva
 document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAvatar()})
 window.addEventListener('blur',stopAvatar)
 
-// 직접 작성한 단순 SVG 풍경. 공식 홈페이지 사진/조감도 파일은 포함하지 않습니다.
-const tree=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="17" rx="25" ry="10" fill="#728962" opacity=".22"/><path d="M-4 5h8v20h-8z" fill="#866b48"/><circle cy="-9" r="25" fill="#66815c"/><circle cx="-15" cy="-7" r="18" fill="#7b956c"/><circle cx="10" cy="-19" r="17" fill="#8ba379"/></g>`
-const spheres=(x,y,count,gold=false)=>Array.from({length:count},(_,i)=>{
-  const r=16-i*.65
-  return `<ellipse cx="${x}" cy="${y-i*17}" rx="${r}" ry="${r*.86}" fill="url(#${gold?'gold':'stone'})" stroke="${gold?'#af7e2d':'#a39a80'}" stroke-width="1.4"/>`
+// 공식 조감도의 상대 배치와 건물군을 참고해 직접 작성한 SVG입니다.
+// 공식 사진·조감도 원본은 배포 자산에 넣지 않습니다.
+const tree=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="12" rx="18" ry="7" fill="#4f6553" opacity=".17"/><path d="M-3-3h6v23h-6z" fill="#8a7861"/><circle cy="-11" r="21" fill="#77977a"/><circle cx="-13" cy="-9" r="15" fill="#8ba88a"/><circle cx="9" cy="-19" r="14" fill="#98b495"/></g>`
+const spheres=(x,y,count,radius,step,gold=false)=>Array.from({length:count},(_,i)=>{
+ const r=radius-i*.23
+ return `<ellipse class="${gold?'map-lantern':'stone-sphere'}" cx="${x}" cy="${y-i*step}" rx="${r}" ry="${r*.9}" fill="url(#${gold?'gold':'stone'})" stroke="${gold?'#a98035':'#b2afa1'}" stroke-width=".9"/>`
 }).join('')
-const windows=Array.from({length:5},(_,floor)=>Array.from({length:7},(_,i)=>`<rect x="${365+i*39}" y="${274+floor*24}" width="22" height="14" rx="2" fill="#697d74"/><path d="M${376+i*39} ${274+floor*24}v14" stroke="#c7bc9e" stroke-width="2"/>`).join('')).join('')
-const trees=[[96,126,1.3],[172,106,1.1],[272,139,1.2],[330,98,1],[649,104,1.1],[907,111,1.3],[929,237,1.1],[944,373,1.2],[913,579,1.2],[819,617,1.2],[100,580,1.2],[75,387,1.1],[120,265,1],[304,582,.8],[737,548,.8]]
+const frontWindows=Array.from({length:5},(_,floor)=>Array.from({length:5},(_,i)=>`<rect x="${620+i*33}" y="${396+floor*31}" width="15" height="20" rx="1" fill="#6e7774"/><path d="M${627+i*33} ${396+floor*31}v20" stroke="#c5bcaa" stroke-width="2"/>`).join('')).join('')
+const sideWindows=Array.from({length:5},(_,floor)=>`<path d="M790 ${386+floor*31}l68-48v15l-68 48Z" fill="#727c78"/>`).join('')
+const annexWindows=Array.from({length:4},(_,row)=>Array.from({length:5},(_,col)=>`<rect x="${759+col*24}" y="${139+row*29}" width="14" height="19" fill="#697d79"/>`).join('')).join('')
+const terraceWindows=Array.from({length:3},(_,row)=>Array.from({length:8},(_,col)=>`<rect x="${143+col*34}" y="${348+row*30}" width="24" height="14" fill="#71817b"/>`).join('')).join('')
+const trees=[[88,298,.85],[108,252,.8],[145,212,.9],[176,91,.9],[245,77,.85],[318,103,.9],[372,114,.8],[400,98,.9],[452,80,.8],[520,77,.85],[590,95,.8],[637,120,.8],[696,106,.85],[947,110,.8],[953,178,.75],[959,242,.7],[962,448,.8],[879,557,.85],[827,597,.8],[566,623,.85],[508,599,.8],[448,574,.85],[376,552,.85],[309,520,.8],[241,502,.75],[178,472,.8],[124,446,.75]]
 scene.innerHTML=`
 <defs>
-  <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#d7e1c6"/><stop offset="1" stop-color="#e5e8cb"/></linearGradient>
-  <linearGradient id="gold" x2="1" y2=".7"><stop stop-color="#fce5a0"/><stop offset=".55" stop-color="#d4a73d"/><stop offset="1" stop-color="#ae7826"/></linearGradient>
-  <linearGradient id="stone" x2="1" y2="1"><stop stop-color="#fffdf0"/><stop offset=".6" stop-color="#dedbc8"/><stop offset="1" stop-color="#b5b29d"/></linearGradient>
+ <linearGradient id="concrete" x2="0" y2="1"><stop stop-color="#e4d7bf"/><stop offset="1" stop-color="#c7b89d"/></linearGradient>
+ <linearGradient id="gold" x2="1" y2="1"><stop stop-color="#fff0b0"/><stop offset=".55" stop-color="#d9b64d"/><stop offset="1" stop-color="#ac7e2b"/></linearGradient>
+ <linearGradient id="stone" x2="1" y2="1"><stop stop-color="#fffef2"/><stop offset="1" stop-color="#c8c5b7"/></linearGradient>
+ <pattern id="paving" width="30" height="24" patternUnits="userSpaceOnUse"><rect width="30" height="24" fill="#dddcd2"/><path d="M0 0H30M0 0V24" stroke="#c8c8be" stroke-width=".8"/></pattern>
 </defs>
-<rect width="1000" height="720" fill="url(#ground)"/>
-<path d="M0 118Q120 0 280 68Q400 -10 550 64Q720 0 1000 96V0H0Z" fill="#abbda0"/>
-<path d="M0 82Q150 -30 310 42Q520 -25 650 48Q820 -20 1000 58V0H0Z" fill="#8da78a" opacity=".65"/>
-<path d="M70 690V195Q70 170 100 170H902Q936 170 936 200V690" fill="none" stroke="#b3b58f" stroke-width="12"/>
-<path d="M500 720V440M500 446H230V540M500 446H815V252M815 444V550M500 582H800" fill="none" stroke="#c6c4a5" stroke-width="65" stroke-linejoin="round"/>
-<path d="M500 720V440M500 446H230V540M500 446H815V252M815 444V550M500 582H800" fill="none" stroke="#eee6ca" stroke-width="55" stroke-linejoin="round"/>
-<path d="M482 687h36m-36-36h36m-36-36h36" stroke="#d0c4a3" stroke-width="3"/>
-<ellipse cx="500" cy="412" rx="200" ry="31" fill="#687156" opacity=".13"/>
-<path d="M345 250H655V405H345Z" fill="#f2e7cb" stroke="#b8a17e" stroke-width="3"/>
-<path d="M655 250l26-14v151l-26 18Z" fill="#d1c1a1"/>
-${windows}
-<path d="M339 266H661M339 314H661M339 362H661M339 389H661" stroke="#b5a17d" stroke-width="4"/>
-<path d="M330 251Q422 228 500 192Q574 228 670 251L644 267H355Z" fill="#685447" stroke="#51463a" stroke-width="3"/>
-<path d="M349 254H652" stroke="#426a56" stroke-width="7"/>
-<path d="M476 378h48v28h-48Z" fill="#79513b"/><path d="M500 378v28" stroke="#c4a26a" stroke-width="2"/>
-<path d="M455 412h90m-100 9h110m-120 9h130" stroke="#c5b393" stroke-width="7"/>
-<rect x="482" y="186" width="36" height="10" rx="3" fill="#ac813b"/>
-${spheres(500,179,7,true)}
-<path d="M500 57v-15" stroke="#bb8b31" stroke-width="4"/>
-<ellipse cx="620" cy="553" rx="42" ry="14" fill="#7c8065" opacity=".2"/>
-<rect x="585" y="538" width="70" height="14" rx="4" fill="#b9b6a0"/>
-<path d="M591 536l8-14h42l8 14Z" fill="#c9c8b3"/>
-${spheres(620,519,9)}
-<path d="M620 376v-11" stroke="#b1a36f" stroke-width="4"/>
-<g transform="translate(710 134)">
- <ellipse cx="100" cy="95" rx="116" ry="22" fill="#69765c" opacity=".12"/>
- <rect x="13" y="20" width="174" height="72" rx="3" fill="#bf9c6f" stroke="#907454" stroke-width="2"/>
- <path d="M0 26L99-5L200 26L184 39H18Z" fill="#60584c" stroke="#494b42" stroke-width="3"/>
- <path d="M35 39v53m42-53v53m44-53v53m42-53v53" stroke="#805a3b" stroke-width="6"/>
- <path d="M48 47h25v35H48m79-35h25v35h-25" fill="#d7c89f"/>
- <path d="M93 52h18v40H93Z" fill="#685b47"/>
- <rect x="210" y="64" width="28" height="24" rx="5" fill="#c3bda7"/><ellipse cx="224" cy="57" rx="16" ry="12" fill="#d4d0ba"/>
+<rect width="1000" height="720" fill="#e7e3d3"/>
+<path d="M50 228L685 60L950 176L978 574L624 704L48 492Z" fill="#b8b9ad" stroke="#a1a499" stroke-width="3"/>
+<path d="M91 230L684 96L922 194L940 545L618 665L83 470Z" fill="url(#paving)" stroke="#f2f0e6" stroke-width="7"/>
+<path d="M106 477L615 673L943 552" fill="none" stroke="#aaa99d" stroke-width="30"/>
+<path d="M106 477L615 673L943 552" fill="none" stroke="#eeece0" stroke-width="2" stroke-dasharray="20 18"/>
+<path d="M105 225Q232 91 413 112L663 126L687 222L406 283L128 298Z" fill="#a8b999"/>
+<path d="M146 260H436V322H146Z" fill="#c9c8bb" stroke="#9a9c90" stroke-width="2"/>
+<path d="M128 326H429V459H128Z" fill="url(#concrete)" stroke="#a59880" stroke-width="2"/>
+<path d="M429 326l30-16v124l-30 25Z" fill="#b8ac95"/>
+${terraceWindows}
+<path d="M128 373H429M128 403H429M128 433H429" stroke="#a99b84" stroke-width="4"/>
+<rect x="141" y="312" width="282" height="18" fill="#d3cdbd" stroke="#a59e8f"/>
+<path d="M140 307H420M146 288V310M183 288V310M220 288V310M257 288V310M294 288V310M331 288V310M368 288V310M405 288V310" stroke="#d9d7ca" stroke-width="4"/>
+<rect x="160" y="265" width="95" height="28" rx="9" fill="#8fbc86"/>
+<rect x="287" y="265" width="104" height="28" rx="9" fill="#88b384"/>
+<path d="M410 260L470 310L407 371" fill="none" stroke="#eeeae0" stroke-width="30" stroke-linejoin="round"/>
+<path d="M422 270l-18 20m29-9l-18 20m29-9l-18 20m29-9l-18 20m12 10l-20-17m9 29l-20-17m9 29l-20-17" stroke="#b6b4a8" stroke-width="2"/>
+<path d="M434 291H681V359H434Z" fill="#d7d3c2" stroke="#aaa491" stroke-width="2"/>
+<path d="M434 305H681" stroke="#faf6e8" stroke-width="7"/>
+${Array.from({length:9},(_,i)=>`<rect x="${447+i*25}" y="315" width="10" height="28" fill="#89958a"/><path d="M${442+i*25} 310v42" stroke="#ede8d9" stroke-width="5"/>`).join('')}
+<path d="M423 285H689V299H423Z" fill="#c6c9b7" stroke="#aaa994"/>
+<path d="M435 278H678M435 264v20M472 264v20M509 264v20M546 264v20M583 264v20M620 264v20M657 264v20" stroke="#e9e6d7" stroke-width="3"/>
+<ellipse cx="550" cy="276" rx="23" ry="8" fill="#aaa996" opacity=".3"/>
+<path d="M535 273h30v7h-30Z" fill="#aaa18c"/><path d="M539 267h22v7h-22Z" fill="#c7bfa9"/>
+${spheres(550,261,9,6.3,7,false)}
+<g transform="translate(440 121)">
+ <rect x="0" y="26" width="143" height="68" fill="#d4c8ac" stroke="#9e927a" stroke-width="2"/>
+ <path d="M-13 25L65-5L158 25L140 36H0Z" fill="#66736b" stroke="#4e5c57" stroke-width="3"/>
+ <path d="M5 36v57m31-57v57m36-57v57m36-57v57m31-57v57" stroke="#8b7050" stroke-width="4"/>
+ <path d="M13 50h18v31H13m31-31h21v31H44m35-31h21v31H79m35-31h18v31h-18" fill="#879a8a"/>
 </g>
-<g transform="translate(800 345)">
- <ellipse cy="47" rx="65" ry="26" fill="#ccc9ae"/>
- ${Array.from({length:7},(_,i)=>`<rect x="${-72+i*22}" y="${-34-Math.sin(i/6*Math.PI)*18}" width="13" height="55" rx="4" fill="#b3b5a0"/>`).join('')}
- <ellipse cy="38" rx="32" ry="10" fill="#a49e83"/>
- <path d="M-29 28Q-29 0-13-9L12-9Q29 5 31 28Z" fill="#52675b"/>
- <circle cy="-24" r="15" fill="#677366"/><path d="M-11-25Q0-39 11-25" fill="#566158"/>
- <path d="M-20 22Q0 5 20 22M-5-5L13 25" fill="none" stroke="#839084" stroke-width="4"/>
+<path d="M748 118H896V273H748Z" fill="#d6cab2" stroke="#b0a58e" stroke-width="2"/>
+${annexWindows}
+<path d="M750 116L799 90L939 105L895 132Z" fill="#d3d6c6" stroke="#9b9f94" stroke-width="3"/>
+<path d="M765 114L801 98L919 109L892 124Z" fill="#758f82"/>
+<path d="M896 132l43-27v148l-43 20Z" fill="#b9c1af"/>
+<path d="M754 137V270M782 137V270M810 137V270M838 137V270M866 137V270M894 137V270" stroke="#ece6d8" stroke-width="6"/>
+<g transform="translate(904 52)">
+ <rect width="55" height="137" fill="#ddd3be" stroke="#afa591" stroke-width="2"/>
+ <path d="M-5 0L21-17L62-7L55 5Z" fill="#a99587"/>
+ ${Array.from({length:4},(_,i)=>`<rect x="9" y="${19+i*28}" width="9" height="13" fill="#777e71"/><rect x="33" y="${19+i*28}" width="9" height="13" fill="#777e71"/>`).join('')}
 </g>
-<g transform="translate(130 418)">
- <rect x="4" y="18" width="175" height="84" rx="4" fill="#ccad78" stroke="#9e8153" stroke-width="2"/>
- <path d="M-4 21L34-3H155L187 21Z" fill="#876447"/>
- <rect x="27" y="48" width="54" height="40" rx="3" fill="#795d40"/>
- <rect x="99" y="43" width="61" height="37" rx="2" fill="#e5c691"/>
- <path d="M0 37Q91 54 184 37" fill="none" stroke="#87653d" stroke-width="2"/>
- ${Array.from({length:7},(_,i)=>`<ellipse class="map-lantern" cx="${12+i*26}" cy="${43+Math.sin(i/6*Math.PI)*9}" rx="8" ry="10" fill="${['#c76048','#e9be58','#d592a2','#94ad72'][i%4]}"/>`).join('')}
+<g transform="translate(900 294)">
+ <rect width="71" height="132" fill="#d9c9b3" stroke="#ad9a85" stroke-width="2"/>
+ <rect x="-5" y="-9" width="81" height="14" fill="#8b7369"/>
+ ${Array.from({length:4},(_,i)=>`<rect x="9" y="${16+i*28}" width="52" height="13" fill="#8a9b8b"/><path d="M26 ${16+i*28}v13m17-13v13" stroke="#d5c2a9" stroke-width="3"/>`).join('')}
+</g>
+<ellipse cx="708" cy="568" rx="135" ry="28" fill="#93968b" opacity=".15"/>
+<path d="M604 374H793V577H604Z" fill="#e2d2b6" stroke="#b9a88c" stroke-width="3"/>
+<path d="M793 374L877 315V518L793 577Z" fill="#c9b99d" stroke="#ae9f85" stroke-width="3"/>
+${frontWindows}
+${sideWindows}
+<path d="M603 422H793M603 454H793M603 486H793M603 518H793" stroke="#bca98b" stroke-width="4"/>
+<path d="M660 577V547Q687 506 714 547V577Z" fill="#7d8178" stroke="#a69b85" stroke-width="4"/>
+<path d="M674 576v-26m14 26v-38m13 38v-26" stroke="#c9bda5" stroke-width="3"/>
+<path d="M646 582h83m-93 8h104m-113 8h122" stroke="#c4b69e" stroke-width="6"/>
+<path d="M593 371L665 320L803 353L793 384L605 384Z" fill="#64747a" stroke="#4d5d63" stroke-width="3"/>
+<path d="M736 321L800 270L893 307L811 367Z" fill="#62737a" stroke="#4d5d63" stroke-width="3"/>
+<path d="M656 319L695 286L751 320L716 347Z" fill="#6d7b7d" stroke="#4d5d63" stroke-width="3"/>
+<path d="M606 379H788M798 378l80-57" stroke="#d5c6a8" stroke-width="7"/>
+<path d="M621 375v12m25-12v12m25-12v12m25-12v12m25-12v12m25-12v12m25-12v12" stroke="#8b8b75" stroke-width="2"/>
+<rect x="641" y="310" width="28" height="10" rx="2" fill="#b49c57"/>
+${spheres(655,302,7,7.3,10,true)}
+<path d="M655 235v-9" stroke="#b99641" stroke-width="2"/>
+<g transform="translate(242 161)">
+ <ellipse cy="28" rx="53" ry="25" fill="#d6d6c5"/>
+ <path d="M-51 13Q-42-39 0-44Q43-39 52 13" fill="none" stroke="#b0b4a3" stroke-width="14"/>
+ ${Array.from({length:7},(_,i)=>{const a=Math.PI*(1+i/6);return `<rect x="${Math.cos(a)*46-4}" y="${Math.sin(a)*42-8}" width="8" height="38" rx="2" fill="#c1c5b2"/>`}).join('')}
+ <ellipse cy="25" rx="22" ry="8" fill="#a7a78d"/>
+ <path d="M-17 19Q-15-5-7-8H8Q17 5 18 19Z" fill="#8c885c"/>
+ <circle cy="-16" r="8" fill="#a19a67"/>
+ <path d="M-13 17Q0 5 14 17" fill="none" stroke="#b2a775" stroke-width="3"/>
 </g>
 ${trees.map(p=>tree(...p)).join('')}
-<path d="M420 695H580" stroke="#b3a586" stroke-width="4"/>
+<path d="M591 631l64 24m198-86l48-20" stroke="#e8e7dc" stroke-width="5"/>
 <rect class="night-shade" width="1000" height="720" fill="#111b35"/>
 `
 function setPosition(x,y){
@@ -114,7 +143,7 @@ function setPosition(x,y){
   if(!avatarFrame)avatarFrame=requestAnimationFrame(paintAvatar)
 }
 function selectPlace(place){
-  setPosition(...place.arrival)
+  if(place.onMap!==false)setPosition(...place.arrival)
   if(place.id==='seven'){cameraFocus={x:place.x,y:place.y};updateCamera()}
   byId('guide').open=true
   visited.add(place.id)
@@ -122,7 +151,7 @@ function selectPlace(place){
   byId('place-title').textContent=place.name
   byId('place-description').textContent=place.description
   byId('place-note').textContent=place.note
-  byId('walk-status').textContent='둘러보는 곳 · '+place.name
+  byId('walk-status').textContent=(place.onMap===false?'안내 보기 · ':'둘러보는 곳 · ')+place.name
   byId('visited').textContent=visited.size+' / '+places.length
   const action=byId('place-action')
   action.href=place.href||place.source
@@ -131,26 +160,33 @@ function selectPlace(place){
   else{action.target='_blank';action.rel='noopener noreferrer'}
   for(const current of places){
     const selected=current.id===place.id
-    pinButtons.get(current.id).setAttribute('aria-pressed',String(selected))
+    pinButtons.get(current.id)?.setAttribute('aria-pressed',String(selected))
     listButtons.get(current.id).setAttribute('aria-pressed',String(selected))
     listButtons.get(current.id).querySelector('.check').textContent=visited.has(current.id)?'✓':''
   }
 }
 for(const place of places){
-  const pin=document.createElement('button')
-  pin.type='button';pin.className='pin'
-  pin.style.left=place.x+'%';pin.style.top=place.y+'%'
-  pin.setAttribute('aria-label',place.number+'. '+place.name+' 둘러보기')
-  pin.setAttribute('aria-pressed','false')
-  const number=document.createElement('strong');number.textContent=place.number
-  const label=document.createElement('span');label.className='pin-label';label.textContent=place.name
-  pin.append(number,label);pin.onclick=()=>selectPlace(place);pins.append(pin);pinButtons.set(place.id,pin)
+  if(place.onMap!==false){
+    const pin=document.createElement('button')
+    pin.type='button';pin.className='pin'
+    pin.style.left=place.x+'%';pin.style.top=place.y+'%'
+    pin.setAttribute('aria-label',place.number+'. '+place.name+' 둘러보기')
+    pin.setAttribute('aria-pressed','false')
+    const number=document.createElement('strong');number.textContent=place.number
+    const label=document.createElement('span');label.className='pin-label';label.textContent=place.name
+    pin.append(number,label);pin.onclick=()=>selectPlace(place);pins.append(pin);pinButtons.set(place.id,pin)
+  }
   const row=document.createElement('button');row.type='button';row.className='place-row';row.setAttribute('aria-pressed','false')
   const n=document.createElement('b');n.textContent=place.number
   const text=document.createElement('span');text.textContent=place.name
   const check=document.createElement('span');check.className='check';check.setAttribute('aria-hidden','true')
-  row.append(n,text,check);row.onclick=()=>selectPlace(place);list.append(row);listButtons.set(place.id,row)
+  row.append(n,text)
+  if(place.onMap===false){
+    const badge=document.createElement('small');badge.className='location-note';badge.textContent=place.href?'별도 체험':'위치 미확정';row.append(badge)
+  }
+  row.append(check);row.onclick=()=>selectPlace(place);list.append(row);listButtons.set(place.id,row)
 }
+byId('visited').textContent='0 / '+places.length
 function move(dx,dy){
   const x=position.x+dx*2.2,y=position.y+dy*2.2
   if(canWalk(x,y)){
