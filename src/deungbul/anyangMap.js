@@ -511,6 +511,12 @@ function toggleHud () {
   hudH.querySelector('small').textContent = open ? '접기' : '펼치기'
 }
 hudH.addEventListener('click', toggleHud)
+// 좁은 화면에서는 접은 채로 연다. 등불사장과 같은 기준(640px)을 쓴다.
+if (vw < 640) {
+  hudEl.classList.add('collapsed')
+  hudH.querySelector('small').textContent = '펼치기'
+  hudH.setAttribute('aria-expanded', 'false')
+}
 hudH.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return
   e.preventDefault(); e.stopPropagation(); toggleHud()
