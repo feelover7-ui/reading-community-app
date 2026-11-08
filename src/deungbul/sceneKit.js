@@ -122,7 +122,7 @@ export function bindJoystick (joyEl) {
 
 /* ---------- 걷기 ---------- */
 /* 눌러 둔 방향과 조이스틱을 합쳐 한 걸음 옮긴다. 벽은 축마다 따로 본다. */
-export function stepPlayer (player, keys, joy, dt, canStand, frozen) {
+export function stepPlayer (player, keys, joy, dt, canStand, frozen, rotate) {
   let mx = 0, my = 0
   if (!frozen) {
     if (keys.has('arrowleft') || keys.has('a')) mx -= 1
@@ -133,6 +133,8 @@ export function stepPlayer (player, keys, joy, dt, canStand, frozen) {
   }
   const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l }
   player.moving = l > .05
+  // 3D 에서는 보는 방향을 기준으로 걷는다. rotate 가 없으면 2D 처럼 그대로 간다.
+  if (rotate && player.moving) { const [rx, ry] = rotate(mx, my); mx = rx; my = ry }
   const wasX = player.x, wasY = player.y
   if (player.moving) {
     const sp = SPEED * dt
@@ -142,6 +144,12 @@ export function stepPlayer (player, keys, joy, dt, canStand, frozen) {
     player.walk += dt
     if (Math.abs(mx) > Math.abs(my)) player.dir = mx < 0 ? 'left' : 'right'
     else player.dir = my < 0 ? 'up' : 'down'
+    // 3D 용 바라보는 각도. 부드럽게 돌린다.
+    const want = Math.atan2(mx, my)
+    let d = want - (player.face || 0)
+    while (d > Math.PI) d -= Math.PI * 2
+    while (d < -Math.PI) d += Math.PI * 2
+    player.face = (player.face || 0) + d * Math.min(1, dt * 12)
   }
   if (dt > 0) { player.vx = (player.x - wasX) / dt; player.vy = (player.y - wasY) / dt }
 }
