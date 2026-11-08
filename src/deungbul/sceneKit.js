@@ -5,7 +5,6 @@ import { joinYard } from './presence.js'
 
 export const SPEED = 4.3          // 칸/초. 등불사장과 같다.
 export const PEER_MAX = 120
-const PEER_GONE_MS = 90000
 const POSE_ERR = .35, POSE_BEAT = 1600, POSE_AGE = 1.5
 
 /* ---------- 그리기 도우미 ---------- */
@@ -134,7 +133,7 @@ const strHash = t => { let h = 0; for (let i = 0; i < t.length; i++) h = (h * 31
 export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, getSelf, onChange, isPaused }) {
   const peers = new Map()
   let yard = null, lastAt = 0, timer = 0, greet = 0, dirty = true
-  let lastSent = { x: 0, y: 0, vx: 0, vy: 0, at: 0 }
+  let lastSent = { x: 0, y: 0, vx: 0, vy: 0, dir: '', bow: false, at: 0 }
   const gap = () => { const n = peers.size; return n <= 8 ? 220 : n <= 16 ? 320 : n <= 32 ? 450 : n <= 64 ? 650 : 900 }
   const mark = () => { dirty = true }
 
@@ -156,7 +155,7 @@ export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, ge
     const p = peerOf(id, pose && pose.nick)
     if (!p || !pose) return
     if (pose.sx) p.sex = pose.sx
-    p.bow = pose.bw === true
+    if (!fromPresence || !p.placed) p.bow = pose.bw === true
     if (pose.dir && (!fromPresence || !p.placed)) p.dir = pose.dir
     // Presence 에 남은 최초 위치가 최신 broadcast 위치를 덮지 않게 한다.
     if ((!fromPresence || !p.placed) && Number.isFinite(pose.x) && Number.isFinite(pose.y)) {
@@ -180,7 +179,6 @@ export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, ge
     update (dt) {
       const now = Date.now()
       for (const [id, p] of peers) {
-        if (now - p.last > PEER_GONE_MS) { peers.delete(id); mark(); continue }
         const [nx, ny] = predict(p, now)
         const dx = nx - p.x, dy = ny - p.y, d = Math.hypot(dx, dy)
         p.moving = d > .04
@@ -200,7 +198,9 @@ export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, ge
         const age = Math.min(POSE_AGE, (now - lastSent.at) / 1000)
         const err = Math.hypot(lastSent.x + lastSent.vx * age - self.x, lastSent.y + lastSent.vy * age - self.y)
         const beat = now - lastSent.at > POSE_BEAT && (self.moving || self.bow || err > .02)
-        if (err < POSE_ERR && !beat) return
+        const changed = self.dir !== lastSent.dir || (self.bow === true) !== lastSent.bow ||
+          (Math.hypot(self.vx, self.vy) > .01) !== (Math.hypot(lastSent.vx, lastSent.vy) > .01)
+        if (err < POSE_ERR && !beat && !changed) return
         const g = gap()
         if (now - lastAt < g) {
           if (!timer) timer = setTimeout(() => { timer = 0; api.send(true) }, g - (now - lastAt))
@@ -209,7 +209,7 @@ export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, ge
       }
       clearTimeout(timer); timer = 0
       lastAt = now
-      lastSent = { x: self.x, y: self.y, vx: self.vx, vy: self.vy, at: now }
+      lastSent = { x: self.x, y: self.y, vx: self.vx, vy: self.vy, dir: self.dir, bow: self.bow === true, at: now }
       yard.sendPose({
         x: +self.x.toFixed(2), y: +self.y.toFixed(2),
         vx: +self.vx.toFixed(2), vy: +self.vy.toFixed(2),
@@ -255,19 +255,36 @@ export function createModal (modalWrap, card, { onClose } = {}) {
     if (text != null) n.textContent = text
     return n
   }
+  let returnFocus = null
+  const blocked = new Map()
+  const focusable = () => [...card.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+    .filter(n => !n.hidden && n.getClientRects().length)
   const m = {
     el,
     open: false,
     close () {
       if (!m.open) return
       m.open = false; modalWrap.classList.remove('show'); card.innerHTML = ''
+      for (const [node, inert] of blocked) node.inert = inert
+      blocked.clear()
       onClose && onClose()
+      if (returnFocus?.isConnected && !returnFocus.inert) { try { returnFocus.focus({ preventScroll: true }) } catch (e) {} }
+      returnFocus = null
     },
     shell (title, sub) {
+      if (!m.open) {
+        returnFocus = document.activeElement
+        for (const node of modalWrap.parentElement.children) {
+          if (node === modalWrap) continue
+          blocked.set(node, node.inert); node.inert = true
+        }
+      }
       m.open = true
       card.innerHTML = ''
       const x = el('button', 'x', '✕'); x.setAttribute('aria-label', '닫기'); x.onclick = m.close
-      card.append(x, el('h2', null, title))
+      const heading = el('h2', null, title); heading.id = 'scene-modal-title'
+      card.setAttribute('aria-labelledby', heading.id)
+      card.append(x, heading)
       if (sub) card.append(el('p', 'sub', sub))
       modalWrap.classList.add('show')
       try { card.focus() } catch (e) {}
@@ -276,8 +293,15 @@ export function createModal (modalWrap, card, { onClose } = {}) {
   }
   modalWrap.addEventListener('click', e => { if (e.target === modalWrap) m.close() })
   modalWrap.addEventListener('keydown', e => {
-    if (e.key !== 'Escape') return
-    e.preventDefault(); e.stopPropagation(); m.close()
+    if (e.isComposing || e.keyCode === 229) return
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); m.close(); return }
+    if (e.key !== 'Tab' || !m.open) return
+    const items = focusable(), first = items[0], last = items[items.length - 1]
+    if (!first) { e.preventDefault(); card.focus(); return }
+    if (!card.contains(document.activeElement) || document.activeElement === card ||
+        (e.shiftKey && document.activeElement === first) || (!e.shiftKey && document.activeElement === last)) {
+      e.preventDefault(); (e.shiftKey ? last : first).focus()
+    }
   })
   return m
 }
