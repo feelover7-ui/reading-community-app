@@ -15,6 +15,7 @@ function cleanMeta(meta = {}, bounds = DEFAULT_BOUNDS) {
   out.vy = Number.isFinite(meta.vy) ? Math.max(-5, Math.min(5, meta.vy)) : 0
   out.dir = ['up', 'down', 'left', 'right'].includes(meta.dir) ? meta.dir : 'down'
   out.lit = meta.lit === true
+  out.bw = meta.bw === true   // 대법당에서 절하는 중인지
   return out
 }
 

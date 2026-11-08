@@ -69,3 +69,12 @@ body.touch #listb{bottom:max(140px,calc(env(safe-area-inset-bottom) + 134px))}
   .card{padding:24px 18px 18px}
   .card h2{font-size:22px}
 }
+
+/* 대법당: 절 진행 표시 */
+#bowbar{position:fixed;left:50%;top:max(14px,env(safe-area-inset-top));transform:translateX(-50%);display:none;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--gold);border-radius:14px;background:rgba(43,29,20,.92);color:#fbf4e4;box-shadow:var(--shadow);z-index:8}
+#bowbar.show{display:flex}
+#bowbar b{font:700 20px 'Gowun Batang',serif;color:#f6dc8e;letter-spacing:.5px}
+#bowbar button{min-height:40px;padding:8px 14px;border:1px solid #8c6b3e;border-radius:10px;background:#55402c;color:#fff4df;font-size:13px;font-weight:700}
+#bowbar button:hover{background:#6a5038}
+.bowpick{display:grid;gap:7px;margin-bottom:14px}
+body.touch #bowbar{top:auto;bottom:max(140px,calc(env(safe-area-inset-bottom) + 134px))}

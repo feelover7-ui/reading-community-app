@@ -53,7 +53,8 @@ export const places = [
   { id:'hall', number:1, name:'본관 · 대법당', short:'본관',
     category:'앞쪽 오른편의 가장 큰 건물', at:[34.5,18.5], arrival:[34.5,23.4],
     description:'조감도에서 앞쪽 오른편의 가장 큰 건물이 본관입니다. 공식 범례에 따르면 5층 대법당과 방송실, 2·3·4층 강당, 1층 종무소와 무진향, 지하 1층 후원(신도공양실), 지하 2·3·4층 주차장으로 되어 있습니다.',
-    note:'실내와 층별 이동은 구현하지 않았습니다. 지붕과 창은 조감도에서 본 특징을 줄여 그렸습니다.',
+    note:'층별 이동은 구현하지 않았습니다. 지붕과 창은 조감도에서 본 특징을 줄여 그렸습니다.',
+    enter:'/beopdang.html?from=doryang', enterLabel:'5층 대법당 들어가기',
     source: base+'one_tour_02?me_code=1070300000' },
 
   { id:'seven', number:7, name:'칠보탑 · 우주탑', short:'칠보탑',

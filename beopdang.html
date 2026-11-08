@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="한마음선원 안양 본원 대법당 안에서 좌복에 앉아 절을 올리는 게임형 시안">
+<title>대법당 · 한마음선원 안양 본원</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/deungbul/anyangMap.css">
+</head>
+<body>
+<canvas id="game" tabindex="0" aria-label="대법당 안. 방향키 또는 WASD로 이동하고 Space로 살펴보거나 좌복 위에서 절을 합니다.">대법당은 캔버스를 지원하는 브라우저에서 이용할 수 있습니다.</canvas>
+
+<div id="hud">
+  <h3 id="hudh" role="button" tabindex="0" aria-expanded="true" aria-controls="hudbody">대법당 <small>접기</small></h3>
+  <div id="hudbody">
+    <p class="lead">공식 안내와 내부 사진을 보고 자리 관계만 옮긴 게임용 축척입니다. 실측 치수가 아닙니다.</p>
+    <p class="count" id="count">좌복 위에서 절을 할 수 있어요</p>
+    <p class="status" id="status" role="status">좌복 위에 서서 살펴보기를 누르면 절을 합니다.</p>
+    <div class="here" id="here"></div>
+  </div>
+</div>
+
+<div id="topbtns">
+  <a class="iconbtn" id="backb" href="/doryang.html?from=beopdang" aria-label="도량으로 나가기" title="도량으로">🏞️</a>
+  <button class="iconbtn" id="helpb" aria-label="도움말 열기" title="도움말">?</button>
+</div>
+
+<div id="bowbar" role="status"><b id="bownum">0 / 0</b><button id="bowstop">그만하기</button></div>
+
+<div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" aria-label="안내" tabindex="-1"></div></div>
+<div id="fade" aria-hidden="true"></div>
+<div id="joy"><i></i></div>
+<button id="act">살펴보기</button>
+<script type="module" src="/src/deungbul/beopdang.js"></script>
+</body>
+</html>

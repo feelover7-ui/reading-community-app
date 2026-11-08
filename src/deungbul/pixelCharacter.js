@@ -139,3 +139,107 @@ export function drawPixelPerson(ctx, x, y, appearance, direction, moving, second
     PIXEL_WIDTH * scale, PIXEL_HEIGHT * scale)
   ctx.imageSmoothingEnabled = smoothing
 }
+
+/* ---------- 절하는 모습 ----------
+   대법당에서 좌복에 앉아 절할 때 쓴다. 걷는 atlas 와 따로 4컷을 그려 둔다.
+   1 합장하고 섬 · 2 무릎 꿇음 · 3 엎드림 · 4 일어서는 중
+   외형 값으로만 만들고, 사람 id 나 시간값을 키에 넣지 않는다. */
+export const BOW_FRAMES = 4
+const bowCache = new Map()
+
+function paintBow(g, look, frame) {
+  const r = (x, y, w, h, color) => { g.fillStyle = color; g.fillRect(x, y, w, h) }
+  const ink = '#342d2b', skin = '#edc29d', light = '#f7d6b2'
+  const cloth = look.body, clothDark = shade(cloth, -30), clothLight = shade(cloth, 25)
+  const pantsDark = shade(look.pants, -18)
+  const hair = look.hair
+
+  if (frame === 0 || frame === 3) {
+    // 서서 합장. 일어서는 중(3)은 조금 낮게 그린다.
+    const dy = frame === 3 ? 3 : 0
+    r(6, 34, 12, 1, '#00000022')
+    r(7, 26 + dy, 5, 7 - dy, ink); r(13, 26 + dy, 5, 7 - dy, ink)
+    r(8, 27 + dy, 3, 4 - dy, look.pants); r(14, 27 + dy, 3, 4 - dy, look.pants)
+    r(7, 32, 5, 2, pantsDark); r(13, 32, 5, 2, pantsDark)
+    r(6, 17 + dy, 12, 11 - dy, ink); r(7, 18 + dy, 10, 9 - dy, cloth)
+    r(7, 18 + dy, 2, 9 - dy, clothDark); r(10, 18 + dy, 6, 2, clothLight)
+    // 가슴 앞에 모은 두 손
+    r(10, 20 + dy, 4, 6, ink); r(11, 21 + dy, 2, 5, skin)
+    r(8, 21 + dy, 2, 5, clothDark); r(14, 21 + dy, 2, 5, cloth)
+    // 머리 (뒤통수를 보인다)
+    r(8, 2 + dy, 8, 1, ink); r(6, 3 + dy, 12, 2, ink); r(5, 5 + dy, 14, 8, ink)
+    r(6, 13 + dy, 12, 2, ink); r(8, 15 + dy, 8, 1, ink)
+    r(7, 4 + dy, 10, 10, skin); r(6, 6 + dy, 2, 6, light)
+    if (hair) {
+      r(6, 5 + dy, 12, 9, hair); r(8, 14 + dy, 8, 2, hair)
+      r(7, 6 + dy, 2, 5, shade(hair, 13))
+      if (look.long) { r(7, 14 + dy, 10, 7, hair); r(8, 19 + dy, 8, 3, shade(hair, 12)) }
+    }
+  } else if (frame === 1) {
+    // 무릎 꿇고 앉음
+    r(6, 34, 12, 1, '#00000022')
+    r(6, 28, 13, 6, ink); r(7, 29, 11, 4, look.pants); r(7, 32, 11, 1, pantsDark)
+    r(6, 19, 12, 10, ink); r(7, 20, 10, 8, cloth)
+    r(7, 20, 2, 8, clothDark); r(10, 20, 6, 2, clothLight)
+    r(10, 22, 4, 6, ink); r(11, 23, 2, 5, skin)
+    r(8, 7, 8, 1, ink); r(6, 8, 12, 2, ink); r(5, 10, 14, 7, ink); r(6, 17, 12, 2, ink)
+    r(7, 9, 10, 9, skin); r(6, 11, 2, 5, light)
+    if (hair) {
+      r(6, 10, 12, 8, hair); r(8, 18, 8, 2, hair)
+      if (look.long) r(7, 18, 10, 6, hair)
+    }
+  } else {
+    // 오체투지. 이마와 두 손바닥이 바닥에 닿는다.
+    r(5, 34, 14, 1, '#00000022')
+    r(5, 26, 15, 8, ink); r(6, 27, 13, 6, cloth)
+    r(6, 27, 13, 2, clothLight); r(6, 31, 13, 2, clothDark)
+    if (look.kasa) r(7, 28, 11, 3, look.kasa)
+    r(4, 31, 4, 3, ink); r(5, 32, 3, 2, skin)          // 왼손
+    r(16, 31, 4, 3, ink); r(17, 32, 3, 2, skin)        // 오른손
+    r(8, 22, 8, 5, ink); r(9, 23, 6, 4, skin)          // 머리
+    if (hair) { r(9, 22, 6, 3, hair); if (look.long) r(8, 25, 8, 3, hair) }
+    r(7, 33, 11, 1, pantsDark)
+  }
+}
+
+function bowAtlasFor(appearance) {
+  const body = safeColor(appearance.body, '#e3a83f')
+  const pants = safeColor(appearance.pants, '#3b3b48')
+  const hair = appearance.hair ? safeColor(appearance.hair, '#2b1d14') : null
+  const kasa = appearance.kasa ? safeColor(appearance.kasa, '#8a5a2b') : null
+  const long = Boolean(hair && appearance.long)
+  const key = [body, pants, hair, kasa, long].join('|')
+  let atlas = bowCache.get(key)
+  if (atlas) return atlas
+  const canvas = document.createElement('canvas')
+  canvas.width = PIXEL_WIDTH * BOW_FRAMES; canvas.height = PIXEL_HEIGHT
+  const g = canvas.getContext('2d')
+  if (!g) return null
+  const look = { body, pants, hair, kasa, long }
+  for (let frame = 0; frame < BOW_FRAMES; frame++) {
+    g.save(); g.translate(frame * PIXEL_WIDTH, 0)
+    paintBow(g, look, frame)
+    g.restore()
+  }
+  if (bowCache.size >= MAX_LOOKS) {
+    const oldest = bowCache.keys().next().value
+    const expired = bowCache.get(oldest)
+    bowCache.delete(oldest)
+    expired.width = 0; expired.height = 0
+  }
+  bowCache.set(key, canvas)
+  return canvas
+}
+
+export function drawPixelBow(ctx, x, y, appearance, frame, scale = 1.5) {
+  if (!ctx || !Number.isFinite(x) || !Number.isFinite(y)) return
+  const atlas = bowAtlasFor(appearance || {})
+  if (!atlas) return
+  const f = Math.max(0, Math.min(BOW_FRAMES - 1, Math.floor(frame) || 0))
+  const smoothing = ctx.imageSmoothingEnabled
+  ctx.imageSmoothingEnabled = false
+  ctx.drawImage(atlas, f * PIXEL_WIDTH, 0, PIXEL_WIDTH, PIXEL_HEIGHT,
+    Math.round(x - PIXEL_WIDTH * scale / 2), Math.round(y - PIXEL_HEIGHT * scale),
+    PIXEL_WIDTH * scale, PIXEL_HEIGHT * scale)
+  ctx.imageSmoothingEnabled = smoothing
+}
