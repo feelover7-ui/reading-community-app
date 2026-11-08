@@ -30,16 +30,16 @@ export const places=[
   description:'서산정과 부도탑은 공식 도량 안내에 소개되어 있습니다. 확보한 조감도에서 위치를 확정하지 못했으므로 지도에 임의의 정자나 위치 표식을 그리지 않았습니다.',
   note:'이 항목을 선택해도 지도 속 캐릭터를 이동시키지 않습니다.',
   source:base+'one_tour_09?me_code=1070a00000'},
- {id:'craft',number:'체험',name:'등불사장',category:'별도 체험 화면',onMap:false,
+ {id:'craft',number:'체험',name:'등불사장 작업장',category:'소원등 만들기',x:43,y:76,arrival:[49,86],
   description:'나만의 소원등을 만들고 법우들과 이야기를 나누는 기존 게임으로 이동합니다.',
-  note:'실제 본원 내 등불사장의 위치를 확인하지 못해 도량 위의 임의 건물과 표식을 제거했습니다.',
+  note:'탐방 게임을 위해 추가한 작업장입니다. 실제 본원 시설의 위치를 나타내지 않습니다.',
   href:'/deungbul.html'}
 ]
 export const startPosition={x:66,y:90}
 export const obstacles=[
  [60,50,20,30], [76,39,12,29], [73,14,17,24],
  [43,16,16,14], [12,43,31,19], [43,40,25,10],
- [18,15,12,12], [52,30,5,8], [90,28,8,20]
+ [18,15,12,12], [52,30,5,8], [90,28,8,20], [36,73,14,11]
 ]
 export function canWalk(x,y){
  return Number.isFinite(x)&&Number.isFinite(y)&&x>=5&&x<=95&&y>=6&&y<=94&&
