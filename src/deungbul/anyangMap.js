@@ -9,7 +9,7 @@ const visited=new Set(), pinButtons=new Map(), listButtons=new Map()
 let zoom=1, position={...startPosition}, cameraFocus=null
 const WORLD_WIDTH=1920
 const spriteCanvas=byId('traveler-sprite'), spriteCtx=spriteCanvas.getContext('2d')
-const spriteLook={body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48'}
+const spriteLook={body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48',long:false}
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)')
 let reducedMotion=motionPreference.matches, facing='down', walkingUntil=0, avatarFrame=0, lastSprite=''
 function paintAvatar(now){
@@ -169,7 +169,11 @@ function setPosition(x,y){
 /* ---------- 등불사장과 오가기 ---------- */
 const craft=places.find(p=>p.id==='craft')
 const enterBtn=byId('enter-craft'), fadeEl=byId('fade')
+let traveling=false
 function travel(url){
+  if(traveling)return
+  traveling=true
+  stopAvatar()
   if(fadeEl)fadeEl.classList.add('on')
   leaveGrounds()
   setTimeout(()=>{location.href=url},320)
@@ -214,6 +218,7 @@ for(const place of places){
     pin.setAttribute('aria-pressed','false')
     const number=document.createElement('strong');number.textContent=place.number
     const label=document.createElement('span');label.className='pin-label';label.textContent=place.name
+    pin.addEventListener('focus',()=>{cameraFocus={x:place.x,y:place.y};updateCamera()})
     pin.append(number,label);pin.onclick=()=>selectPlace(place);pins.append(pin);pinButtons.set(place.id,pin)
   }
   const row=document.createElement('button');row.type='button';row.className='place-row';row.setAttribute('aria-pressed','false')
@@ -285,12 +290,14 @@ if(skip)skip.addEventListener('click',e=>{
 const NICK_KEY='hanmaum-deungbul-nick', SEX_KEY='hanmaum-deungbul-sex', OWNER_KEY='hanmaum-deungbul-owner'
 const readStore=k=>{try{return localStorage.getItem(k)||''}catch(e){return ''}}
 const rid=()=>Math.random().toString(36).slice(2,10)
-const myNick=readStore(NICK_KEY).trim()||'손님', mySex=readStore(SEX_KEY)==='f'?'f':'m'
+const savedSex=readStore(SEX_KEY)
+const myNick=readStore(NICK_KEY).trim().slice(0,12)||'손님', mySex=savedSex==='f'?'f':'m'
+spriteLook.long=mySex==='f'
 const groundsId=(readStore(OWNER_KEY)||'beopu-'+rid())+'-'+rid()
 const PEER_COLORS=['#5d7fb8','#3f7a5c','#a4603f','#8f6fb5','#c4733f','#3f7a7a','#9b5a7a','#6b7a3f']
 const strHash=t=>{let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return Math.abs(h)}
 const groundsPeers=new Map()
-let grounds=null, lastGroundsAt=0, groundsTimer=0
+let grounds=null, lastGroundsAt=0, groundsTimer=0, greetingTimer=0
 const peerLayer=byId('surface')
 
 function peerEl(id,meta){
@@ -312,18 +319,21 @@ function paintPeer(p){
   const key=p.sex+':'+p.dir+':'+p.nick
   if(key===p.drawn)return
   p.drawn=key
+  if(!p.ctx)return
   p.ctx.clearRect(0,0,p.cv.width,p.cv.height)
   const look={body:PEER_COLORS[strHash(p.id)%PEER_COLORS.length],hair:'#2b1d14',pants:'#3b3b48',long:p.sex==='f'}
   drawPixelPerson(p.ctx,p.cv.width/2,p.cv.height,look,p.dir,false,0,2)
   p.tag.textContent=(p.nick||'법우').slice(0,12)
 }
-function placePeer(id,meta){
+function placePeer(id,meta,fromPresence=false){
   const p=peerEl(id,meta)
   if(!p||!meta)return
   if(meta.nick)p.nick=meta.nick
   if(meta.sx)p.sex=meta.sx
-  if(meta.dir)p.dir=meta.dir
-  if(Number.isFinite(meta.x)&&Number.isFinite(meta.y)){
+  if(meta.dir&&(!fromPresence||!p.placed))p.dir=meta.dir
+  // Presence에 남은 최초 위치가 최신 broadcast 위치를 덮지 않게 한다.
+  if((!fromPresence||!p.placed)&&Number.isFinite(meta.x)&&Number.isFinite(meta.y)){
+    p.placed=true
     p.el.style.left=meta.x+'%'
     p.el.style.top=meta.y+'%'
   }
@@ -334,43 +344,58 @@ function dropPeer(id){
   if(p){p.el.remove();groundsPeers.delete(id)}
 }
 function sendGroundsPose(force){
-  if(!grounds||!grounds.joined)return
+  if(!grounds||!grounds.joined||document.hidden||traveling)return
   const now=Date.now()
-  if(!force&&now-lastGroundsAt<300){
-    clearTimeout(groundsTimer)
-    groundsTimer=setTimeout(()=>sendGroundsPose(true),320)
+  const interval=groundsPeers.size>24?900:groundsPeers.size>8?550:300
+  if(!force&&now-lastGroundsAt<interval){
+    if(!groundsTimer)groundsTimer=setTimeout(()=>{groundsTimer=0;sendGroundsPose(true)},interval-(now-lastGroundsAt))
     return
   }
+  clearTimeout(groundsTimer);groundsTimer=0
   lastGroundsAt=now
   grounds.sendPose({x:+position.x.toFixed(1),y:+position.y.toFixed(1),dir:facing,nick:myNick,sx:mySex})
 }
 function leaveGrounds(){
+  clearTimeout(groundsTimer);groundsTimer=0
+  clearTimeout(greetingTimer);greetingTimer=0
   if(grounds){grounds.leave();grounds=null}
   for(const id of [...groundsPeers.keys()])dropPeer(id)
 }
 function startGrounds(){
+  if(grounds||traveling)return
   grounds=joinYard({
     ownerId:groundsId,
     channel:'deungbul-grounds',
     bounds:{w:100,h:100},
     onReady:()=>sendGroundsPose(true),
-    onJoin:(id,meta)=>{placePeer(id,meta);setTimeout(()=>sendGroundsPose(true),140)},
+    onJoin:(id,meta)=>{
+      placePeer(id,meta,true)
+      if(!greetingTimer)greetingTimer=setTimeout(()=>{greetingTimer=0;sendGroundsPose(true)},300)
+    },
     onLeave:dropPeer,
     onSync:list=>{
       const alive=new Set()
-      for(const {id,meta} of list){alive.add(id);placePeer(id,meta)}
+      for(const {id,meta} of list){alive.add(id);placePeer(id,meta,true)}
       for(const id of [...groundsPeers.keys()])if(!alive.has(id))dropPeer(id)
     },
     onPose:(id,pose)=>placePeer(id,pose),
   })
   if(grounds)grounds.track({nick:myNick,sx:mySex,x:position.x,y:position.y,dir:facing})
 }
-window.addEventListener('pagehide',leaveGrounds)
+window.addEventListener('pagehide',()=>{stopAvatar();leaveGrounds()})
+window.addEventListener('pageshow',e=>{
+  if(!e.persisted)return
+  traveling=false
+  fadeEl?.classList.remove('on')
+  if(hasIdentity){startGrounds();sendGroundsPose(true)}
+})
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)sendGroundsPose(true)})
+window.addEventListener('online',()=>{if(hasIdentity){startGrounds();sendGroundsPose(true)}})
 
 setZoom(1)
 setPosition(position.x,position.y)
 // 이름과 모습은 등불사장 첫 화면에서 받는다. 없이 들어왔으면 그리로 보낸다.
-const hasIdentity=!!(readStore(NICK_KEY).trim()&&readStore(SEX_KEY))
+const hasIdentity=!!(readStore(NICK_KEY).trim()&&['m','f'].includes(savedSex))
 if(!hasIdentity)location.replace('/deungbul.html')
 
 // 등불사장에서 문으로 나온 경우 작업장 문 앞에 세운다
