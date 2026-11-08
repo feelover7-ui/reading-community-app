@@ -434,7 +434,11 @@ function bigLantern(){
 /* ---------- 본원 도량과 오가기 ---------- */
 const GATE_SPOT={x:15.5,y:2.6};
 const fadeEl=document.getElementById('fade');
+let traveling=false;
 function travelTo(url){
+  if(traveling)return;
+  traveling=true;
+  keys.clear();resetJoy();
   if(fadeEl)fadeEl.classList.add('on');
   stopYard();
   setTimeout(()=>{location.href=url;},320);
@@ -991,7 +995,7 @@ function canStand(x,y){const hw=.26;const s=(a,b)=>{const tx=Math.floor(a),ty=Ma
 const particles=[];
 function update(dt,t){
   let mx=0,my=0;
-  if(started&&!dialog&&!modalOpen&&!chatOpen){
+  if(started&&!traveling&&!dialog&&!modalOpen&&!chatOpen){
     if(keys.has('arrowleft')||keys.has('a'))mx-=1;if(keys.has('arrowright')||keys.has('d'))mx+=1;
     if(keys.has('arrowup')||keys.has('w'))my-=1;if(keys.has('arrowdown')||keys.has('s'))my+=1;
     mx+=joy.x;my+=joy.y;
@@ -1183,7 +1187,7 @@ function render(t){
 
 /* ---------- loop ---------- */
 let last=performance.now(),t=0;
-function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;if(started){update(dt,t);render(reducedMotion?0:t);}requestAnimationFrame(loop);}
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;if(started&&!document.hidden&&!traveling){update(dt,t);render(reducedMotion?0:t);}requestAnimationFrame(loop);}
 
 requestAnimationFrame(loop);
 
@@ -1246,7 +1250,7 @@ if(namein){
   namein.value=myNick;
   namein.oninput=()=>{namein.classList.remove('bad');namehint.classList.remove('bad');namehint.textContent=NAME_HINT;};
   namein.onkeydown=e=>{if(e.isComposing||e.keyCode===229)return;e.stopPropagation();if(e.key==='Enter'){e.preventDefault();enterYard();}};
-  if(!isTouch)setTimeout(()=>{try{namein.focus();}catch(e){}},400);
+  if(!isTouch)setTimeout(()=>{if(!started)try{namein.focus();}catch(e){}},400);
 }
 document.getElementById('startb').onclick=enterYard;
 
@@ -1259,9 +1263,18 @@ try{
       ac();started=true;
       document.getElementById('title').classList.add('hide');
       try{cv.focus({preventScroll:true});}catch(e){}
+      document.getElementById('yardmenub').hidden=false;
       startYard();updateHere();renderChatLog();
       setTimeout(()=>toast('등불사장에 들어왔어요'),400);
     }
   }
 }catch(e){}
+addEventListener('pagehide',()=>{keys.clear();resetJoy();stopYard();});
+addEventListener('pageshow',e=>{
+  if(!e.persisted)return;
+  traveling=false;
+  if(fadeEl)fadeEl.classList.remove('on');
+  last=performance.now();
+  if(started){document.getElementById('yardmenub').hidden=false;startYard();}
+});
 })();
