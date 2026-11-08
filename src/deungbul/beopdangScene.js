@@ -1,7 +1,7 @@
 /* 대법당 3D 장면.
    2D 때와 같은 타일 좌표(beopdangData)를 받아 안쪽을 세웁니다.
    공식 안내의 내부 사진을 보고 특징만 줄여 직접 만들었습니다. 사진을 복제하지 않습니다. */
-import { THREE, hash3, makePerson, createPeerLayer } from './three3d.js'
+import { THREE, hash3, makePerson, createPeerLayer, PEER_LAYER_DEFAULTS } from './three3d.js'
 import { W, H, structures, cushions, MAT, DOOR, spots } from './beopdangData.js'
 
 function woodTexture (world) {
@@ -222,5 +222,5 @@ export function buildHall (world) {
   }
 }
 
-export const PEER_3D_MAX = 40
+export const PEER_3D_MAX = PEER_LAYER_DEFAULTS.max
 export function createHallPeers (world) { return createPeerLayer(world, { bowing: true }) }

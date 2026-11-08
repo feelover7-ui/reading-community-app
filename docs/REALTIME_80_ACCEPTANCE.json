@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "status": "design_only_not_verified",
+  "capacity": {
+    "totalSessions": 80,
+    "remotePerObserver": 79,
+    "allInSameScene": true,
+    "visibleBodiesWhenAllInView": 80,
+    "splitRoomsToPass": false
+  },
+  "transport": {
+    "poseHz": 2,
+    "batchMs": 500,
+    "maxMessageBytes": 4096,
+    "heartbeatSeconds": 30,
+    "bufferHighWaterBytes": 65536,
+    "extrapolationMaxMs": 750,
+    "reconnectGraceMs": 45000
+  },
+  "render": {
+    "nearDetailedTarget": 16,
+    "totalBodies": 80,
+    "mobileInitialDprCap": 1.25
+  },
+  "stages": [
+    20,
+    40,
+    80
+  ],
+  "timing": {
+    "warmupMinutes": 10,
+    "stageMinutes": 30,
+    "finalSoakMinutes": 120
+  },
+  "targets": {
+    "mobileP95FrameMs": 33.3,
+    "desktopP95FrameMs": 20,
+    "snapshotAgeP95Ms": 1000,
+    "rttP95Ms": 300,
+    "positionErrorP95Tiles": 1,
+    "unexpectedDisconnectsNormalNetwork": 0,
+    "connectionSuccessRate": 0.99,
+    "resyncP95Ms": 10000
+  },
+  "requiredResults": [
+    "real_websocket_load",
+    "browser_with_79_real_ws_peers",
+    "android_render",
+    "ios_render",
+    "desktop_render",
+    "original_visual_comparison",
+    "cost_and_limits"
+  ],
+  "result": "NOT RUN"
+}

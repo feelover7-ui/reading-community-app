@@ -1,0 +1,15 @@
+{
+  "name": "lantern-room",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "등불 마당 같은 장면 80명 relay (Cloudflare Durable Object). 아직 배포하지 않았습니다.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "dev": "wrangler dev",
+    "deploy:staging": "wrangler deploy --env staging"
+  },
+  "devDependencies": {
+    "wrangler": "4.42.0"
+  }
+}
