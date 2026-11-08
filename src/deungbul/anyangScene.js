@@ -1,7 +1,7 @@
 /* 도량 3D 장면.
    2D 때 쓰던 타일 좌표(anyangMapData)를 그대로 받아 3D 로 세웁니다.
    땅은 칸마다 평면을 두지 않고 큰 그림 한 장으로 만들어 붙입니다. */
-import { THREE, V3, hash3, makePerson, createCutaway } from './three3d.js'
+import { THREE, V3, hash3, makePerson, createCutaway, createPeerLayer } from './three3d.js'
 import { T, W, H, structures, trees, CRAFT_DOOR, places } from './anyangMapData.js'
 
 const PATHS = [
@@ -174,33 +174,4 @@ export function buildGrounds (world) {
 
 /* 접속자 인형 모음. 3D 는 2D 보다 무거워 보이는 수를 줄인다. */
 export const PEER_3D_MAX = 40
-export function createPeerBodies (world) {
-  const bodies = new Map()
-  return {
-    sync (peers, quiet) {
-      let shown = 0
-      for (const p of peers.values()) {
-        let b = bodies.get(p.id)
-        if (!b) {
-          if (shown >= PEER_3D_MAX) continue
-          b = makePerson(world, { body: p.color, hair: '#2b1d14', pants: '#3b3b48', long: p.sex === 'f' })
-          bodies.set(p.id, b)
-        }
-        shown++
-        const face = Math.atan2(p.vx || 0, p.vy || 0)
-        b.visible = true
-        b.position.set(p.x, 0, p.y)
-        b.rotation.y = p.moving ? face : b.rotation.y
-        const parts = b.userData.parts
-        if (parts && parts.legL) {
-          const sw = p.moving && !quiet ? Math.sin(p.walk * 11) * .6 : 0
-          parts.legL.rotation.x = sw; parts.legR.rotation.x = -sw
-        }
-      }
-      for (const [id, b] of bodies) {
-        if (!peers.has(id)) { world.scene.remove(b); bodies.delete(id) }
-      }
-    },
-    bodies
-  }
-}
+export function createPeerBodies (world) { return createPeerLayer(world) }

@@ -14,7 +14,9 @@ import { createBgm } from './bgm.js'
 const byId = id => document.getElementById(id)
 const cv = byId('game')
 const fadeEl = byId('fade'), promptEl = byId('prompt')
-const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+const motionPreference = matchMedia('(prefers-reduced-motion: reduce)')
+let reducedMotion = motionPreference.matches
+motionPreference.addEventListener?.('change', e => { reducedMotion = e.matches })
 const isTouch = matchMedia('(hover:none) and (pointer:coarse)').matches
 if (isTouch) document.body.classList.add('touch')
 
@@ -307,13 +309,13 @@ function update (dt) {
   // 절할 때는 몸을 낮춘다
   const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
   const u = bow.on ? bow.t / cycle : 0
-  const crouch = bow.on ? (u < .2 ? 1 : u < .38 ? .62 : u < .7 ? .34 : u < .88 ? .62 : 1) : 1
+  const crouch = bow.on ? (reducedMotion ? .6 : (u < .2 ? 1 : u < .38 ? .62 : u < .7 ? .34 : u < .88 ? .62 : 1)) : 1
   stepPerson(meBody, player.x, player.y, bow.on ? Math.PI : player.face, player.moving, player.walk, reducedMotion)
   meBody.scale.set(1, crouch, 1)
   peers.update(dt)
   peers.send()
-  hallPeers.sync(peers.peers, reducedMotion)
   follower.follow(player.x, player.y, dt, world.blockers, CAM_BOUNDS)
+  hallPeers.sync(peers.peers, reducedMotion, player)
   world.fadeOccluders(player.x, player.y, dt)
   hall.enclosure(world.camera.position, dt)
 }
@@ -325,6 +327,7 @@ function render () {
   const now = Date.now()
   const items = []
   for (const p of peers.peers.values()) {
+    if (!hallPeers.bodies.has(p.id)) continue
     items.push({ cls: 'tag3d', text: (p.nick || '법우').slice(0, 12), at: V3(p.x, 1.55, p.y) })
     if (p.say && p.sayUntil > now) items.push({ cls: 'bubble3d', text: p.say, at: V3(p.x, 2.1, p.y) })
   }
@@ -354,7 +357,7 @@ function loop (now) {
 }
 
 /* ---------- 들어오고 나가기 ---------- */
-addEventListener('pagehide', () => { keys.clear(); joy.reset(); peers.stop() })
+addEventListener('pagehide', () => { keys.clear(); joy.reset(); peers.stop(); hallPeers.clear() })
 addEventListener('pageshow', e => {
   if (!e.persisted) return
   traveling = false

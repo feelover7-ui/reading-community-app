@@ -125,3 +125,15 @@ body.touch #prompt{bottom:150px}
 .bubble3d{position:fixed;transform:translate(-50%,-100%);max-width:220px;padding:6px 12px;border:1.5px solid #6b4a2f;border-radius:10px;background:rgba(251,244,228,.97);color:#2b1d14;font-size:13px;line-height:1.45;text-align:center;pointer-events:none;z-index:4}
 .pin3d{position:fixed;transform:translate(-50%,-100%);padding:3px 10px;border:1.4px solid #d9a531;border-radius:999px;background:rgba(43,29,20,.82);color:#fbf4e4;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:2}
 .pin3d.seen{background:rgba(47,111,79,.92);border-color:#9ed3ad}
+
+/* 상단 버튼과 HUD를 다른 줄에 놓고 낮은 가로 화면에서는 안내를 스크롤한다. */
+@media(max-width:760px){
+ #topbtns{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));justify-content:flex-end;gap:6px}
+ #hud{top:max(68px,calc(env(safe-area-inset-top) + 56px));max-height:calc(100dvh - 260px);width:min(240px,calc(100vw - 24px))}
+ #prompt{max-width:calc(100vw - 24px);white-space:normal;text-align:center;line-height:1.5}
+}
+@media(max-height:500px){
+ #hud{max-height:calc(100dvh - 110px);max-width:calc(100vw - 200px)}
+ body.touch #listb{top:auto;bottom:max(16px,env(safe-area-inset-bottom))}
+}
+.webgl-error button{min-height:44px;padding:12px 20px;font:inherit;cursor:pointer}
