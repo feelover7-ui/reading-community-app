@@ -78,3 +78,18 @@ body.touch #listb{bottom:max(140px,calc(env(safe-area-inset-bottom) + 134px))}
 #bowbar button:hover{background:#6a5038}
 .bowpick{display:grid;gap:7px;margin-bottom:14px}
 body.touch #bowbar{top:auto;bottom:max(140px,calc(env(safe-area-inset-bottom) + 134px))}
+
+/* 가로로 낮은 휴대폰에서도 안내창·절 중단 버튼을 사용할 수 있게 한다. */
+#bowbar{max-width:calc(100vw - 24px)}
+#bowbar button{min-height:44px;flex:none}
+@media(max-width:560px) and (hover:hover){
+ #bowbar{top:auto;bottom:max(16px,env(safe-area-inset-bottom))}
+}
+@media(max-height:500px){
+ #hud{max-height:calc(100dvh - 24px)}
+ body.touch #listb{bottom:auto;top:68px}
+ body.touch #bowbar{bottom:max(16px,env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
