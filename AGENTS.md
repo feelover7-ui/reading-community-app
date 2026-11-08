@@ -207,6 +207,12 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
   둘을 동시에 켜지 않습니다. relay 서버는 `workers/lantern-room/` 에 있고 아직 배포하지 않았습니다.
 - 측정 결과는 `docs/ORIGINAL_MAP_80_RESULTS.md` 에 PASS/FAIL/NOT RUN 으로 적습니다.
   개발 빌드의 `__fakePeers(n)` 는 그리기 성능 측정용이고 통신 합격 증거가 아닙니다.
+- 원본 미리보기는 `/original.html` 에 있습니다. 원본 HTML 을 거의 그대로 옮겼고 `docs/ORIGINAL_MAP_PREVIEW.md` 에
+  출처·SHA-256·고친 세 가지를 적었습니다. 운영 세 화면은 건드리지 않습니다.
+- 원본과 지금 앱은 저장 키가 `hanmaum-deungbul-v1` 로 같습니다. 미리보기는 `hanmaum-original-preview-v1` 을 써서
+  기존 소원등을 덮지 않습니다. 원본 코드를 다시 옮길 때도 이 분리를 유지합니다.
+- 미리보기에는 심주관·어린이법당·별관·원당·요사채가 원본 그대로 남아 있습니다. 이것은 삭제 요청의 취소가 아닙니다.
+  운영 화면에 들일 때 다시 뺍니다.
 - 원본 외형 복원은 preview부터 진행합니다. 이전 삭제 건물·법당 명칭·작업장 위치는 유지합니다. 이식 preview는 좌표 변환표와 충돌 검증을 갖춰 기존 좌표를 변경할 수 있습니다.
 - Cloudflare DO relay와 실제 80개 WS/실기기 시험을 단계별로 진행하며 설계 수치와 무료 예산은 보장이 아닙니다. 독서 홈페이지는 수정하지 않습니다.
 - Claude 인계: .claude/commands/original-map-80.md. PR #7은 e797fea에 반영되었습니다. #8 상태를 확인하고 자동 머지하지 않습니다.
