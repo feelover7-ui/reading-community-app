@@ -95,13 +95,36 @@ export function buildYard (world, d) {
   fence(0, 0, 36, 1); fence(0, 1, 1, 12); fence(35, 1, 36, 12)
 
   /* 소원등 그림을 판으로 */
-  const texCache = new Map()
+  const texCache = new Map(), TEXTURE_CACHE_MAX = 96
+  let textureClock = 0
+  function pruneTextures () {
+    if (texCache.size <= TEXTURE_CACHE_MAX) return
+    const unused = [...texCache.entries()].filter(([, entry]) => entry.refs === 0).sort((a, b) => a[1].used - b[1].used)
+    for (const [key, entry] of unused) {
+      if (texCache.size <= TEXTURE_CACHE_MAX) break
+      entry.texture.dispose(); texCache.delete(key)
+    }
+  }
   function lanternTex (L, o = {}) {
-    const k = JSON.stringify([L.shape, L.color || '', L.pattern || '', o.lit ? 1 : 0, o.paper ?? 1])
-    if (texCache.has(k)) return texCache.get(k)
-    const t = canvasTex(256, 256, g => drawLantern(g, 128, 108, 178, L, { lit: o.lit, tassel: o.tassel !== false, paper: o.paper, wire: 1, glow: .22 }))
-    texCache.set(k, t)
-    return t
+    const key = JSON.stringify([L.shape, L.color || '', L.pattern || '', o.lit ? 1 : 0, o.paper ?? 1, o.tassel !== false])
+    let entry = texCache.get(key)
+    if (!entry) {
+      const texture = canvasTex(256, 256, g => drawLantern(g, 128, 108, 178, L, { lit: o.lit, tassel: o.tassel !== false, paper: o.paper, wire: 1, glow: .22 }))
+      entry = { texture, refs: 0, used: 0 }; texCache.set(key, entry)
+    }
+    entry.refs++; entry.used = ++textureClock
+    pruneTextures()
+    return { key, texture: entry.texture }
+  }
+  // Sprite의 공용 geometry와 glowTex는 유지하고 자기 material과 참조만 해제한다.
+  function disposeLanternSprite (sprite) {
+    if (!sprite || sprite.userData.released) return
+    sprite.userData.released = true
+    sprite.removeFromParent()
+    sprite.material.dispose()
+    const entry = texCache.get(sprite.userData.lanternTextureKey)
+    if (entry) { entry.refs = Math.max(0, entry.refs - 1); entry.used = ++textureClock }
+    pruneTextures()
   }
   const glowTex = canvasTex(128, 128, g => {
     const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64)
@@ -110,7 +133,9 @@ export function buildYard (world, d) {
     g.fillStyle = gr; g.fillRect(0, 0, 128, 128)
   })
   function lanternSprite (L, o = {}, scale = 1) {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: lanternTex(L, o), transparent: true, alphaTest: .03, fog: true }))
+    const texture = lanternTex(L, o)
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture.texture, transparent: true, alphaTest: .03, fog: true }))
+    sp.userData.lanternTextureKey = texture.key
     sp.scale.set(scale, scale, 1)
     return sp
   }
@@ -243,7 +268,7 @@ export function buildYard (world, d) {
   const hungGroup = new THREE.Group(); scene.add(hungGroup)
   let hungObjs = []
   function setHung (list, night) {
-    for (const o of hungObjs) { hungGroup.remove(o.sp); if (o.glow) hungGroup.remove(o.glow) }
+    for (const o of hungObjs) { disposeLanternSprite(o.sp); if (o.glow) disposeLanternSprite(o.glow) }
     hungObjs = []
     for (const h of list) {
       const x = h.slot.x, z = h.slot.r.y, y = ropeTop(h.slot.r, x) - .55
@@ -284,7 +309,7 @@ export function buildYard (world, d) {
   return {
     setHung, setNight, marker, npcMeshes, bigMeshes, hungObjs: () => hungObjs,
     cutaway: (cam, dt) => cut.apply(cam, dt),
-    lanternSprite, scene,
+    lanternSprite, disposeLanternSprite, scene,
     update (t, camera) {
       for (const b of billboards) b.quaternion.copy(camera.quaternion)
       for (let i = 0; i < bulbs.length; i++) {

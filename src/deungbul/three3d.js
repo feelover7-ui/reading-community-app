@@ -11,7 +11,23 @@ export const hash3 = (x, y) => { const s = Math.sin(x * 127.1 + y * 311.7) * 437
 export function createWorld (cv, opt = {}) {
   const dayBg = new THREE.Color(opt.bg || '#c6dde8')
   const nightBg = new THREE.Color(opt.nightBg || '#0a0f26')
-  const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true })
+  let renderer
+  try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true }) }
+  catch (error) {
+    // 초기화가 중단돼도 사용자가 다시 시도할 수 있는 화면은 남긴다.
+    const panel = document.createElement('section')
+    panel.style.cssText = 'position:fixed;inset:0;z-index:100;background:#fff9ec;color:#30251c;padding:clamp(24px,8vw,80px);overflow:auto;font:16px/1.8 sans-serif'
+    panel.className = 'webgl-error'; panel.setAttribute('role', 'alert'); panel.tabIndex = -1
+    const title = document.createElement('h2'); title.textContent = '3D 화면을 시작하지 못했어요'
+    const text = document.createElement('p')
+    text.textContent = '다른 앱이나 탭을 닫고 다시 시도해 주세요. 계속 안 되면 WebGL을 지원하는 최신 브라우저에서 열어 주세요.'
+    const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = '다시 시도'
+    retry.style.cssText = 'min-height:44px;padding:12px 20px;font:inherit;cursor:pointer'
+    retry.onclick = () => location.reload()
+    panel.append(title, text, retry); document.body.append(panel)
+    try { panel.focus() } catch (_) {}
+    throw error
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.shadowMap.enabled = opt.shadow !== false
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
@@ -205,6 +221,7 @@ export function createFollower (cv, camera, opt = {}) {
   cv.addEventListener('pointercancel', end)
   cv.addEventListener('lostpointercapture', end)
   cv.addEventListener('wheel', e => {
+    if (e.ctrlKey || e.metaKey) return
     e.preventDefault()
     state.dist = Math.max(state.min, Math.min(state.max, state.dist + Math.sign(e.deltaY) * .8))
   }, { passive: false })
@@ -266,7 +283,7 @@ export function createLabelLayer (camera) {
   const pool = []
   function toScreen (v) {
     const p = v.clone().project(camera)
-    return { x: (p.x + 1) / 2 * window.innerWidth, y: (1 - p.y) / 2 * window.innerHeight, ok: p.z > -1 && p.z < 1 }
+    return { x: (p.x + 1) / 2 * window.innerWidth, y: (1 - p.y) / 2 * window.innerHeight, ok: p.z > -1 && p.z < 1 && p.x > -1.2 && p.x < 1.2 && p.y > -1.2 && p.y < 1.2 }
   }
   function take (i, cls) {
     let d = pool[i]
@@ -344,9 +361,49 @@ export function stepPerson (g, x, z, face, moving, walk, quiet) {
 /* 사람 모습을 바꿔 끼울 때 쓰는 정리 */
 export function disposePerson (world, g) {
   if (!g) return
+  const geometries = new Set(), materials = new Set()
   g.traverse(o => {
-    if (o.geometry) o.geometry.dispose()
-    if (o.material) { const m = o.material; (Array.isArray(m) ? m : [m]).forEach(x => x.dispose()) }
+    if (o.geometry) geometries.add(o.geometry)
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => materials.add(m))
   })
+  for (const geometry of geometries) geometry.dispose()
+  for (const material of materials) material.dispose()
   world.scene.remove(g)
+}
+
+/* 현재 화면에 가까운 법우만 인형으로 만든다. 퇴장·외형 변경 때 GPU 자원도 정리한다. */
+export function createPeerLayer (world, { max = 40, radius = 28, bowing = false } = {}) {
+  const bodies = new Map()
+  return {
+    bodies,
+    sync (peers, quiet, focus = { x: 0, y: 0 }) {
+      const camera = world.camera
+      camera?.updateMatrixWorld()
+      const candidates = [...peers.values()].filter(p => {
+        if (Math.hypot(p.x - focus.x, p.y - focus.y) > radius) return false
+        if (!camera) return true
+        const v = V3(p.x, .8, p.y).project(camera)
+        return v.z > -1 && v.z < 1 && Math.abs(v.x) < 1.3 && Math.abs(v.y) < 1.3
+      }).sort((a, b) => Math.hypot(a.x - focus.x, a.y - focus.y) - Math.hypot(b.x - focus.x, b.y - focus.y)).slice(0, max)
+      const wanted = new Set(candidates.map(p => p.id))
+      for (const [id, body] of bodies) {
+        if (!wanted.has(id)) { disposePerson(world, body); bodies.delete(id) }
+      }
+      for (const p of candidates) {
+        const key = p.color + ':' + (p.sex === 'f' ? 'f' : 'm')
+        let body = bodies.get(p.id)
+        if (body && body.userData.lookKey !== key) { disposePerson(world, body); bodies.delete(p.id); body = null }
+        if (!body) {
+          body = makePerson(world, { body: p.color, hair: '#2b1d14', pants: '#3b3b48', long: p.sex === 'f' })
+          body.userData.lookKey = key; bodies.set(p.id, body)
+        }
+        const faces = { down: 0, up: Math.PI, left: -Math.PI / 2, right: Math.PI / 2 }
+        const face = p.moving && Math.hypot(p.vx, p.vy) > .01 ? Math.atan2(p.vx, p.vy) : (faces[p.dir] ?? 0)
+        stepPerson(body, p.x, p.y, bowing && p.bow ? Math.PI : face, p.moving, p.walk, quiet)
+        const crouch = bowing && p.bow ? (quiet ? .6 : .45 + (1 - Math.abs(Math.sin(Date.now() / 1200))) * .3) : 1
+        body.scale.set(1, crouch, 1)
+      }
+    },
+    clear () { for (const body of bodies.values()) disposePerson(world, body); bodies.clear() }
+  }
 }

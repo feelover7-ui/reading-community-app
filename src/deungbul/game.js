@@ -4,7 +4,7 @@ import { joinYard } from './presence.js'
 import { drawPixelPerson } from './pixelCharacter.js'
 import { releaseFocus } from './sceneKit.js'
 import { createBgm } from './bgm.js'
-import { createWorld, createFollower, createLabelLayer, makePerson, stepPerson, V3 } from './three3d.js'
+import { createWorld, createFollower, createLabelLayer, makePerson, stepPerson, disposePerson, createPeerLayer, V3 } from './three3d.js'
 import { buildYard } from './yardScene.js'
 
 (()=>{
@@ -962,7 +962,7 @@ document.getElementById('yardmenub').onclick=openYardMenu;
 /* ---------- input ---------- */
 const keys=new Set();
 /* 한글 입력 상태에서는 e.key 가 'ㅈ' 처럼 와서 WASD 가 안 먹는다. 글자 키는 e.code 를 먼저 본다. */
-const CODE_KEYS={KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',KeyE:'e',Space:' '};
+const CODE_KEYS={KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',KeyE:'e',KeyQ:'q',KeyR:'r',Space:' '};
 const keyName=e=>CODE_KEYS[e.code]||(typeof e.key==='string'?e.key.toLowerCase():'');
 addEventListener('keydown',e=>{
   if(e.isComposing||e.keyCode===229)return;
@@ -1035,38 +1035,38 @@ const world3d=createWorld(cv,{bg:'#c6dde8',nightBg:'#0a0f26',fogNear:34,fogFar:8
 const yard3d=buildYard(world3d,{W,H,STATIONS,ROPES,COLORS,drawLantern,objects,NPCS});
 const follower=createFollower(cv,world3d.camera,{dist:9,pitch:.66,min:4.5,max:18,yaw:0});
 const labels3d=createLabelLayer(world3d.camera);
-const myBody=makePerson(world3d,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48',long:isLong(mySex)});
-const peerBodies=new Map();
-let carrySprite=null,hungKey='';
+let myBody=makePerson(world3d,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48',long:isLong(mySex)});
+let myBodySex=mySex;
+function syncMyBody(){
+  if(myBodySex===mySex)return;
+  disposePerson(world3d,myBody);
+  myBody=makePerson(world3d,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48',long:isLong(mySex)});
+  myBodySex=mySex;
+}
+const peerLayer=createPeerLayer(world3d),peerBodies=peerLayer.bodies;
+let carrySprite=null,carryKey='',hungKey='';
 function updateCarry(){
-  if(carrySprite){world3d.scene.remove(carrySprite);carrySprite=null;}
+  const key=state.stage>=1?JSON.stringify([state.craft.shape,state.craft.color,state.craft.pattern,state.stage>=4,state.stage>=2]):'';
+  if(key===carryKey)return;
+  carryKey=key;
+  if(carrySprite){yard3d.disposeLanternSprite(carrySprite);carrySprite=null;}
   if(state.stage>=1){
     carrySprite=yard3d.lanternSprite(state.craft,{lit:state.stage>=4,paper:state.stage>=2?1:0},.75);
     world3d.scene.add(carrySprite);
   }
 }
+
 function syncHung(){
   const list=hungList();
-  const key=list.map(h=>h.slot.x+','+h.slot.r.y+','+(h.L.shape||'')+(h.L.color||'')).join('|')+(state.night?'N':'D');
+  const key=JSON.stringify([state.night,list.map(h=>[h.slot.x,h.slot.r.y,h.L.id,h.L.owner,h.L.shape,h.L.color,h.L.pattern,h.L.wish])]);
   if(key===hungKey)return;
   hungKey=key;
   yard3d.setHung(list,state.night);
 }
-function syncPeers3d(){
-  for(const p of peers.values()){
-    let b=peerBodies.get(p.id);
-    if(!b){ if(peerBodies.size>=40)continue;
-      b=makePerson(world3d,{body:p.color,hair:'#2b1d14',pants:'#3b3b48',long:isLong(p.sex)});
-      peerBodies.set(p.id,b); }
-    b.position.set(p.x,0,p.y);
-    if(p.moving)b.rotation.y=Math.atan2(p.vx||0,p.vy||0);
-    const parts=b.userData.parts;
-    if(parts&&parts.legL){const sw=p.moving&&!reducedMotion?Math.sin(p.walk*11)*.6:0;parts.legL.rotation.x=sw;parts.legR.rotation.x=-sw;}
-  }
-  for(const [id,b] of peerBodies)if(!peers.has(id)){world3d.scene.remove(b);peerBodies.delete(id);}
-}
+function syncPeers3d(){peerLayer.sync(peers,reducedMotion,player);}
 
 function render(t){
+  syncMyBody();updateCarry();
   syncHung();
   syncPeers3d();
   yard3d.update(t,world3d.camera);
@@ -1084,6 +1084,7 @@ function render(t){
   NPCS.forEach(n=>{ if(Math.hypot(n.x-player.x,n.y-player.y)<3.4&&!dialog&&started)
     items.push({cls:'tag3d npc',text:n.name,at:V3(n.x,1.6,n.y)}); });
   peers.forEach(p=>{
+    if(!peerBodies.has(p.id))return;
     items.push({cls:'tag3d',text:(p.nick||'법우').slice(0,12),at:V3(p.x,1.55,p.y)});
     if(p.say&&p.sayUntil>now)items.push({cls:'bubble3d',text:p.say,at:V3(p.x,2.1,p.y)});
   });
@@ -1188,7 +1189,7 @@ try{
     }
   }
 }catch(e){}
-addEventListener('pagehide',()=>{keys.clear();resetJoy();stopYard();});
+addEventListener('pagehide',()=>{keys.clear();resetJoy();stopYard();peerLayer.clear();});
 addEventListener('pageshow',e=>{
   if(!e.persisted)return;
   traveling=false;

@@ -220,6 +220,15 @@ body.touch #prompt{bottom:178px}
 .bubble3d{position:fixed;transform:translate(-50%,-100%);max-width:220px;padding:6px 12px;border:1.5px solid #6b4a2f;border-radius:10px;background:rgba(251,244,228,.97);color:#2b1d14;font-size:13px;line-height:1.45;text-align:center;pointer-events:none;z-index:4}
 .bubble3d.wish{font-family:'Gowun Batang',serif;font-weight:700;font-size:15px}
 canvas#game{display:block;touch-action:none;cursor:grab}
+
+@media(max-width:760px){
+ #topbtns{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));justify-content:flex-end;gap:6px}
+ #hud{top:max(68px,calc(env(safe-area-inset-top) + 56px));max-height:calc(100dvh - 260px);width:min(240px,calc(100vw - 24px))}
+ #prompt{max-width:calc(100vw - 24px);white-space:normal;text-align:center;line-height:1.5}
+}
+@media(max-height:500px){
+ #hud{max-height:calc(100dvh - 110px);max-width:calc(100vw - 200px)}
+}
 </style>
 </head>
 <body>
