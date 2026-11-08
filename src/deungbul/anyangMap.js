@@ -128,6 +128,27 @@ ${spheres(655,302,7,7.3,10,true)}
 </g>
 ${trees.map(p=>tree(...p)).join('')}
 <path d="M591 631l64 24m198-86l48-20" stroke="#e8e7dc" stroke-width="5"/>
+
+<!-- 등불사장 작업장: 사용자가 요청한 게임 건물, 실제 본원 배치와 별개 -->
+<g aria-hidden="true">
+ <ellipse cx="432" cy="600" rx="86" ry="16" fill="#696553" opacity=".16"/>
+ <path d="M360 535H500V602H360Z" fill="#dfc79d" stroke="#927c5d" stroke-width="2"/>
+ <path d="M500 535l24-20v67l-24 20Z" fill="#b69d76" stroke="#927c5d" stroke-width="2"/>
+ <path d="M347 536L382 493H492L531 518L502 543Z" fill="#69786f" stroke="#475c53" stroke-width="3"/>
+ <path d="M382 493L414 521L502 543M414 521H352" fill="none" stroke="#93a093" stroke-width="2"/>
+ <rect x="404" y="553" width="34" height="49" rx="3" fill="#705844"/>
+ <path d="M421 555v47" stroke="#ad9170" stroke-width="2"/>
+ <circle cx="430" cy="579" r="2" fill="#ead393"/>
+ <rect x="371" y="555" width="22" height="25" fill="#f0d99a" stroke="#967f5a" stroke-width="3"/>
+ <rect x="451" y="555" width="34" height="25" fill="#f0d99a" stroke="#967f5a" stroke-width="3"/>
+ <path d="M382 555v25m86-25v25" stroke="#967f5a" stroke-width="2"/>
+ <rect x="368" y="532" width="122" height="18" rx="3" fill="#725b40"/>
+ <text x="429" y="545" text-anchor="middle" font-size="11" font-weight="700" fill="#fff0ca">등불사장 작업장</text>
+ <path d="M357 548v12m139-12v12" stroke="#806c4c" stroke-width="2"/>
+ <ellipse class="map-lantern" cx="357" cy="567" rx="7" ry="10" fill="#e6b85b" stroke="#a67c36"/>
+ <ellipse class="map-lantern" cx="496" cy="567" rx="7" ry="10" fill="#e6b85b" stroke="#a67c36"/>
+ <path d="M399 605h45m-50 6h55" stroke="#b9ab8f" stroke-width="5"/>
+</g>
 <rect class="night-shade" width="1000" height="720" fill="#111b35"/>
 `
 function setPosition(x,y){
