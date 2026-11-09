@@ -295,3 +295,12 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 배율이 1 이 아닌 화면을 확인할 때는 Playwright 의 `deviceScaleFactor` 를 2 나 3 으로 둡니다.
   배율 1 로만 보면 이 문제가 보이지 않습니다. 캔버스의 `getBoundingClientRect()` 가
   `innerWidth`·`innerHeight` 와 같은지 봅니다.
+
+## 코덱스 인계
+
+- 작업 시작 전에 `docs/CODEX_HANDOFF.md` 를 먼저 봅니다. 지금 `main` 상태, 운영에 안 올라간 커밋,
+  되돌리면 안 되는 고친 것들, 확인 방법이 거기 있습니다.
+- `codex/mobile-usability-review` 는 `6b9378b` 에서 갈라져 있어 #23·#24 를 되돌립니다.
+  올리기 전에 `git rebase origin/main` 하고 충돌에서 `main` 쪽을 살립니다.
+- Vercel 무료 플랜은 하루 배포 100 건입니다. 브랜치 push 마다 미리보기가 한 건씩 쌓이니
+  커밋을 모아서 올립니다.
