@@ -500,7 +500,7 @@ function action(){
   if(SPOT_TEXT[id]){
     $('dialogTitle').textContent=SPOT_TEXT[id][0]
     $('dialogText').textContent=SPOT_TEXT[id][1]+' 평면 위치는 사진 판독에 따른 근사값이며 실측이 아닙니다.'
-    const link=$('dialogLink');link.href='/deungbul.html?map=claude';link.textContent='클로드 맵에서 탑돌이·삼배 하기'
+    const link=$('dialogLink');link.href='/deungbul.html';link.textContent='클로드 맵에서 탑돌이·삼배 하기'
     modal.hidden=false
     for(const n of document.body.children)if(n!==modal)n.inert=true
     link.focus();return
@@ -518,7 +518,7 @@ function action(){
   }
   $('dialogTitle').textContent=id==='hall3'?'본관 3층 출입구':'본원 법당'
   $('dialogText').textContent=id==='hall3'?'도량탑 마당과 본관 3층은 같은 높이입니다. 열린 문을 통해 3층 진입 공간을 걸어볼 수 있습니다. 대법당은 5층이며 아래 링크는 기존 대법당 화면으로 이동합니다.':id==='workshop'?'삼막로 23(석수동 93-1)의 작업장입니다. 등 만들기는 기존 버전의 체험 화면으로 연결됩니다. 이 건물의 높이·외관·입구는 아직 확인하지 않은 시안입니다.':'기존 법당 내부와 참배 기능을 엽니다. 새 배치는 위치 비교용이며 동일한 위성사진의 축척을 적용한 시안이며 실측 지도나 실제 출입 안내가 아닙니다.'
-  const a=$('dialogLink');a.href=id==='workshop'?'/deungbul.html?map=claude':'/beopdang.html?from=codex'
+  const a=$('dialogLink');a.href=id==='workshop'?'/deungbul.html':'/beopdang.html?from=codex'
   a.onclick=()=>{state.hallDone=true;changed()}
   a.textContent=id==='hall3'?'5층 대법당 화면 열기':id==='workshop'?'기존 등 만들기 체험 열기':'기존 법당 내부 열기'
   modal.hidden=false

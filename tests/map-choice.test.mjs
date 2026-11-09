@@ -1,17 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {MAP_LINKS,selectedMap,hallReturnUrl} from '../src/deungbul/mapChoiceRoutes.js'
-test('첫 방문과 잘못된 선택 값은 선택 화면에서 시작한다',()=>{
- for(const q of ['', '?map=unknown','?map=https://example.com','?map=../../index.js'])assert.equal(selectedMap(q),null)
+import { MAP_LINKS, hallReturnUrl } from '../src/deungbul/mapChoiceRoutes.js'
+
+/* 사용자 요청(2026-11-09): 맵 선택 화면을 없애고 예전처럼 한 곳으로 들어간다. */
+test('들어가는 곳은 도량 하나뿐이다', () => {
+  assert.deepEqual(Object.keys(MAP_LINKS), ['yard'])
+  assert.equal(MAP_LINKS.yard, '/deungbul.html')
 })
-test('선택한 두 맵과 기존 법당 복귀를 올바르게 구분한다',()=>{
- assert.equal(selectedMap('?map=claude'),'claude')
- assert.equal(selectedMap('?map=codex'),'codex')
- assert.equal(selectedMap('?from=beopdang'),'claude')
- assert.equal(MAP_LINKS.codex,'/site-preview.html')
- assert.equal(MAP_LINKS.claude,'/deungbul.html?map=claude')
-})
-test('법당에서 나올 때 진입한 맵으로 복귀하고 외부 주소를 허용하지 않는다',()=>{
- assert.equal(hallReturnUrl('?from=codex'),'/site-preview.html?view=hall3')
- for(const q of ['', '?from=campus','?from=https://example.com'])assert.equal(hallReturnUrl(q),'/deungbul.html?map=claude&from=beopdang')
+
+test('법당에서 나오면 도량으로 돌아가고 외부 주소를 쓰지 않는다', () => {
+  for (const q of ['', '?from=codex', '?from=campus', '?from=https://example.com']) {
+    const url = hallReturnUrl(q)
+    assert.equal(url, '/deungbul.html?from=beopdang')
+    assert.equal(url.startsWith('/'), true, '바깥 주소로 나가면 안 된다')
+  }
 })

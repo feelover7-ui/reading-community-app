@@ -1,5 +1,5 @@
 /* #17의 안내 걷기. 회전 계수는 #18의 orbitProgress를 계속 사용한다. */
-export const PAGODA_CENTER=Object.freeze({x:22,z:41})
+export const PAGODA_CENTER = Object.freeze({ x: 21, z: 48 })
 export const GUIDED_RADIUS=4
 export function advanceGuidedOrbit({x,z,angle,dt,canStand,center=PAGODA_CENTER,radius=GUIDED_RADIUS}){
   if(!Number.isFinite(dt)||dt<=0||dt>1)return{x,z,angle,moving:false,blocked:false}

@@ -1,10 +1,4 @@
-export const MAP_LINKS=Object.freeze({chooser:'/deungbul.html',claude:'/deungbul.html?map=claude',codex:'/site-preview.html'})
-export function selectedMap(search=''){
- const p=new URLSearchParams(search),map=p.get('map')
- if(map==='claude'||map==='codex')return map
- if(!map&&p.get('from')==='beopdang')return 'claude'
- return null
-}
-export function hallReturnUrl(search=''){
- return new URLSearchParams(search).get('from')==='codex'?'/site-preview.html?view=hall3':'/deungbul.html?map=claude&from=beopdang'
-}
+/* 들어가는 길. 사용자 요청으로 맵 선택 화면을 없애고 예전처럼 한 곳으로 들어갑니다.
+   대법당에서 나오면 도량으로 돌아갑니다. */
+export const MAP_LINKS=Object.freeze({yard:'/deungbul.html'})
+export function hallReturnUrl(){return '/deungbul.html?from=beopdang'}

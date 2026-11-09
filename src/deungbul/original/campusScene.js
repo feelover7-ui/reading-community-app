@@ -2,7 +2,7 @@ import {GARDEN_SOLIDS} from './gardenLayout.js'
 import {buildCourtyardGarden} from './courtyardGarden.js'
 import {bindCameraGestures,mountCameraButtons,installMobileViewport} from '../mobileUi.js'
 import { CAMPUS_HALL,HALL_DOOR,STATUE_CENTER,STATUE_STAND,OUTDOOR_BUILDINGS,LANDMARK_SOURCES } from '../campusLayout.js'
-import { SITE_BUILDINGS,SITE_POND,SITE_MARKS } from '../anyangSite.js'
+import { SITE_BUILDINGS } from '../anyangSite.js'
 import { buildPagoda,buildStatue } from './outdoorLandmarks.js'
 import { PAGODA_CENTER,GUIDED_RADIUS,advanceGuidedOrbit } from '../tapdori.js'
 /* 원본 HTML 맵 미리보기.
@@ -51,7 +51,7 @@ if(isTouch){document.body.classList.add('touch');document.getElementById('ctlhin
 const W=126,H=70;
 const solid=[];for(let y=0;y<H;y++)solid.push(new Array(W).fill(true));
 const setRect=(x,y,w,h,v)=>{for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)if(yy>=0&&yy<H&&xx>=0&&xx<W)solid[yy][xx]=v;};
-setRect(2,2,32,10,false);setRect(16,12,4,1,false);setRect(1,13,34,12,false);setRect(16,25,4,1,false);setRect(1,26,48,43,false);setRect(105,5,18,15,false);
+setRect(2,2,32,10,false);setRect(16,12,4,1,false);setRect(1,13,34,12,false);setRect(16,25,4,1,false);setRect(1,26,42,42,false);setRect(105,5,18,15,false);
 const block=(x,y,w,h)=>setRect(x,y,w,h,true);
 const STATIONS=[
   {id:'frame',name:'골조 작업대',x:4,y:3,w:3,h:2},{id:'paper',name:'한지 작업대',x:11,y:3,w:3,h:2},
@@ -61,8 +61,7 @@ block(2,4,1,6);block(29,3,4,1);block(23,7,10,4);block(15,17,6,3);block(14,13,1,1
 // campus
 const BLD=Object.fromEntries(OUTDOOR_BUILDINGS.map(b=>[b.id,[b.x,b.z,b.w,b.d]]));
 Object.values(BLD).forEach(r=>block(...r));
-block(20,39,4,4);block(5,29,6,6);
-const CTREES=[[2,27],[12,27],[2,38],[12,38],[14,28],[35,44],[47,44],[47,66],[21,66],[16,67],[23,56],[23,62],[12,55],[12,61],[36,38],[47,48]].filter(([x,z])=>!(x>=CAMPUS_HALL.x-1&&x<=CAMPUS_HALL.x+CAMPUS_HALL.w&&z>=CAMPUS_HALL.z-1&&z<=CAMPUS_HALL.z+CAMPUS_HALL.d));
+const CTREES=[[3,28],[3,36],[3,44],[3,52],[3,60],[40,28],[40,36],[40,44],[40,52],[40,60],[10,28],[28,28],[34,30],[30,60],[34,52],[26,64]].filter(([x,z])=>!(x>=CAMPUS_HALL.x-1&&x<=CAMPUS_HALL.x+CAMPUS_HALL.w&&z>=CAMPUS_HALL.z-1&&z<=CAMPUS_HALL.z+CAMPUS_HALL.d));
 CTREES.forEach(([x,y])=>block(x,y,1,1));
 GARDEN_SOLIDS.forEach(b=>block(b.x,b.z,b.w,b.d));
 // hall
@@ -247,7 +246,7 @@ function siteInfo(b){
   m.append(el('p','note','공식 선원 안내도의 범례를 옮긴 설명입니다. 안은 만들지 않았고 들어가 볼 수 있는 곳은 법당 하나입니다.'));
   const ok=el('button','btn','닫기');ok.onclick=closeModal;sharedModal.primary=closeModal;m.append(ok);
 }
-function exitHall(){if(ritual)return;fadeTo(()=>{player.x=HALL_DOOR.x;player.y=HALL_DOOR.z;player.face=-Math.PI/2;yaw=0;});}
+function exitHall(){if(ritual)return;fadeTo(()=>{player.x=HALL_DOOR.x;player.y=HALL_DOOR.z;player.face=Math.PI;yaw=0;});}
 function hallMenu(){if(ritual||seq)return;const m=modalShell('5층 대법당','가운데 방석에서 무엇을 할까요?');const list=el('div','menu');
   [['예불','칠정례로 부처님께 예를 올려요',doYebul],['법회','대법당 스님의 짧은 법문을 들어요',doBeophoe],['좌선','앉아서 호흡을 바라봐요',pickJwaseon],['삼배','부처님께 큰절 세 번',doSambae],['108배','108번 절하며 마음을 모아요',do108]].forEach(([t,s,fn])=>{const b=el('button');b.append(el('b',null,t),el('span',null,s));b.onclick=()=>{closeModal();fn();};list.append(b);});
   m.append(list);}
@@ -378,7 +377,7 @@ function init3D(){
   ground(16,13,20,17,M('#c6b796'),.005);
   const outside=ground(-92,-97,128,123,M('#6f7d52'),-.02);
   const pave=(x0,z0,x1,z1)=>ground(x0,z0,x1,z1,M('#ffffff',{map:repTex(paveTex,(x1-x0)/4,(z1-z0)/4)}));
-  pave(0,26,50,70);
+  pave(0,26,44,69);
   ground(2,27,14,39,M('#ffffff',{map:repTex(grassTex,6,6)}),.01);
   const ringPave=new THREE.Mesh(new THREE.RingGeometry(2,4.6,48),M('#d8cdb2'));ringPave.rotation.x=-Math.PI/2;ringPave.position.set(PAGODA.x,.012,PAGODA.z);ringPave.receiveShadow=true;scene.add(ringPave);
   const ringLine=new THREE.Mesh(new THREE.RingGeometry(4.5,4.65,64),M('#a8997a'));ringLine.rotation.x=-Math.PI/2;ringLine.position.set(PAGODA.x,.014,PAGODA.z);scene.add(ringLine);
@@ -396,8 +395,8 @@ function init3D(){
   [[11.2,'등불사장',wS1],[24.8,'한마음선원',wS2]].forEach(([x,t,w])=>{const p=textPlane(t,2.8,.62);p.position.set(x,1.65,13.02);w.userData.attach.push(p);});
   STATIONS.forEach(s=>{const p=textPlane(s.name,2.2,.48,{font:'"Noto Sans KR",sans-serif',fg:'#f3dc9a',border:'#b88a3c'});p.position.set(s.x+s.w/2,1.75,2.01);});
   function fence(x0,z0,x1,z1){box(x1-x0,1.3,z1-z0,MAT.fence,(x0+x1)/2,.65,(z0+z1)/2);box(x1-x0+.3,.18,z1-z0+.3,MAT.fenceCap,(x0+x1)/2,1.39,(z0+z1)/2);}
-  fence(0,25,16,26);fence(20,25,50,26);fence(0,12,1,25);fence(35,12,36,25);fence(0,0,36,1);fence(0,1,1,12);fence(35,1,36,12);
-  fence(0,26,1,69);fence(49,26,50,69);fence(0,69,50,70);
+  fence(0,25,16,26);fence(20,25,44,26);fence(0,12,1,25);fence(35,12,36,25);fence(0,0,36,1);fence(0,1,1,12);fence(35,1,36,12);
+  fence(0,26,1,69);fence(43,26,44,69);fence(0,68,44,69);
   // gate to the main temple
   [16.15,19.85].forEach(x=>{box(.28,3,.28,'#8a2e22',x,1.5,25.5);box(.5,.3,.5,'#9c9588',x,.15,25.5);});
   box(4.3,.3,.4,'#2f7d5b',18,2.85,25.5);box(4.3,.12,.42,'#8a2e22',18,2.62,25.5);
@@ -530,14 +529,6 @@ function init3D(){
     for(let i=0;i<5;i++)mesh(new THREE.SphereGeometry(.42-i*.055,12,10),M('#d9a531'),tx,9.9+i*.62,tz);
     mesh(new THREE.ConeGeometry(.2,.7,10),M('#d9a531'),tx,13.3,tz);
     /* 연못(조감도 가운데). 물은 건너가지 못합니다. */
-    const pw=SITE_POND.w,pd=SITE_POND.d;
-    const water=mesh(new THREE.PlaneGeometry(pw-.4,pd-.4),M('#5d7f93',{transparent:true,opacity:.86}),SITE_POND.x+pw/2,.08,SITE_POND.z+pd/2);
-    water.rotation.x=-Math.PI/2;
-    box(pw,.22,.3,'#9c9388',SITE_POND.x+pw/2,.11,SITE_POND.z+.15);
-    box(pw,.22,.3,'#9c9388',SITE_POND.x+pw/2,.11,SITE_POND.z+pd-.15);
-    box(.3,.22,pd,'#9c9388',SITE_POND.x+.15,.11,SITE_POND.z+pd/2);
-    box(.3,.22,pd,'#9c9388',SITE_POND.x+pw-.15,.11,SITE_POND.z+pd/2);
-    const pondName=textPlane('연못',2.2,.5);pondName.position.set(SITE_POND.x+pw/2,1.1,SITE_POND.z+pd+.3);
   }));
   // 공식 안내에 맞춰 아홉 개의 둥근 구로 바꾼다.
   const pagodaModel=buildPagoda({scene,M,mesh});
@@ -630,10 +621,9 @@ function init3D(){
     Object.entries(BLD).forEach(([k,r])=>{if(k!=='pit')R(r[0],r[1],r[2],r[3],'#6b5446');});R(15,17,6,3,'#c8402f');R(16,25,4,1,'#cdc1a5');R(16,12,4,1,'#b8854a');
     g.strokeStyle='#a8997a';g.lineWidth=.35;g.beginPath();g.arc(PAGODA.x,PAGODA.z,3.4,0,Math.PI*2);g.stroke();g.fillStyle='#3e4248';g.beginPath();g.arc(PAGODA.x,PAGODA.z,1,0,Math.PI*2);g.fill();
     g.fillStyle='#8c6a3c';g.beginPath();g.arc(8,32,.9,0,Math.PI*2);g.fill();g.fillStyle='#d9a531';g.fillRect(CAMPUS_HALL.x-.4,HALL_DOOR.z-1.2,.5,2.4);
-    g.fillStyle='#4e6f8a';g.fillRect(SITE_POND.x,SITE_POND.z,SITE_POND.w,SITE_POND.d);
     g.fillStyle='#fff';g.font='bold 2.2px sans-serif';g.textAlign='center';[['등불사장',18,7.5],['구정탑',PAGODA.x,PAGODA.z+2],['동상',STATUE_CENTER.x,STATUE_CENTER.z+2]].forEach(([t,x,y])=>g.fillText(t,x,y));
     g.font='bold 1.9px sans-serif';SITE_BUILDINGS.forEach(b=>g.fillText(b.name,b.x+b.w/2,b.z+b.d/2+.7));
-    g.font='bold 1.6px sans-serif';g.fillStyle='#f0e6d0';SITE_MARKS.forEach(m=>g.fillText(m.name,m.x,m.z));}
+}
   {const c=mmBg.hall;c.width=240;c.height=336;const g=c.getContext('2d');g.fillStyle='#3a2a20';g.fillRect(0,0,240,336);g.save();g.translate(12,70);const s=12;g.scale(s,s);g.translate(-105,-5);g.fillStyle='#a9743f';g.fillRect(105,5,18,15);g.fillStyle='#6e2a1f';g.fillRect(107,5,14,2);g.fillStyle='#d9a531';g.fillRect(113.55,9.45,.9,.9);g.fillStyle='#9a2f22';[[107,9],[107,13],[107,17],[120,9],[120,13],[120,17]].forEach(([x,y])=>g.fillRect(x+.2,y+.2,.6,.6));g.fillStyle='#efe2c4';g.fillRect(113,20,2,.6);g.restore();g.fillStyle='#f3dc9a';g.font='bold 18px "Gowun Batang",serif';g.textAlign='center';g.fillText('5층 대법당',120,44);}
   function drawMinimap(){if(mmEl.classList.contains('hide'))return;const h=inHall();mm.drawImage(h?mmBg.hall:mmBg.out,0,0);const tf=h?(x,z)=>[12+(x-105)*12,70+(z-5)*12]:(x,z)=>[x*4.8,z*4.8];
     const tk=targetKey();const it=tk&&INTERACT.find(i=>i.key===tk);if(it&&((it.x>100)===h)){const[a,b]=tf(it.mark[0],it.mark[2]);mm.fillStyle='#f2c037';mm.strokeStyle='#5a3b26';mm.lineWidth=2;mm.beginPath();mm.arc(a,b,6,0,Math.PI*2);mm.fill();mm.stroke();}
@@ -792,7 +782,7 @@ const fontsReady=Promise.race([Promise.all([document.fonts.load('700 40px "Gowun
 fontsReady.then(()=>{try{init3D();sharing.start();
   const from=new URLSearchParams(location.search).get('from');
   if(['beopdang','doryang'].includes(from)&&nick&&readStore('hanmaum-deungbul-sex')){
-    started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');player.x=HALL_DOOR.x;player.y=HALL_DOOR.z;player.face=-Math.PI/2;
+    started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');player.x=HALL_DOOR.x;player.y=HALL_DOOR.z;player.face=Math.PI;
     state.ap=state.ap||{...DEFAULT_AP[readStore('hanmaum-deungbul-sex')==='f'?'f':'m']};rebuildPlayer();
     if(from==='beopdang'){state.hallDone=true;changed()}
   }
