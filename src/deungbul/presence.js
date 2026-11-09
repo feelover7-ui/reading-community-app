@@ -172,17 +172,49 @@ export function joinYard({ ownerId, channel: channelName = DEFAULT_CHANNEL, boun
   }
 }
 
-function joinRelay({url,channelName,onSync,onPose,onSay,onLit,onReady}){
-  const scene=channelName==='deungbul-campus-v2'?'campus':channelName==='deungbul-beopdang'?'hall':channelName==='deungbul-grounds'?'grounds':'yard';
-  let meta={},started=false;
-  const a=createRelayAdapter({url,hello:()=>({mapVersion:'campus-v2',sceneId:scene,nickname:meta.nick||'법우',appearance:{sex:meta.sx==='f'?'f':'m',color:meta.color||'#e3a83f'}})});
-  a.on('snapshot',records=>{
-    const list=[...records.values()].filter(r=>r.id!==a.id&&r.scene===scene).map(r=>({id:r.id,meta:{nick:r.nick,sx:r.sex,color:r.color,x:r.x,y:r.z,vx:r.vx,vy:r.vz,bw:r.motion!=='stand'&&r.motion!=='walk',dir:Math.abs(Math.sin(r.yaw))>Math.abs(Math.cos(r.yaw))?(Math.sin(r.yaw)<0?'left':'right'):(Math.cos(r.yaw)<0?'up':'down')}}));
-    onSync?.(list);for(const r of list)onPose?.(r.id,r.meta);
-  });
-  a.on('state',s=>{if(s==='live')onReady?.();if(['offline','full','protocol_error'].includes(s))globalThis.dispatchEvent?.(new CustomEvent('lantern-connection',{detail:s}));});
-  a.on('event',m=>{if(m.from===a.id||m.scene!==scene)return;if(m.type==='say')onSay?.(m.from,{nick:m.nick,text:m.payload.text});if(m.type==='lit')onLit?.({nick:m.nick});});
-  return{get joined(){return a.live},track(m){meta={...meta,...m};if(!started){started=true;a.connect()}},
-    sendPose(p){const dir={up:Math.PI,down:0,left:-Math.PI/2,right:Math.PI/2};a.sendPose({sceneId:scene,x:p.x,z:p.y,vx:p.vx||0,vz:p.vy||0,yaw:Number.isFinite(p.yaw)?Math.atan2(Math.sin(p.yaw),Math.cos(p.yaw)):(dir[p.dir]||0),motion:p.bw?'bow':Math.hypot(p.vx||0,p.vy||0)>.01?'walk':'stand'})},
-    sendSay(text){a.sendEvent('say',{text})},sendLit(){a.sendEvent('lit',{})},leave(){a.disconnect()}};
+function joinRelay ({ url, channelName, onSync, onPose, onSay, onLit, onReady }) {
+  const scene = channelName === 'deungbul-campus-v2' ? 'campus' : channelName === 'deungbul-beopdang' ? 'hall' : channelName === 'deungbul-grounds' ? 'grounds' : 'yard'
+  let meta = {}, started = false, stopped = false
+  const adapter = createRelayAdapter({ url, hello: () => ({
+    mapVersion: 'campus-v2', sceneId: scene, nickname: meta.nick || '법우',
+    appearance: { sex: meta.sx === 'f' ? 'f' : 'm', color: /^#[0-9a-f]{6}$/i.test(meta.color || '') ? meta.color : '#e3a83f' }
+  }) })
+  const toMeta = r => ({
+    nick: r.nick, sx: r.sex, color: r.color, x: r.x, y: r.z,
+    vx: r.vx, vy: r.vz, dir: Math.abs(Math.sin(r.yaw)) > Math.abs(Math.cos(r.yaw)) ? (Math.sin(r.yaw) < 0 ? 'left' : 'right') : (Math.cos(r.yaw) < 0 ? 'up' : 'down'),
+    bw: ['hap', 'bow', 'kneel', 'prost', 'sit'].includes(r.motion)
+  })
+  adapter.on('snapshot', records => {
+    const list = [...records.values()].filter(r => r.id !== adapter.id && r.scene === scene).map(r => ({ id: r.id, meta: toMeta(r) }))
+    onSync?.(list)
+    for (const p of list) onPose?.(p.id, p.meta)
+  })
+  adapter.on('state', state => {
+    if (state === 'live') onReady?.()
+    if (state === 'offline' || state === 'full' || state === 'protocol_error') {
+      globalThis.dispatchEvent?.(new CustomEvent('lantern-connection', { detail: state }))
+    }
+  })
+  adapter.on('event', event => {
+    if (event.from === adapter.id || event.scene !== scene) return
+    if (event.type === 'say') onSay?.(event.from, { nick: event.nick, text: event.payload.text })
+    if (event.type === 'lit') onLit?.({ nick: event.nick })
+  })
+  return {
+    get joined () { return adapter.live }, get transport () { return 'relay' },
+    track (next) {
+      meta = { ...meta, ...next }
+      if (!started && !stopped) { started = true; adapter.connect() }
+    },
+    sendPose (pose) {
+      meta = { ...meta, ...pose }
+      const dirs = { down: 0, up: Math.PI, left: -Math.PI / 2, right: Math.PI / 2 }
+      adapter.sendPose({ sceneId: scene, x: pose.x, z: pose.y, vx: pose.vx || 0, vz: pose.vy || 0,
+        yaw: Number.isFinite(pose.yaw) ? Math.atan2(Math.sin(pose.yaw), Math.cos(pose.yaw)) : (dirs[pose.dir] || 0),
+        motion: pose.bw ? 'bow' : Math.hypot(pose.vx || 0, pose.vy || 0) > .01 ? 'walk' : 'stand' })
+    },
+    sendSay (text) { return adapter.sendEvent('say', { text }) },
+    sendLit () { return adapter.sendEvent('lit', {}) },
+    leave () { stopped = true; adapter.disconnect() }
+  }
 }

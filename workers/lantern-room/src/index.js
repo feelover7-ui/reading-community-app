@@ -19,11 +19,11 @@ const allowedOrigin = (origin, env) => {
 export default {
   async fetch (request, env) {
     const url = new URL(request.url)
-    if (url.pathname === '/health') return json({ ok: true, protocolVersion: PROTOCOL_VERSION })
+    if (url.pathname === '/health') return json({ ok: true, protocolVersion: PROTOCOL_VERSION, mapVersion:'campus-v2' })
     if (url.pathname !== '/room') return json({ ok: false, reason: 'not_found' }, 404)
     // Origin 검사는 인증이 아닙니다. 토큰 검사와 함께 씁니다.
     if (!allowedOrigin(request.headers.get('Origin'), env)) return json({ ok: false, reason: 'bad_origin' }, 403)
-    if (request.headers.get('Upgrade') !== 'websocket') return json({ ok: false, reason: 'need_websocket' }, 426)
+    if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return json({ ok: false, reason: 'need_websocket' }, 426)
     const name = url.searchParams.get('room') || 'campus-v2'
     if(!['campus-v2','load-test'].includes(name))return json({ok:false,reason:'bad_room'},400)
     const id = env.LANTERN_ROOM.idFromName(name)
@@ -89,7 +89,7 @@ export class LanternRoom {
       if(current){this.welcome(ws,current);return}
       const r = this.room.join(v.value, v.value.resumeToken)
       if (!r.ok) { this.send(ws, { t: 'full', reason: r.reason }); return ws.close(1013, 'room_full') }
-      ws.serializeAttachment({ id: r.session.id })
+      ws.serializeAttachment({ id: r.session.id, acceptedAt:meta.acceptedAt })
       await this.checkpoint();this.welcome(ws,r.session)
       return this.wake()
     }
@@ -99,7 +99,8 @@ export class LanternRoom {
     if (msg.t === 'pose') {
       const r = this.room.pose(meta.id, msg)
       if (!r.ok && r.reason !== 'stale_seq' && r.reason !== 'rate_limited') return this.reject(ws, r.reason)
-      return this.wake()
+      if(r.ok)await this.wake()
+      return
     }
     if (msg.t === 'event') {
       const r = this.room.event(meta.id, msg)

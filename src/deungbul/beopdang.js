@@ -1,3 +1,4 @@
+import { fitHallView } from './hallCamera.js'
 /* 대법당 안.
    칸 크기·걷는 속도·화면 배율은 등불사장·도량과 같은 값(sceneKit)을 씁니다.
    좌복 위에서 절을 할 수 있고, 같이 들어온 법우들도 서로 보입니다. */
@@ -217,7 +218,8 @@ byId('helpb').onclick = () => {
   h.innerHTML = '<p><b>이동</b> ' + (isTouch ? '왼쪽 조이스틱' : '<kbd>방향키</kbd> 또는 <kbd>WASD</kbd>') +
     '<br><b>살펴보기 · 절하기</b> ' + (isTouch ? '오른쪽 <b>살펴보기</b> 버튼' : '<kbd>Space</kbd> 또는 <kbd>E</kbd>') + '</p>' +
     '<p>바닥에 깔린 <b>좌복</b> 위에 서서 누르면 절을 시작합니다. 한 배·삼배·일곱 배·스물한 배·백팔배 중에 고를 수 있고, 하는 중에 다시 누르면 멈춥니다. 한 만큼 오늘 숫자에 쌓입니다.</p>' +
-    '<p>아래쪽 문으로 나가면 도량으로 돌아갑니다.</p>' +
+    '<p>🧭는 부처님과 내 캐릭터를 함께 담습니다. 화면 끌기·Q/R·휠은 자유 시점, 🧭를 누르면 자동 구도로 돌아옵니다.</p>' +
+    '<p>아래쪽 문으로 나가면 원본 외부 맵으로 돌아갑니다.</p>' +
     '<p style="color:#8a7a66;font-size:13px">공식 안내와 내부 사진을 보고 자리 관계만 옮긴 게임용 축척입니다. 실측 치수가 아니고, 사진을 복제하지 않았습니다. 오늘 숫자는 이 브라우저에만 남습니다.</p>'
   const b = el('button', 'btn', '닫기'); b.onclick = modal.close
   m.append(h, b)
@@ -271,11 +273,22 @@ if (window.innerWidth < 640) {
 const world = createWorld(cv, { fov: 56, bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: true, light: .3, sunLight: .18, sky: '#ffe9c8', groundLight: '#6b4a32' })
 const hall = buildHall(world)
 const follower = createFollower(cv, world.camera, { dist: 9, pitch: .32, min: 6, max: 14, yaw: 0, lookHeight: 1.2 })
-// 낮은 시점에서 앞을 보되, 시야를 잃으면 한 번에 불단 방향으로 되돌린다.
-const viewReset=el('button','iconbtn','🧭')
-viewReset.type='button';viewReset.title='법당 시점 초기화';viewReset.setAttribute('aria-label','법당 시점을 불단 방향으로 초기화')
-viewReset.onclick=()=>{follower.reset({yaw:Math.atan2(player.x-W/2,player.y-3),dist:9,pitch:.32});try{cv.focus({preventScroll:true})}catch{}}
-byId('helpb').parentElement.append(viewReset)
+// #17의 자동 구도. 자유 시점은 #18의 낮은 pitch/높은 시선/최소 거리를 유지한다.
+let altarView=true,firstView=true
+const viewButton=el('button','iconbtn','🧭')
+viewButton.type='button';viewButton.title='부처님과 내 캐릭터가 함께 보이는 시점'
+viewButton.setAttribute('aria-label',viewButton.title);viewButton.setAttribute('aria-pressed','true')
+byId('helpb').parentElement.append(viewButton)
+const freeView=()=>{
+  if(!altarView)return
+  altarView=false;viewButton.setAttribute('aria-pressed','false')
+  follower.reset({yaw:follower.state.yaw,dist:9,pitch:.32})
+}
+cv.addEventListener('pointerdown',freeView)
+cv.addEventListener('wheel',event=>{if(!event.ctrlKey&&!event.metaKey)freeView()},{passive:true})
+viewButton.onclick=()=>{altarView=true;firstView=true;viewButton.setAttribute('aria-pressed','true');keys.clear();joy.reset()}
+releaseFocus(viewButton,cv)
+const viewPosition=V3(),viewTarget=V3()
 const labels = createLabelLayer(world.camera)
 const meBody = makePerson(world, myLook)
 const hallPeers = createHallPeers(world)
@@ -291,7 +304,8 @@ function faceTowards (toX, toY) {
 function update (dt) {
   const now = Date.now()
   if (now - dayCheckAt >= 1000) { dayCheckAt = now; syncBowDay() }
-  follower.turn(keys, dt)
+  if(keys.has('q')||keys.has('r'))freeView()
+  if(!altarView)follower.turn(keys, dt)
   if (bow.on) {
     const pressed = keys.has('a') || keys.has('d') || keys.has('w') || keys.has('s') ||
       keys.has('arrowleft') || keys.has('arrowright') || keys.has('arrowup') || keys.has('arrowdown') ||
@@ -319,7 +333,14 @@ function update (dt) {
     bow.on ? bowPose(u, reducedMotion) : null)
   peers.update(dt)
   peers.send()
-  follower.follow(player.x, player.y, dt, world.blockers, CAM_BOUNDS)
+  if(altarView){
+    const framing=fitHallView({playerX:player.x,playerZ:player.y,aspect:world.camera.aspect,fov:world.camera.fov})
+    const k=firstView||reducedMotion?1:1-Math.exp(-dt*6)
+    viewPosition.lerp(V3(framing.position.x,framing.position.y,framing.position.z),k)
+    viewTarget.lerp(V3(framing.target.x,framing.target.y,framing.target.z),k)
+    world.camera.position.copy(viewPosition);world.camera.lookAt(viewTarget);firstView=false
+    follower.state.yaw=Math.atan2(framing.back.x,framing.back.z)
+  }else{firstView=true;follower.follow(player.x,player.y,dt,world.blockers,CAM_BOUNDS)}
   hallPeers.sync(peers.peers, reducedMotion, player)
   world.fadeOccluders(player.x, player.y, dt)
   hall.enclosure(world.camera.position, dt)

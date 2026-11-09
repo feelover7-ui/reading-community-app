@@ -1,54 +1,37 @@
-# lantern-room
+# lantern-room v2
 
-같은 장면에 80명이 들어오는 마당의 relay 입니다. Cloudflare Worker 와 SQLite Durable Object 를 씁니다.
-설계는 `docs/ORIGINAL_MAP_80_PLAYERS.md`, 합격 기준은 `docs/REALTIME_80_ACCEPTANCE.json` 에 있습니다.
+원본 외부 맵(campus)과 기존 법당(hall)에 연결하는 Cloudflare SQLite DO relay입니다.
 
-## 지금 상태
+## 이번 변경과 배포 순서
 
-- 프로토콜·방 로직·단위 시험: 있음. `npm test` 로 돕니다.
-- 배포: **하지 않았습니다.** 이 저장소를 만든 환경에 Cloudflare 자격 증명도 `wrangler` 도 없습니다.
-- 실제 WebSocket 80개 연결 시험: **하지 않았습니다.**
+이 PR의 v2 코드는 아직 Cloudflare에 배포하지 않았습니다. 기존 staging 서버의 v1 시험 결과로 v2가 통과했다고 표현하지 않습니다.
 
-## 명령
+1. 이 브랜치를 받은 실행 환경에서:
+   `cd workers/lantern-room && npm ci && npm test`
+2. `wrangler.example.toml`을 로컬 `wrangler.toml`로 복사합니다. ALLOWED_ORIGINS에는 실제 앱/preview의 정확한 origin을 넣습니다. 토큰은 환경/secret으로만 넣습니다.
+3. `npm run deploy:staging` 후 `/health`가 `mapVersion: campus-v2`를 반환하는지 확인합니다.
+4. 앱 빌드 변수 `VITE_LANTERN_RELAY_URL=wss://lantern-room-staging.feelover7.workers.dev/room?room=campus-v2`를 설정하고 preview를 빌드합니다. 또는 브라우저에서 `hanmaum-deungbul-relay` localStorage에 같은 URL을 저장하고 새로고침합니다.
+5. 앱은 그 설정이 있을 때만 relay를 선택합니다. 설정 없이 기존 Supabase 경로를 사용합니다. `supabase` 또는 `off`로 되돌리면 기존 경로로 롤백합니다. 두 통신을 동시에 구독하지 않습니다.
+6. 전용 `room=load-test`에서 20/40/80명 시험을 순서대로 실행합니다. 행사 방에는 봇을 넣지 않습니다.
 
-```bash
-cd workers/lantern-room
-npm install          # wrangler 가 필요할 때만
-npm test             # 프로토콜·방 로직 단위 시험 (자격 증명 없이 됩니다)
-npm run dev          # 로컬 Worker. wrangler 필요
-npm run deploy:staging   # 계정 권한이 있는 환경에서만
+```sh
+node scripts/ws-load.mjs --n 80 --seconds 120 --url 'wss://lantern-room-staging.feelover7.workers.dev/room?room=load-test' --origin 'http://localhost:5173'
 ```
 
-`wrangler.example.toml` 을 `wrangler.toml` 로 복사하고 `ALLOWED_ORIGINS` 에 정확한 출처를 적습니다.
-비밀값은 `wrangler secret put` 으로 넣고 저장소에 두지 않습니다.
+80명 2시간 시험은 무료 일일 예산을 먼저 확인합니다. 이 도구는 현재 상대 명단을 실제로 유지하고 removed/full을 반영하며 오류가 있으면 exit 1입니다. 서버/client 시계차를 보정하지 않은 지연 값은 별도로 표시합니다. 브라우저 렌더 시험이 아닙니다.
 
-## 설계에서 지킨 것
+## 프로토콜과 상태
 
-- 한 방 80명. 81번째는 `room_full` 로 거절하고 이미 들어온 사람을 밀어내지 않습니다.
-- 끊겨도 45초 동안 `연결 확인 중` 으로 두고, 그 안에 `resumeToken` 으로 돌아오면 같은 사람으로 잇습니다.
-- `setInterval` 을 쓰지 않습니다. 바뀐 상태가 있을 때만 알람을 걸고, 없으면 멈춥니다.
-- 메시지는 UTF-8 4KiB, 글은 200자까지. 바이너리와 모르는 형식은 거절합니다.
-- 좌표·속도·동작은 장면 경계와 최대 속도로 검사하고, 통과하지 못하면 저장하지 않습니다.
-- 같은 epoch 의 역순·중복 seq 는 버립니다. 서버가 재시작하면 epoch 이 바뀌고 기준이 초기화됩니다.
-- 보낼 양이 64KiB 를 넘으면 그 프레임을 버립니다. 큐를 무한히 쌓지 않습니다.
+- client 입력은 UTF-8 4KiB, server 80인 명단은 128KiB 한도입니다. welcome은 roster와 snapshot을 함께 담으므로 더 큽니다.
+- 한 방 80명, 끊긴 참가자 45초 예약 포함. 81번째는 거절합니다. hello 전 연결에도 상한/제한시간이 있습니다.
+- 반복 hello는 새 참가자를 만들지 않습니다. 무작위 UUID resumeToken을 서버 저장소에 보관합니다. Origin 검사는 인증이 아니며 행사 초대 인증은 별도 미구현입니다.
+- 참가자/유예/epoch/seq를 DO storage에 보관하고 blockConcurrencyWhile에서 복원합니다. 기존 socket은 full welcome으로 동기화합니다.
+- 위치 변경이 있을 때만 500ms alarm을 예약합니다. 상태 변경과 퇴장/재접속 복구를 checkpoint합니다. 30초 heartbeat의 full snapshot으로 놓친 delta도 복구합니다.
+- 미지 event/장면 변경/무한 room 생성/잘못된 seq를 거절합니다. 현재는 좌표 경계와 속도 필드 검증이며 실측 지도 충돌·이동 거리 권한 검증 완료를 의미하지 않습니다.
+- DO send의 backpressure API는 런타임별 차이가 있어 실제 Cloudflare에서 재확인합니다. send 실패 후 다음 full snapshot으로 복구하지만 느린 수신자 네트워크 시험은 남아 있습니다.
 
-## 하지 않은 것
+## 검증
 
-- 행사 초대 토큰 발급·검증. 지금은 Origin 검사만 있고, 이것은 인증이 아닙니다.
-- 실제 비용·한도 계측. `docs/` 의 숫자는 계산 예시이지 측정값이 아닙니다.
-
-## 실제 WebSocket 시험
-
-Cloudflare 계정 없이 로컬 workerd 로 돌릴 수 있습니다.
-
-```bash
-npx wrangler dev --env="" --port 8787 --local
-```
-
-```bash
-node scripts/ws-load.mjs --n 80 --seconds 30
-```
-
-실제 세션 80개를 열어 로스터·snapshot 지연·RTT·81번째 거절을 봅니다.
-측정값은 `docs/ORIGINAL_MAP_80_RESULTS.md` 에 있습니다.
-같은 기계 안이라 지연이 실제 인터넷 값이 아닙니다.
+루트에서 `node --test tests/campus-v2.test.mjs tests/relay-client.test.mjs tests/tapdori-camera.test.mjs`로 #18 회귀와 #17 후속 기능을 함께 검사합니다.
+이번 환경은 Node/workerd 실행이 없습니다. 상세 검사 결과는 docs/PR17_FOLLOWUP.md를 확인합니다.
+정식 npm 테스트·Cloudflare 실제 연결·브라우저 연동·2시간 유지·실기기 성능은 별도입니다.

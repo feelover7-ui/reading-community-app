@@ -91,3 +91,7 @@ NOT RUN:
 6. 전용 room=load-test에서 20/40/80 순으로 짧게 시험하고, 무료 일일 예산을 확인한 뒤 2시간 시험한다.
    node scripts/ws-load.mjs --n 80 --seconds 120 --url 'wss://lantern-room-staging.feelover7.workers.dev/room?room=load-test' --origin 'http://localhost:5173'
 7. 실제 브라우저/휴대폰에서 맵/법당/탑돌이와 재접속을 확인한 뒤 운영 relay 설정을 켠다.
+
+## #17 후속 통합
+
+#18 반영 후 남은 안내 걷기·법당 자동 시점·relay 및 배포 시험 보완은 [PR17_FOLLOWUP.md](PR17_FOLLOWUP.md)를 따른다. 기존 #17을 그대로 머지해 이 변경을 덮지 않는다.

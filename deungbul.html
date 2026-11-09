@@ -128,10 +128,11 @@ html,body{overscroll-behavior:none;touch-action:auto}
 .community-tabs{display:flex;gap:6px;margin-bottom:12px}
 .community-tabs .btn{font-size:12px;padding:10px 4px}
 .community-list{max-height:32dvh;overflow:auto;touch-action:pan-y}
+.community-form{margin-top:16px}
 .community-row{border-bottom:1px solid var(--line);padding:10px 0}
 .community-row p{white-space:pre-wrap;overflow-wrap:anywhere}
 #creator{user-select:text;touch-action:pan-y}
-button:focus-visible,#game:focus-visible{outline:3px solid #c8402f;outline-offset:3px}
+#hud h3:focus-visible,button:focus-visible,#game:focus-visible{outline:3px solid #c8402f;outline-offset:3px}
 @media(max-width:640px){#topbtns{left:12px;right:12px;justify-content:flex-end}#minimap{width:144px;height:202px}#connection{font-size:11px}#prompt{max-width:calc(100vw - 24px);white-space:normal;text-align:center}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -145,7 +146,7 @@ button:focus-visible,#game:focus-visible{outline:3px solid #c8402f;outline-offse
 <div id="connection" role="status">공유 연결을 준비하고 있어요.</div><div id="prompt" role="status"></div>
 <div id="wish"></div>
 <div id="ritual" class="panel"><div class="rt" id="rtitle"></div><div id="breath">들숨</div><div class="rc" id="rcount"></div><div class="rcap" id="rcap"></div><div class="bar" id="rbarw"><i id="rbar"></i></div><div class="row"><button id="rspeed">빠르게 ×2.5</button><button class="stop" id="rstop">그만하기</button></div></div>
-<div id="tapdori" class="panel"><svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="21" fill="none" stroke="#eadcc0" stroke-width="6"/><circle id="tapring" cx="26" cy="26" r="21" fill="none" stroke="#c8402f" stroke-width="6" stroke-linecap="round" stroke-dasharray="131.9" stroke-dashoffset="131.9" transform="rotate(-90 26 26)"/></svg><div><div class="tt" id="taptxt">탑돌이 0 / 3바퀴</div><div class="ts">탑을 중심으로 시계 방향으로</div></div><button id="tapstop">멈추기</button></div>
+<div id="tapdori" class="panel"><svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="21" fill="none" stroke="#eadcc0" stroke-width="6"/><circle id="tapring" cx="26" cy="26" r="21" fill="none" stroke="#c8402f" stroke-width="6" stroke-linecap="round" stroke-dasharray="131.9" stroke-dashoffset="131.9" transform="rotate(-90 26 26)"/></svg><div><div class="tt" id="taptxt">탑돌이 0 / 3바퀴</div><div class="ts">탑을 오른쪽에 두고 시계 방향으로</div></div><button id="tapstop">멈추기</button></div>
 <div id="dialog"><div class="name" id="dname"></div><div class="text" id="dtext"></div><div class="next">▼ 계속</div></div>
 <div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" tabindex="-1"></div></div>
 <div id="creator"></div>

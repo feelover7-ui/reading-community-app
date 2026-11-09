@@ -44,7 +44,8 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
       // 유령이 남은 방에서 명단이 80을 넘어갑니다(실측 139).
       if (sessions.size + pending.size >= maxSessions) return { ok: false, reason: 'room_full', waiting: true }
       const id = 'p' + (nextId++)
-      const b = SCENE_BOUNDS[hello.sceneId] || SCENE_BOUNDS.yard
+      const b = SCENE_BOUNDS[hello.sceneId]
+      if(!b)return {ok:false,reason:'bad_scene'}
       const s = {
         id, nickname: hello.nickname, appearance: hello.appearance, sceneId: hello.sceneId,
         x: b.w / 2, z: b.h / 2, vx: 0, vz: 0, yaw: 0, motion: 'stand', at: now(),
@@ -88,7 +89,7 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
     drop (id) {
       const s = sessions.get(id)
       if (!s) return false
-      s.linkState = 'checking'; s.droppedAt = now()
+      s.linkState = 'checking'; s.droppedAt = now(); s.vx = s.vz = 0
       sessions.delete(id); pending.set(id, s); changed.add(id)
       return true
     },
