@@ -67,7 +67,9 @@ PASS:
 - 변경 JS의 문법 검사를 수행했다.
 - 코드 커밋 5f5be928a019b7700a688818233719b529e1b9a8의 Vercel preview가 READY였다.
 - 해당 preview의 deungbul/beopdang/doryang 페이지와 맵/법당 JS 자산은 HTTP 200이었다.
-- 그 뒤의 소규모 정리/테스트/문서 커밋은 해당 preview와 SHA가 다르므로 별도 확인한다.
+- 최종 코드 f5965ad5c1c681096d9b8d89fa1b58fa699d02b3의 Vercel preview도 READY이며 세 페이지 HTTP 200을 다시 확인했다.
+- 구정탑 안내 원(반경 3.6칸)의 360개 표본을 실제 solid 그리드와 몸 두께로 검사해 막힌 표본 0개였다. 법당 복귀점과 작업장 시작점도 걸을 수 있다.
+- 최종 preview: https://goal-windows-codex-mvp-node-js-2-lb3pm0ky8-ami18.vercel.app/deungbul.html
 
 NOT RUN:
 - 로컬 npm run build, Node/workerd 테스트 실행: 사용 가능한 터미널이 없다.
