@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "등불 마당 80명 relay v2. 배포/실측 상태는 검증 문서를 참고합니다.",
   "scripts": {
-    "test": "node --test test/*.test.mjs ../../tests/campus-v2.test.mjs ../../tests/relay-client.test.mjs ../../tests/tapdori-camera.test.mjs",
+    "test": "node --test test/*.test.mjs ../../tests/campus-v2.test.mjs ../../tests/relay-client.test.mjs ../../tests/tapdori-camera.test.mjs ../../tests/anyang-site.test.mjs",
     "dev": "wrangler dev",
     "deploy:staging": "wrangler deploy --env staging"
   },

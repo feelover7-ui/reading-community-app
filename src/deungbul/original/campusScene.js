@@ -1,4 +1,5 @@
 import { CAMPUS_HALL,HALL_DOOR,STATUE_CENTER,STATUE_STAND,OUTDOOR_BUILDINGS,LANDMARK_SOURCES } from '../campusLayout.js'
+import { SITE_BUILDINGS,SITE_POND,SITE_MARKS } from '../anyangSite.js'
 import { buildPagoda,buildStatue } from './outdoorLandmarks.js'
 import { PAGODA_CENTER,GUIDED_RADIUS,advanceGuidedOrbit } from '../tapdori.js'
 /* 원본 HTML 맵 미리보기.
@@ -323,6 +324,15 @@ function enterHall(){
   const run=()=>{closeModal();save();writeStore('hanmaum-deungbul-nick',nick);writeStore('hanmaum-deungbul-sex',state.ap?.gender||'m');location.href='/beopdang.html?from=campus';};
   go.onclick=run;sharedModal.primary=run;m.append(go);
 }
+/* 조감도 범례를 그대로 보여 준다. 들어갈 수 있는 곳은 법당 하나뿐이다. */
+function siteInfo(b){
+  if(tap)stopTap();
+  const title=b.no+'. '+b.name+(b.full&&b.full!==b.name?' ('+b.full+')':'');
+  const m=modalShell(title,b.floors?b.floors+'층':'');
+  m.append(el('p',null,b.desc));
+  m.append(el('p','note','공식 선원 안내도의 범례를 옮긴 설명입니다. 안은 만들지 않았고 들어가 볼 수 있는 곳은 법당 하나입니다.'));
+  const ok=el('button','btn','닫기');ok.onclick=closeModal;sharedModal.primary=closeModal;m.append(ok);
+}
 function exitHall(){if(ritual)return;fadeTo(()=>{player.x=HALL_DOOR.x;player.y=HALL_DOOR.z;player.face=-Math.PI/2;yaw=0;});}
 function hallMenu(){if(ritual||seq)return;const m=modalShell('5층 대법당','가운데 방석에서 무엇을 할까요?');const list=el('div','menu');
   [['예불','칠정례로 부처님께 예를 올려요',doYebul],['법회','대법당 스님의 짧은 법문을 들어요',doBeophoe],['좌선','앉아서 호흡을 바라봐요',pickJwaseon],['삼배','부처님께 큰절 세 번',doSambae],['108배','108번 절하며 마음을 모아요',do108]].forEach(([t,s,fn])=>{const b=el('button');b.append(el('b',null,t),el('span',null,s));b.onclick=()=>{closeModal();fn();};list.append(b);});
@@ -357,6 +367,8 @@ const INTERACT=[
   {x:22,y:44.7,name:'구정탑 · 탑돌이',fn:startTapdori,mark:[22,7.6,41],key:'tower'},
   {x:STATUE_STAND.x,y:STATUE_STAND.z,name:'대행선사 동상 · 서서 삼배',fn:statueBow,mark:[STATUE_CENTER.x,3.9,STATUE_CENTER.z],key:'statue'},
   {x:HALL_DOOR.x,y:HALL_DOOR.z,name:'법당 · 5층 대법당 들어가기',fn:enterHall,mark:[CAMPUS_HALL.x,3.4,HALL_DOOR.z],key:'hallDoor'},
+  ...SITE_BUILDINGS.filter(b=>!b.enter).map(b=>({x:b.x+b.w/2,y:b.z+b.d+.6,name:b.name+' · 살펴보기',
+    fn:()=>siteInfo(b),mark:[b.x+b.w/2,Math.max(3,b.floors*2.5+1.3),b.z+b.d-.4],key:'site-'+b.id})),
   {x:114,y:9.9,name:'가운데 방석 · 참배하기',fn:hallMenu,mark:[114,1.6,9.9],key:'cushion'},
   {x:114,y:19.35,name:'나가기 · 본관 앞마당',fn:exitHall,mark:[114,3,19.9],key:'hallExit'}];
 function nearest(){let best=null,bd=1.25;for(const it of INTERACT){const d=Math.hypot(it.x-player.x,it.y-player.y);if(d<bd){bd=d;best=it;}}return best;}
@@ -590,6 +602,37 @@ function init3D(){
     box(1.4,.16,4.6,'#8a7a66',x-.6,2.75,HALL_DOOR.z);
     const name=textPlane('법당',3.6,.6);name.position.set(x-.12,3.35,HALL_DOOR.z);name.rotation.y=-Math.PI/2;
   }));
+
+  /* 조감도의 나머지 건물. 들어가지는 못하고 둘러보기만 합니다.
+     자리 근거는 anyangSite.js 에 적혀 있습니다. */
+  addFadeGroup(captured(()=>{
+    for(const b of SITE_BUILDINGS){
+      if(b.enter)continue;
+      const cx=b.x+b.w/2,cz=b.z+b.d/2,h=Math.max(2.6,b.floors*2.5+.5);
+      if(b.kind==='hanok'){
+        building(b.x,b.z,b.x+b.w,b.z+b.d,h-1.6,{base:'#e6d8bd',floors:Math.max(1,b.floors-1),roof:'#cdbfa4'});
+        hanok(cx,cz,b.w-1.6,b.d-1.4,{y0:h-1.6,baseH:.2,wallH:1.3,roofH:1.5,wall:'#f3e6c8',roof:b.roof});
+      }else{
+        building(b.x,b.z,b.x+b.w,b.z+b.d,h,{base:'#e8dcc6',floors:b.floors,roof:b.roof});
+      }
+      const sign=textPlane(b.name,Math.min(b.w*.8,4.4),.62);
+      sign.position.set(cx,h+.75,b.z+b.d+.06);
+    }
+    /* 칠보탑(7). 공식 안내도에서 본관 지붕 위 상징입니다. */
+    const {x:hx,z:hz,w:hw,d:hd}=CAMPUS_HALL,tx=hx+hw/2,tz=hz+hd/2;
+    mesh(new THREE.CylinderGeometry(.5,.7,.5,10),M('#cdbfa4'),tx,9.3,tz);
+    for(let i=0;i<5;i++)mesh(new THREE.SphereGeometry(.42-i*.055,12,10),M('#d9a531'),tx,9.9+i*.62,tz);
+    mesh(new THREE.ConeGeometry(.2,.7,10),M('#d9a531'),tx,13.3,tz);
+    /* 연못(조감도 가운데). 물은 건너가지 못합니다. */
+    const pw=SITE_POND.w,pd=SITE_POND.d;
+    const water=mesh(new THREE.PlaneGeometry(pw-.4,pd-.4),M('#5d7f93',{transparent:true,opacity:.86}),SITE_POND.x+pw/2,.08,SITE_POND.z+pd/2);
+    water.rotation.x=-Math.PI/2;
+    box(pw,.22,.3,'#9c9388',SITE_POND.x+pw/2,.11,SITE_POND.z+.15);
+    box(pw,.22,.3,'#9c9388',SITE_POND.x+pw/2,.11,SITE_POND.z+pd-.15);
+    box(.3,.22,pd,'#9c9388',SITE_POND.x+.15,.11,SITE_POND.z+pd/2);
+    box(.3,.22,pd,'#9c9388',SITE_POND.x+pw-.15,.11,SITE_POND.z+pd/2);
+    const pondName=textPlane('연못',2.2,.5);pondName.position.set(SITE_POND.x+pw/2,1.1,SITE_POND.z+pd+.3);
+  }));
   // 공식 안내에 맞춰 아홉 개의 둥근 구로 바꾼다.
   const pagodaModel=buildPagoda({scene,M,mesh});
   const pagodaGoldM=pagodaModel.accentMaterial;
@@ -680,7 +723,10 @@ function init3D(){
     Object.entries(BLD).forEach(([k,r])=>{if(k!=='pit')R(r[0],r[1],r[2],r[3],'#6b5446');});R(15,17,6,3,'#c8402f');R(16,25,4,1,'#cdc1a5');R(16,12,4,1,'#b8854a');
     g.strokeStyle='#a8997a';g.lineWidth=.35;g.beginPath();g.arc(PAGODA.x,PAGODA.z,3.4,0,Math.PI*2);g.stroke();g.fillStyle='#3e4248';g.beginPath();g.arc(PAGODA.x,PAGODA.z,1,0,Math.PI*2);g.fill();
     g.fillStyle='#8c6a3c';g.beginPath();g.arc(8,32,.9,0,Math.PI*2);g.fill();g.fillStyle='#d9a531';g.fillRect(CAMPUS_HALL.x-.4,HALL_DOOR.z-1.2,.5,2.4);
-    g.fillStyle='#fff';g.font='bold 2.2px sans-serif';g.textAlign='center';[['등불사장',18,7.5],['법당',CAMPUS_HALL.x+CAMPUS_HALL.w/2,CAMPUS_HALL.z+CAMPUS_HALL.d/2],['구정탑',PAGODA.x,PAGODA.z+2],['동상',STATUE_CENTER.x,STATUE_CENTER.z+2]].forEach(([t,x,y])=>g.fillText(t,x,y));}
+    g.fillStyle='#4e6f8a';g.fillRect(SITE_POND.x,SITE_POND.z,SITE_POND.w,SITE_POND.d);
+    g.fillStyle='#fff';g.font='bold 2.2px sans-serif';g.textAlign='center';[['등불사장',18,7.5],['구정탑',PAGODA.x,PAGODA.z+2],['동상',STATUE_CENTER.x,STATUE_CENTER.z+2]].forEach(([t,x,y])=>g.fillText(t,x,y));
+    g.font='bold 1.9px sans-serif';SITE_BUILDINGS.forEach(b=>g.fillText(b.name,b.x+b.w/2,b.z+b.d/2+.7));
+    g.font='bold 1.6px sans-serif';g.fillStyle='#f0e6d0';SITE_MARKS.forEach(m=>g.fillText(m.name,m.x,m.z));}
   {const c=mmBg.hall;c.width=240;c.height=336;const g=c.getContext('2d');g.fillStyle='#3a2a20';g.fillRect(0,0,240,336);g.save();g.translate(12,70);const s=12;g.scale(s,s);g.translate(-105,-5);g.fillStyle='#a9743f';g.fillRect(105,5,18,15);g.fillStyle='#6e2a1f';g.fillRect(107,5,14,2);g.fillStyle='#d9a531';g.fillRect(113.55,9.45,.9,.9);g.fillStyle='#9a2f22';[[107,9],[107,13],[107,17],[120,9],[120,13],[120,17]].forEach(([x,y])=>g.fillRect(x+.2,y+.2,.6,.6));g.fillStyle='#efe2c4';g.fillRect(113,20,2,.6);g.restore();g.fillStyle='#f3dc9a';g.font='bold 18px "Gowun Batang",serif';g.textAlign='center';g.fillText('5층 대법당',120,44);}
   function drawMinimap(){if(mmEl.classList.contains('hide'))return;const h=inHall();mm.drawImage(h?mmBg.hall:mmBg.out,0,0);const tf=h?(x,z)=>[12+(x-105)*12,70+(z-5)*12]:(x,z)=>[x*4.8,z*4.8];
     const tk=targetKey();const it=tk&&INTERACT.find(i=>i.key===tk);if(it&&((it.x>100)===h)){const[a,b]=tf(it.mark[0],it.mark[2]);mm.fillStyle='#f2c037';mm.strokeStyle='#5a3b26';mm.lineWidth=2;mm.beginPath();mm.arc(a,b,6,0,Math.PI*2);mm.fill();mm.stroke();}
