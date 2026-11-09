@@ -2,6 +2,7 @@
    2D 때와 같은 타일 좌표(beopdangData)를 받아 안쪽을 세웁니다.
    공식 안내의 내부 사진을 보고 특징만 줄여 직접 만들었습니다. 사진을 복제하지 않습니다. */
 import { THREE, hash3, makePerson, createPeerLayer, PEER_LAYER_DEFAULTS } from './three3d.js'
+import {buildSanctuary,ceilingDecoration} from './hallSanctuary.js'
 import { W, H, structures, cushions, MAT, DOOR, spots } from './beopdangData.js'
 
 function woodTexture (world) {
@@ -19,12 +20,12 @@ function matTexture (world) {
   return world.canvasTex(256, 256, g => {
     g.fillStyle = '#cfccc0'; g.fillRect(0, 0, 256, 256)
     g.strokeStyle = 'rgba(150,148,138,.5)'; g.lineWidth = 2
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       g.beginPath(); g.ellipse(40 + i * 38, 60 + (i % 3) * 70, 44, 16, 0, 0, 7); g.stroke()
     }
   })
 }
-const DANCHEONG = ['#2f6f4f', '#c8402f', '#2b5fa5', '#f2c037']
+const DANCHEONG = ['#326b58', '#ac4938', '#365d78', '#d1ad61', '#e5ddc5']
 
 export function buildHall (world) {
   const { scene, M, mesh, box, textPlane } = world
@@ -53,7 +54,7 @@ export function buildHall (world) {
   const wallParts = []
   const wall = (x0, z0, x1, z1) => {
     const w = x1 - x0, d = z1 - z0
-    const m = box(w, 3.6, d, M('#5e3c25', { transparent: true }), x0 + w / 2, 1.8, z0 + d / 2)
+    const m = box(w, 3.6, d, M('#c1ad8f', { transparent: true }), x0 + w / 2, 1.8, z0 + d / 2)
     const cap = box(w + .1, .2, d + .1, M('#4a2f1d', { transparent: true }), x0 + w / 2, 3.72, z0 + d / 2)
     world.addFade(m); m.userData.attach.push(cap)
     const axis = w < d ? 'x' : 'z'
@@ -92,6 +93,12 @@ export function buildHall (world) {
     onWall(box(.1, 1.1, 1.2, M('#cfe0e4', { transparent: true }), W - 1.02, 1.9, z), 'x', W - 1.02)
   }
 
+  // 창살은 벽의 소실 처리에 같이 등록한다.
+  for(const x of[1.1,W-1.1])for(const z of[6,9,12,15]){
+    for(let i=-2;i<=2;i++)onWall(box(.07,1.1,.035,M('#6b5034',{transparent:true}),x,1.9,z+i*.22),'x',x)
+    for(const y of[1.55,1.9,2.25])onWall(box(.07,.035,1.2,M('#6b5034',{transparent:true}),x,y,z),'x',x)
+  }
+
   /* 좌복 */
   const cushionTop = M('#9b4a43'), cushionSide = M('#7d3b36'), cushionLine = M('#d9a531')
   for (const c of cushions) {
@@ -104,47 +111,7 @@ export function buildHall (world) {
   for (const s of structures) {
     const cx = s.x + s.w / 2, cz = s.y + s.h / 2, w = s.w, d = s.h
     if (s.kind === 'mokthaeng') {
-      // 보는 쪽은 z 가 큰 남쪽이다. 벽보다 z 가 작으면 벽 뒤로 숨는다.
-      const front = s.y + d            // 벽의 앞면
-      // 금빛 목탱화 벽
-      box(w, 4.2, .6, M('#b8862c'), cx, 2.1, front - .3)
-      box(w - .6, 3.6, .2, M('#d2a03c'), cx, 2.05, front + .02)
-      // 좌우 바퀴 무늬 판
-      for (const px of [s.x + w * .16, s.x + w * .84]) {
-        box(2.6, 2.4, .12, M('#c0902f'), px, 2.2, front + .1)
-        const ring = mesh(new THREE.TorusGeometry(.8, .07, 8, 20), M('#8d6620'), px, 2.2, front + .18)
-        for (let i = 0; i < 8; i++) {
-          const a = i * Math.PI / 4
-          const sp = box(1.5, .1, .08, M('#8d6620'), px, 2.2, front + .18)
-          sp.rotation.z = a
-        }
-        void ring
-      }
-      // 작은 불상들
-      for (let r = 0; r < 3; r++) for (let i = 0; i < 8; i++) {
-        const px = s.x + w * .33 + i * (w * .34 / 7)
-        mesh(new THREE.SphereGeometry(.16, 10, 8), M('#d9b14a'), px, 1.3 + r * .8, front + .14)
-      }
-      // 본존 뒤 어두운 감실
-      box(3.4, 3.4, .16, M('#5c3a14'), cx, 1.9, front + .14)
-      box(3, 3, .1, M('#7a4e1c'), cx, 1.9, front + .22)
-      // 석가모니 부처님. 수미단 위에 모신다.
-      const by = front + .8, bh = 1.22
-      mesh(new THREE.CylinderGeometry(1.25, 1.05, .5, 18), M('#c99528'), cx, bh + .25, by)
-      for (let i = 0; i < 9; i++) {
-        const a = i / 9 * Math.PI * 2
-        mesh(new THREE.SphereGeometry(.22, 10, 8), M('#f0cf6a'), cx + Math.cos(a) * 1.15, bh + .5, by + Math.sin(a) * 1.15)
-      }
-      mesh(new THREE.CylinderGeometry(.5, .95, 1.5, 18), M('#ffe08f'), cx, bh + 1.25, by)
-      mesh(new THREE.SphereGeometry(.45, 18, 14), M('#ffeaa6'), cx, bh + 2.2, by)
-      mesh(new THREE.SphereGeometry(.47, 18, 10, 0, Math.PI * 2, 0, Math.PI * .55), M('#4a3a1c'), cx, bh + 2.24, by)
-      mesh(new THREE.SphereGeometry(.18, 10, 8), M('#4a3a1c'), cx, bh + 2.64, by)
-      const halo = mesh(new THREE.TorusGeometry(.85, .07, 8, 24), M('#f6dc8e', { emissive: '#8a6a1a', emissiveIntensity: .5 }), cx, bh + 2.15, by - .45)
-      halo.castShadow = false
-      // 닫집. 부처님 위에 덮는다.
-      const canopy = box(5.4, .3, 1.6, M('#3d4b5c'), cx, 4.25, by)
-      canopy.castShadow = true
-      for (let i = 0; i < 5; i++) box(.9, .18, .1, M(DANCHEONG[i % 4]), cx - 1.8 + i * .9, 4.05, by + .78)
+      buildSanctuary(world,{cx,front:s.y+d,width:w})
     } else if (s.kind === 'sumidan') {
       box(w, 1.1, d, M('#a9762f'), cx, .55, cz)
       box(w - .4, .8, d - .3, M('#c08c38'), cx, .55, cz - .06)
@@ -176,13 +143,16 @@ export function buildHall (world) {
 
   /* 천장. 카메라가 천장보다 높아지면 통째로 옅어진다(ceilParts). */
   const ceilParts = []
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W - 2, H - 2), M('#6b4630', { side: THREE.DoubleSide, transparent: true }))
-  ceil.rotation.x = Math.PI / 2
-  ceil.position.set(W / 2, 4.6, H / 2)
-  scene.add(ceil)
+  const ceil = ceilingDecoration(world,W,H)
   ceilParts.push(ceil)
   for (let i = 1; i < 6; i++) {
-    ceilParts.push(box(W - 2, .22, .3, M('#4a2f1d', { transparent: true }), W / 2, 4.42, 2 + i * 3))
+    ceilParts.push(box(W - 2, .22, .3, M('#4a2f1d', { transparent: true }), W / 2, 4.42, 3 + i * 3))
+  }
+  // 평반자 가장자리를 보로 연결하는 빗반자. 실제 경사/치수는 실측값이 아니다.
+  for(const side of[-1,1]){
+    const panel=box(1.45,.09,H-2,M('#477363',{transparent:true}),side<0?1.65:W-1.65,4.25,H/2)
+    panel.rotation.z=side*.45;ceilParts.push(panel)
+    for(const z of[6,9,12,15])ceilParts.push(box(.09,.16,1.4,M('#c1a568',{transparent:true}),side<0?1.15:W-1.15,3.65,z))
   }
   const CEIL_Y = 4.3
 

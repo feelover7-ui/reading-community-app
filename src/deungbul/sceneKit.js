@@ -1,3 +1,4 @@
+export {bindJoystick,createChat,releaseFocus} from './touchControls.js'
 /* 등불사장 바깥 화면(도량·대법당)이 함께 쓰는 공용 부품.
    칸 크기·걷는 속도·화면 배율은 등불사장(game.js)과 같은 값을 쓴다.
    한쪽을 고치면 다른 쪽도 같이 봐야 느낌이 어긋나지 않는다. */
@@ -94,32 +95,6 @@ export function bindKeys ({ onAction, onEscape, isModalOpen, onModalAction, onEn
 }
 
 /* ---------- 조이스틱 ---------- */
-export function bindJoystick (joyEl) {
-  const knob = joyEl.querySelector('i')
-  const joy = { x: 0, y: 0, id: null }
-  joy.reset = () => { joy.id = null; joy.x = 0; joy.y = 0; knob.style.transform = '' }
-  const move = e => {
-    const r = joyEl.getBoundingClientRect()
-    let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2)
-    const max = r.width / 2 - 10, l = Math.hypot(dx, dy)
-    if (l > max) { dx *= max / l; dy *= max / l }
-    knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)'
-    const nx = dx / max, ny = dy / max
-    if (Math.hypot(nx, ny) < .18) { joy.x = 0; joy.y = 0 } else { joy.x = nx; joy.y = ny }
-  }
-  joyEl.addEventListener('pointerdown', e => {
-    e.preventDefault(); joy.id = e.pointerId
-    try { joyEl.setPointerCapture(e.pointerId) } catch (_) {}
-    move(e)
-  })
-  joyEl.addEventListener('pointermove', e => { if (joy.id === e.pointerId) move(e) })
-  const end = e => { if (joy.id === e.pointerId) joy.reset() }
-  joyEl.addEventListener('pointerup', end)
-  joyEl.addEventListener('pointercancel', end)
-  joyEl.addEventListener('lostpointercapture', end)
-  return joy
-}
-
 /* ---------- 걷기 ---------- */
 /* 눌러 둔 방향과 조이스틱을 합쳐 한 걸음 옮긴다. 벽은 축마다 따로 본다. */
 export function stepPlayer (player, keys, joy, dt, canStand, frozen, rotate) {
@@ -419,71 +394,6 @@ export const wrapLines = (s, n) => {
 
 /* ---------- 한 줄 이야기 ----------
    말풍선은 broadcast 로만 주고받고 DB 에 저장하지 않는다. */
-export function createChat ({ bar, log, input, sendBtn, toggleBtn, send, onOpenChange }) {
-  const lines = []
-  let open = false, sending = false
-  function draw () {
-    if (!log) return
-    if (!lines.length) { log.classList.remove('show'); log.innerHTML = ''; return }
-    log.classList.add('show'); log.innerHTML = ''
-    for (const l of lines.slice(-5)) {
-      const d = document.createElement('div')
-      if (l.mine) d.className = 'mine'
-      const b = document.createElement('b'); b.textContent = (l.nick || '법우').slice(0, 12)
-      d.append(b, document.createTextNode(l.text))
-      log.append(d)
-    }
-  }
-  const api = {
-    get isOpen () { return open },
-    push (nick, text, mine) {
-      const t = String(text || '').slice(0, 200)
-      if (!t) return
-      lines.push({ nick, text: t, mine })
-      if (lines.length > 30) lines.shift()
-      draw()
-    },
-    show () {
-      if (open) return
-      open = true; bar.classList.add('show')
-      try { input.focus() } catch (e) {}
-      onOpenChange && onOpenChange(true)
-    },
-    hide () {
-      if (!open) return
-      open = false; bar.classList.remove('show')
-      try { input.blur() } catch (e) {}
-      onOpenChange && onOpenChange(false)
-    },
-    toggle () { open ? api.hide() : api.show() }
-  }
-  function submit () {
-    if (sending) return
-    const text = (input.value || '').trim().slice(0, 200)
-    if (!text) { api.hide(); return }
-    sending = true
-    try { send(text) } finally { sending = false }
-    input.value = ''
-    api.hide()
-  }
-  input.addEventListener('keydown', e => {
-    if (e.isComposing || e.keyCode === 229) return
-    if (e.key === 'Enter') { e.preventDefault(); submit() }
-    else if (e.key === 'Escape') { e.preventDefault(); api.hide() }
-  })
-  if (sendBtn) sendBtn.addEventListener('click', submit)
-  if (toggleBtn) toggleBtn.addEventListener('click', () => api.toggle())
-  return api
-}
-
 /* ---------- 버튼을 누른 뒤 초점 되돌리기 ----------
    마우스·손가락으로 누른 뒤 초점이 버튼에 남으면 다음 Space 가 그 버튼을
    다시 누른다. 키보드(Enter)로 누른 경우는 초점을 그대로 둔다. */
-export function releaseFocus (node, back) {
-  if (!node) return
-  node.addEventListener('click', e => {
-    if (!e.detail) return                 // 키보드로 누른 경우
-    try { node.blur() } catch (err) {}
-    if (back) { try { back.focus({ preventScroll: true }) } catch (err) {} }
-  })
-}

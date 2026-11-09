@@ -3,7 +3,13 @@
 import * as THREE from 'three'
 import {PAGODA_CENTER} from '../tapdori.js'
 import {STATUE_CENTER} from '../campusLayout.js'
-export const PAGODA_SPHERES=Object.freeze([.62,.58,.54,.50,.46,.42,.38,.34,.30])
+// 아래→위 지름 비율. 개별 실측값은 공개 안내에 없어 시각 검토용 시안으로 관리한다.
+export const PAGODA_DIAMETER_RATIOS=Object.freeze([1,.82,.68,.56,.46,.38,.31,.25,.20])
+export const PAGODA_REFERENCE_HEIGHT=9.6
+export const PAGODA_BASE_HEIGHT=1.32
+const ratioSum=PAGODA_DIAMETER_RATIOS.reduce((sum,r)=>sum+r,0)
+export const PAGODA_SPHERES=Object.freeze(PAGODA_DIAMETER_RATIOS.map(r=>
+  r*(PAGODA_REFERENCE_HEIGHT-PAGODA_BASE_HEIGHT)/(2*ratioSum)))
 export function buildPagoda({scene,M,mesh}){
   const group=new THREE.Group();group.position.set(PAGODA_CENTER.x,0,PAGODA_CENTER.z);group.scale.setScalar(.65);scene.add(group)
   const stone=M('#edece4'),dark=M('#73756e'),purple=M('#73505a'),green=M('#648170')
@@ -17,12 +23,12 @@ export function buildPagoda({scene,M,mesh}){
     p.scale.set(1.15,.4,1.7);p.rotation.y=-a
   }
   mesh(new THREE.CylinderGeometry(.78,.95,.24,16),accent,0,1.2,0,group)
-  let y=1.32
-  for(const radius of PAGODA_SPHERES){
+  let y=PAGODA_BASE_HEIGHT
+  for(const [index,radius] of PAGODA_SPHERES.entries()){
     const ball=mesh(new THREE.SphereGeometry(radius,20,14),stone,0,y+radius,0,group)
-    ball.userData.kind='gujeong-sphere';y+=radius*2
+    ball.userData.kind='gujeong-sphere';ball.userData.level=index+1;ball.userData.referenceDiameter=radius*2;y+=radius*2
   }
-  group.userData.sphereCount=PAGODA_SPHERES.length;group.userData.referenceHeight=9.6
+  group.userData.sphereCount=PAGODA_SPHERES.length;group.userData.referenceHeight=PAGODA_REFERENCE_HEIGHT;group.userData.diameterRatios=[...PAGODA_DIAMETER_RATIOS]
   return{group,accentMaterial:accent}
 }
 export function buildStatue({scene,M,mesh,box}){
