@@ -23,4 +23,4 @@ class_name = "LanternRoom"
 
 [env.staging.vars]
 # 쉼표로 구분한 정확한 출처만 적습니다. 와일드카드는 쓰지 않습니다.
-ALLOWED_ORIGINS = "https://example-staging.vercel.app"
+ALLOWED_ORIGINS = "https://goal-windows-codex-mvp-node-js-2.vercel.app,http://localhost:5173"

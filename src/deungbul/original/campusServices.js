@@ -36,12 +36,12 @@ export function createCampusCommunity({shell,el,getNick,say}){
     }
     const note=el('p','sub','불러오는 중…'),list=el('div','community-list');
     panel.append(nav,note,list);
-    const valid=()=>gen===generation&&panel.contains(list);
+    const valid=()=>gen===generation&&panel.isConnected&&panel.contains(list);
     (kind==='posts'?fetchPosts(30):fetchMessages(40)).then(rows=>{
       if(!valid())return;note.textContent=rows.length?'':'아직 글이 없어요.';rows.forEach(add);
     }).catch(()=>{if(valid())note.textContent='글을 불러오지 못했어요.'});
-    const form=el('form'),body=el('textarea'),result=el('p','sub'),go=el('button','btn','남기기');
-    result.setAttribute('role','status');body.maxLength=kind==='posts'?500:200;body.setAttribute('aria-label','글 내용');
+    const form=el('form','community-form'),body=el('textarea'),result=el('p','sub'),go=el('button','btn','남기기');
+    result.setAttribute('role','status');body.maxLength=kind==='posts'?500:200;body.setAttribute('aria-label',kind==='posts'?'방명록 내용':'대화 내용');
     let pw;form.append(body);
     if(kind==='posts'){pw=el('input');pw.type='password';pw.minLength=4;pw.maxLength=20;pw.required=true;pw.placeholder='삭제용 비밀번호 4~20자';pw.setAttribute('aria-label',pw.placeholder);form.append(pw)}
     go.type='submit';form.append(go,result);panel.append(form);let busy=false;

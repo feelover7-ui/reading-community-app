@@ -246,3 +246,11 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - presence.js가 relay 어댑터를 실제로 선택합니다. 수정 Worker를 배포한 뒤 VITE_LANTERN_RELAY_URL 또는 hanmaum-deungbul-relay에 URL을 지정합니다. 설정 전 기본 Supabase 경로를 유지하며 두 통신을 동시에 구독하지 않습니다.
 - client 입력 4KiB와 server 80인 명단 128KiB를 분리합니다. 전체 snapshot 교체/seq gate, 무작위 resumeToken, DO 저장 복원/hello 중복 방지를 유지합니다. 이전 staging 시험 결과를 새 코드 시험 결과로 표현하지 않습니다.
 - 이번 상세 변경/검증/미실행 항목은 docs/CAMPUS_V2_REVIEW.md에 기록합니다. PR 본문은 사용자 요청대로 "검증 못 했음"만 씁니다. 독서 홈페이지는 수정하지 않습니다.
+
+## #18 반영 뒤 #17 후속 통합
+
+- #17 원본 브랜치를 그대로 머지해 #18을 덮지 않습니다. 최신 main에 남은 기능만 이식하며 docs/PR17_FOLLOWUP.md에 대응 관계를 기록합니다.
+- 구정탑의 유일한 중심은 tapdori.js의 PAGODA_CENTER입니다. 안내 걷기는 반경4에서 이동하며 orbitProgress.js의 시간/거리/역방향 검사를 그대로 통과해야 합니다. 직접 키/조이스틱 입력 시 안내를 끄고 직접 걷기로 전환합니다.
+- 법당 기본 자동 시점은 hallCamera.js에서 가로/세로 FOV로 캐릭터와 불단을 함께 담습니다. Q/R·끌기·휠은 자유 시점으로, 🧭는 자동 구도로 돌아갑니다. #18의 자유 시점 높이/최소 거리, 법당 내부 모델은 유지합니다.
+- 기존 접근성·WebGL 복구 안내·접속 인원수·저장 키·서버 gate 저장 스키마와 tests/campus-v2.test.mjs는 유지합니다.
+- worker의 npm test는 기존 테스트와 루트의 campus-v2/relay-client/tapdori-camera 테스트를 함께 실행합니다. 이전 v1/v2의 실측을 후속 코드의 검증으로 표현하지 않습니다.

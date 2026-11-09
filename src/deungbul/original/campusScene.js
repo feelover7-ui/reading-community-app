@@ -1,3 +1,4 @@
+import { PAGODA_CENTER,GUIDED_RADIUS,advanceGuidedOrbit } from '../tapdori.js'
 /* 원본 HTML 맵 미리보기.
 
    출처: https://hanmaum-lantern-3d-ami18.vercel.app/
@@ -109,7 +110,7 @@ const CTREES=[[2,27],[12,27],[2,38],[12,38],[14,28],[35,44],[47,44],[47,66],[21,
 CTREES.forEach(([x,y])=>block(x,y,1,1));
 // hall
 [[107,9],[107,13],[107,17],[120,9],[120,13],[120,17]].forEach(([x,y])=>block(x,y,1,1));block(107,5,14,2);block(121,8,2,2);
-const PAGODA={x:22,z:41};
+const PAGODA=PAGODA_CENTER;
 
 /* ================= ropes, lanterns, state ================= */
 const ROPES=[{z:14.25,x0:2.6,x1:13.4},{z:14.25,x0:22.6,x1:33.4},{z:23.2,x0:4,x1:32}];
@@ -286,10 +287,22 @@ function updTapUI(){
 }
 function startTapdori(){
   if(ritual||seq)return;
-  if(tap){say('구정탑',['탑을 중심으로 안내 원을 따라 시계 방향으로 돌아요.']);return;}
-  say('구정탑 탑돌이',['구정탑을 오른쪽에 두고 시계 방향으로 세 바퀴 걸어요.','탑 중심의 각도로 셉니다. 제자리 회전이나 같은 길 왕복은 바퀴로 세지 않아요.'],()=>{
-    tap={orbit:createOrbitProgress({x:PAGODA.x,z:PAGODA.z}),wrong:0};tapEl.style.display='flex';updTapUI();
-  });
+  if(tap){say('구정탑',['구정탑을 중심으로 시계 방향으로 돌아요.']);return}
+  const m=modalShell('구정탑 탑돌이','탑을 오른쪽에 두고 세 바퀴 돌아요. 안내 걷기나 직접 걷기를 고를 수 있어요.');
+  const begin=guided=>{
+    closeModal();tap={orbit:createOrbitProgress({x:PAGODA.x,z:PAGODA.z}),wrong:0,guided,angle:Math.atan2(player.y-PAGODA.z,player.x-PAGODA.x)};
+    tap.orbit.sample(player.x,player.y,performance.now());tapEl.style.display='flex';updTapUI();
+    toast(guided?'탑을 따라 걷습니다. 방향키나 조이스틱을 움직이면 직접 걸어요.':'노란 안내 원을 따라 시계 방향으로 걸어요.');
+  };
+  const guided=el('button','btn','탑을 따라 세 바퀴 걷기'),manual=el('button','btn ghost','직접 걸어서 탑돌이');
+  guided.onclick=()=>begin(true);manual.onclick=()=>begin(false);sharedModal.primary=()=>begin(true);m.append(guided,manual);
+}
+function guideTap(dt,canStand){
+  if(!tap?.guided||dialog||modalOpen||creatorOpen||ritual||seq)return;
+  const next=advanceGuidedOrbit({x:player.x,z:player.y,angle:tap.angle,dt,canStand});
+  if(next.blocked){tap.guided=false;toast('앞이 막혀 직접 걸어서 이어갑니다.');return}
+  player.x=next.x;player.y=next.z;tap.angle=next.angle;
+  if(next.moving){player.face=next.face;player.moving=true;player.walk+=dt}
 }
 function stopTap(msg){tap=null;tapEl.style.display='none';if(msg)toast(msg);}
 document.getElementById('tapstop').onclick=()=>stopTap('탑돌이를 멈췄어요');
@@ -652,7 +665,7 @@ function init3D(){
   const labels=NPCS.map(n=>{const d=el('div','label3d',n.name);document.body.append(d);return d;});
   const LANDMARKS=[['등불사장',18,3.4,6],['원당',29,5,31],['별관',42,6,32.5],['자료관',44.5,6.4,40],['구정탑',22,8.6,41],['대행선사 동상',8,4.4,32],['어린이법당',10,1.2,47.5],['심주관',6,4,60.5],['법당 · 5층 대법당',33.5,12.4,58],['요사채',46.5,6.2,56.5]].map(([n,x,y,z])=>{const d=el('div','label3d lm',n);document.body.append(d);return{n,x,y,z,d};});
   const remoteLayer=createPeerLayer({scene,camera,M,mesh,box},{bowing:true,radius:Infinity});
-  const orbitGuide=new THREE.Mesh(new THREE.RingGeometry(3.55,3.63,96),M('#d9a531',{transparent:true,opacity:.65,side:THREE.DoubleSide,depthWrite:false}));
+  const orbitGuide=new THREE.Mesh(new THREE.RingGeometry(GUIDED_RADIUS-.04,GUIDED_RADIUS+.04,96),M('#d9a531',{transparent:true,opacity:.65,side:THREE.DoubleSide,depthWrite:false}));
   orbitGuide.rotation.x=-Math.PI/2;orbitGuide.position.set(PAGODA.x,.025,PAGODA.z);orbitGuide.visible=false;scene.add(orbitGuide);
   let carry=null;
   function updateCarry(){if(carry){scene.remove(carry);carry.material.dispose();carry=null;}if(state.stage>=1){carry=lanternSprite(state.craft,{lit:state.stage>=4,paper:state.stage>=2?1:0},.75);scene.add(carry);}}
@@ -671,7 +684,7 @@ function init3D(){
     stoneFires.forEach(f=>{if(f.isSprite)f.visible=n;else{f.material.emissive.set(n?'#ffb050':'#000000');f.material.color.set(n?'#ffd36b':'#5a554e');}});
     lampGlows.forEach(g=>g.material.opacity=n?.6:.35);
     stringLanterns.forEach(s=>{s.sp.material.map=lanternTex(s.L,{lit:n});s.sp.material.needsUpdate=true;s.g.visible=n;});
-    rebuildHung();updateCarry();};
+    rebuildHung();updateCarry();pruneTextures();};
   onChanged=()=>{rebuildHung();updateCarry();pruneTextures();};
   rebuildHung();updateCarry();
 
@@ -699,8 +712,9 @@ function init3D(){
     if(keys.has('q'))yaw+=dt*1.6;if(keys.has('r'))yaw-=dt*1.6;
     let mx=0,my=0;const busy=dialog||modalOpen||ritual||seq||creatorOpen;
     if(started&&!busy){if(keys.has('arrowleft')||keys.has('a'))mx-=1;if(keys.has('arrowright')||keys.has('d'))mx+=1;if(keys.has('arrowup')||keys.has('w'))my-=1;if(keys.has('arrowdown')||keys.has('s'))my+=1;mx+=joy.x;my+=joy.y;}
-    const l=Math.hypot(mx,my);if(l>1){mx/=l;my/=l;}player.moving=l>.05;
+    const l=Math.hypot(mx,my);if(tap?.guided&&l>.15){tap.guided=false;toast('직접 걸어서 탑돌이를 이어갑니다.');}if(l>1){mx/=l;my/=l;}player.moving=l>.05;
     if(player.moving){const dx=mx*Math.cos(yaw)+my*Math.sin(yaw),dz=-mx*Math.sin(yaw)+my*Math.cos(yaw);const sp=(tap?2.8:4.3)*dt;const nx=player.x+dx*sp,ny=player.y+dz*sp;if(canStand(nx,player.y))player.x=nx;if(canStand(player.x,ny))player.y=ny;player.walk+=dt;player.face=angLerp(player.face,Math.atan2(dx,dz),Math.min(1,dt*12));}
+    guideTap(dt,canStand);
     if(seq)stepSeq(dt);else{const tg=tap?POSE.hap:POSE.stand;player.pose=lerpPose(player.pose,tg,Math.min(1,dt*8));}
     if(ritual&&ritual.update)ritual.update(dt);
     updateTap();
@@ -726,10 +740,10 @@ function init3D(){
       fadeGroups.forEach(g=>{const tg=(gh.has(g)||g.box.containsPoint(camera.position))?.15:1;if(Math.abs(tg-g.op)<.002)return;g.op+=(tg-g.op)*Math.min(1,dt*9);g.mats.forEach(m=>{m.opacity=g.op;m.depthWrite=g.op>.9;});});}
     {const near=camera.position.distanceTo(V3(18,3.2,18.5))<6.2&&player.y<18;const tg=(hits.has('big')||near)?.2:1;bigFade+=(tg-bigFade)*Math.min(1,dt*8);bigMats.forEach(m=>{m.opacity=bigFade;m.depthWrite=bigFade>.9;});}
     // animation
-    if(scene.userData.bulbs)scene.userData.bulbs.forEach((b,i)=>{b.material.emissiveIntensity=((Math.floor(t*3)+i)%3===0)?1.2:.3;});
+    if(!reducedMotion&&scene.userData.bulbs)scene.userData.bulbs.forEach((b,i)=>{b.material.emissiveIntensity=((Math.floor(t*3)+i)%3===0)?1.2:.3;});
     hungObjs.forEach(o=>{o.sp.material.rotation=Math.sin(t*1.3+o.h.i*1.7)*.08;});
     stringLanterns.forEach((s,i)=>{s.sp.material.rotation=Math.sin(t*1.1+i)*.07;});
-    if(state.night){spokes.rotation.z=-t*.35;flames.rotation.z=-t*.15;flameList.forEach((f,i)=>f.scale.set(1,1+.16*Math.sin(t*7+i*1.9),1));bigGlow.material.opacity=.32+.06*Math.sin(t*3);
+    if(state.night){if(!reducedMotion){spokes.rotation.z=-t*.35;flames.rotation.z=-t*.15;}flameList.forEach((f,i)=>f.scale.set(1,1+.16*Math.sin(t*7+i*1.9),1));bigGlow.material.opacity=.32+.06*Math.sin(t*3);
       for(let i=0;i<PN;i++){const p=pData[i];p.age+=dt;if(p.age>p.life){const a=Math.random()*Math.PI*2;p.x=18+Math.cos(a)*2;p.y=3.25+Math.sin(a)*2;p.z=18.5+(Math.random()-.5)*.6;p.vx=(Math.random()-.5)*.3;p.vy=.4+Math.random()*.6;p.age=0;p.life=1.5+Math.random()*2.5;}p.x+=p.vx*dt;p.y+=p.vy*dt;pPos[i*3]=p.x;pPos[i*3+1]=p.y;pPos[i*3+2]=p.z;}pGeo.attributes.position.needsUpdate=true;}
     else flameList.forEach(f=>f.scale.set(1,1,1));
     if(flashT>0){flashT-=dt;pagodaGoldM.emissive.set('#ffb030');pagodaGoldM.emissiveIntensity=.4+.6*Math.abs(Math.sin(t*4));pagodaLight.intensity=1.6;if(flashT<=0){pagodaGoldM.emissive.set(state.night?'#8a5a10':'#000000');pagodaGoldM.emissiveIntensity=1;pagodaLight.intensity=state.night?1.4:0;}}
