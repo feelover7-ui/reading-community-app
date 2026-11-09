@@ -1,14 +1,16 @@
-import {buildNorthGround,buildNorthWorkshop} from './northScene.js'
+import {buildNorthGround,buildNorthWorkshop,buildYardFrame} from './northScene.js'
 import {buildTerraceArchitecture} from './terraceArchitecture.js'
 import {northPlanBounds} from './sitePreviewCamera.js'
 import {buildSatelliteHall} from './satelliteHall.js'
 import {buildSevenTreasure} from './sevenTreasure.js'
 import {courtyardMaterials} from './siteAtmosphere.js'
-import {THREE,createWorld,createFollower,makePerson,stepPerson} from './three3d.js'
+import {THREE,createWorld,createFollower,makePerson,stepPerson,bowPose} from './three3d.js'
+import {advanceGuidedOrbit,PAGODA_CENTER} from './tapdori.js'
+import {createOrbitProgress} from './orbitProgress.js'
 import {bindJoystick} from './touchControls.js'
 import {installMobileViewport} from './mobileUi.js'
 import {buildPagoda,buildStatue} from './original/outdoorLandmarks.js'
-import {HALL_DOOR,HALL_LOBBY,doorLocal,doorPoint,inHallLobby,HALL_ENTRY,MAIN,WORKSHOP,BUILDINGS,WALKWAY,STOPS,canWalk,SEPARATION_METRES,LANDMARKS,TERRACE,PRECINCT,WORKSHOP_YARD,groundHeight,statueFacingYaw} from './sitePreviewData.js'
+import {HALL_DOOR,HALL_LOBBY,doorLocal,doorPoint,inHallLobby,HALL_ENTRY,MAIN,WORKSHOP,BUILDINGS,WALKWAY,STOPS,stopOf,SITE_YAW,canWalk,SEPARATION_METRES,LANDMARKS,TERRACE,PRECINCT,WORKSHOP_YARD,YARD,RAMP,PATHS,groundHeight,statueFacingYaw} from './sitePreviewData.js'
 
 const $=id=>document.getElementById(id),cv=$('game'),keys=new Set()
 const motion=matchMedia('(prefers-reduced-motion: reduce)')
@@ -21,6 +23,7 @@ world.camera.far=700;world.camera.updateProjectionMatrix()
 const {scene,M,mesh,box}=world
 const atmosphere=courtyardMaterials(world)
 buildNorthGround(world,atmosphere)
+buildYardFrame(world,atmosphere)
 buildSatelliteHall(world,atmosphere)
 buildNorthWorkshop(world)
 buildTerraceArchitecture(world)
@@ -83,9 +86,7 @@ let mmTf=null
 const mmBg=document.createElement('canvas')
 function buildMiniBg(){
   if(!mm)return
-  const pts=[...PRECINCT,...WORKSHOP_YARD,...BUILDINGS.flatMap(b=>b.polygons.flat())]
-  const xs=pts.map(p=>p.x),zs=pts.map(p=>p.z),pad=4
-  const x0=Math.min(...xs)-pad,x1=Math.max(...xs)+pad,z0=Math.min(...zs)-pad,z1=Math.max(...zs)+pad
+  const pad=1.5,x0=YARD.x0-pad,x1=YARD.x1+pad,z0=YARD.z0-pad,z1=YARD.z1+pad
   const w=mmEl.width,h=mmEl.height,sc=Math.min(w/(x1-x0),h/(z1-z0))
   const ox=(w-(x1-x0)*sc)/2,oz=(h-(z1-z0)*sc)/2
   mmTf=(x,z)=>[ox+(x-x0)*sc,oz+(z-z0)*sc]
@@ -93,8 +94,10 @@ function buildMiniBg(){
   const g=mmBg.getContext('2d')
   g.fillStyle='#55613f';g.fillRect(0,0,w,h)
   const poly=(pl,fill)=>{if(!pl||!pl.length)return;g.beginPath();pl.forEach((q,i)=>{const[a,b]=mmTf(q.x,q.z);i?g.lineTo(a,b):g.moveTo(a,b)});g.closePath();g.fillStyle=fill;g.fill()}
-  poly(PRECINCT,'#cdc1a5');poly(WORKSHOP_YARD,'#bfae8c')
+  poly([{x:YARD.x0,z:YARD.z0},{x:YARD.x1,z:YARD.z0},{x:YARD.x1,z:YARD.z1},{x:YARD.x0,z:YARD.z1}],'#cdc1a5')
   poly(TERRACE.polygon,'#ded2b4')
+  for(const path of PATHS)poly(path.polygon,'#efe6cd')
+  poly([{x:RAMP.xLow,z:RAMP.z0},{x:RAMP.xHigh,z:RAMP.z0},{x:RAMP.xHigh,z:RAMP.z1},{x:RAMP.xLow,z:RAMP.z1}],'#e3d6b4')
   for(const b of BUILDINGS)for(const pl of b.polygons)poly(pl,'#6b5446')
   const dot=(p,col,r)=>{const[a,b]=mmTf(p.x,p.z);g.fillStyle=col;g.beginPath();g.arc(a,b,r,0,Math.PI*2);g.fill()}
   dot(LANDMARKS.pagoda,'#efe7d2',3.2);dot(LANDMARKS.statue,'#8c6a3c',3)
@@ -114,17 +117,71 @@ function drawMinimap(){
 buildMiniBg()
 
 function nearby(){
-  if(inHallLobby(player.x,player.z)||Math.hypot(player.x-STOPS[4].x,player.z-STOPS[4].z)<2)return 'hall3'
-  if(Math.hypot(player.x-STOPS[1].x,player.z-STOPS[1].z)<4)return 'workshop'
-  if(Math.hypot(player.x-STOPS[0].x,player.z-STOPS[0].z)<4)return 'main'
-  /* 조형물도 걸어가서 살펴볼 수 있게 한다. */
-  if(Math.hypot(player.x-LANDMARKS.pagoda.x,player.z-LANDMARKS.pagoda.z)<3.2)return 'pagoda'
-  if(Math.hypot(player.x-LANDMARKS.statue.x,player.z-LANDMARKS.statue.z)<3.6)return 'statue'
-  return null
+  if(inHallLobby(player.x,player.z))return 'hall3'
+  /* 법당 문과 도량탑이 가까워서, 가장 가까운 것 하나만 고른다. */
+  const cands=[]
+  const add=(id,p,r)=>{if(!p)return;const d=Math.hypot(player.x-p.x,player.z-p.z);if(d<r)cands.push({id,d:d/r})}
+  add('hall3',stopOf('hall3'),1.9)
+  add('workshop',stopOf('workshop'),4)
+  add('main',stopOf('main'),4)
+  add('pagoda',LANDMARKS.pagoda,3.4)
+  add('statue',LANDMARKS.statue,3.6)
+  cands.sort((a,b)=>a.d-b.d)
+  return cands.length?cands[0].id:null
 }
 const SPOT_TEXT={
   pagoda:['구정탑','본관 북쪽 마당에 선 탑입니다. 공식 도량 안내에서 확인한 아홉 개의 둥근 구를 얹었습니다. 마당과 본관 3층이 같은 높이라는 점을 반영했습니다.'],
   statue:['대행선사 동상','본관 북서쪽에 있습니다. 공식 안내에서 확인한 청동 입상과 연화 좌대, 화엄석 일곱, 물결 경계석의 특징을 줄여 옮겼습니다.']
+}
+/* 클로드 맵의 탑돌이와 삼배를 그대로 옮긴다.
+   바퀴 수는 orbitProgress 가 탑 중심의 실제 이동 각도로 세고, 제자리 회전이나 순간이동은 세지 않는다.
+   절은 three3d 의 bowPose 로 합장 → 무릎 → 엎드림 → 합장 관절 동작을 그린다. */
+let rite=null
+const PAGODA_RADIUS=4
+function startTapdori(){
+  const counter=createOrbitProgress({x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z})
+  const a0=Math.atan2(player.z-LANDMARKS.pagoda.z,player.x-LANDMARKS.pagoda.x)
+  rite={kind:'tapdori',counter,angle:a0,laps:0}
+  counter.sample(player.x,player.z,performance.now())
+  status.textContent='탑돌이를 시작합니다. 방향을 누르거나 그만하기로 멈출 수 있어요.'
+}
+function startBow(){
+  const sy=statueFacingYaw()
+  player.x=LANDMARKS.statue.x+Math.sin(sy)*2.6;player.z=LANDMARKS.statue.z+Math.cos(sy)*2.6
+  player.face=sy+Math.PI
+  rite={kind:'bow',done:0,goal:3,u:0}
+  status.textContent='대행선사 동상 앞에서 삼배를 올립니다.'
+}
+function stopRite(why){
+  if(!rite)return
+  const was=rite;rite=null
+  status.textContent=why||(was.kind==='tapdori'?'탑돌이를 멈췄어요. 돈 만큼만 남습니다.':'삼배를 멈췄어요.')
+}
+function stepRite(dt){
+  if(!rite)return false
+  if(rite.kind==='tapdori'){
+    const next=advanceGuidedOrbit({x:player.x,z:player.z,angle:rite.angle,dt,
+      canStand:(x,z)=>canWalk(x,z),center:LANDMARKS.pagoda,radius:PAGODA_RADIUS})
+    if(next.blocked){stopRite('앞이 막혀 탑돌이를 멈췄어요.');return false}
+    player.x=next.x;player.z=next.z;rite.angle=next.angle
+    if(next.face!=null)player.face=next.face
+    player.walk+=dt
+    rite.counter.sample(player.x,player.z,performance.now())
+    rite.laps=rite.counter.laps
+    status.textContent='탑돌이 '+rite.laps.toFixed(1)+' / 3바퀴 · 탑을 오른쪽에 두고 돕니다.'
+    stepPerson(person,player.x,player.z,player.face,true,player.walk,quiet)
+    person.position.y=groundHeight(player.x,player.z)
+    if(rite.counter.done){stopRite('탑돌이 세 바퀴를 마쳤어요.');}
+    return true
+  }
+  // 삼배
+  rite.u+=dt/(quiet?1.1:2.2)
+  if(rite.u>=1){rite.u=0;rite.done++
+    if(rite.done>=rite.goal){stopRite('삼배를 올렸어요.');return true}}
+  stepPerson(person,player.x,player.z,player.face,false,player.walk,quiet,bowPose(rite.u,quiet))
+  person.position.y=groundHeight(player.x,player.z)
+  status.textContent='삼배 '+Math.min(rite.done+1,rite.goal)+' / '+rite.goal
+  return true
 }
 function closeDialog(){
   modal.hidden=true
@@ -132,8 +189,24 @@ function closeDialog(){
   reset();cv.focus({preventScroll:true})
 }
 function action(){
+  if(rite)return
   const id=nearby();if(!id||overview||!modal.hidden)return
   reset()
+  if(id==='pagoda'||id==='statue'){
+    const pagoda=id==='pagoda'
+    $('dialogTitle').textContent=pagoda?'구정탑 탑돌이':'대행선사 동상 · 서서 삼배'
+    $('dialogText').textContent=(pagoda
+      ?'탑을 오른쪽에 두고 시계 방향으로 세 바퀴 돕니다. 직접 걷지 않아도 됩니다. 방향을 누르면 멈춥니다.'
+      :'동상 앞에 서서 큰절 세 번을 올립니다. 방향을 누르면 멈춥니다.')
+      +' 평면 위치는 사진 판독에 따른 근사값이며 실측이 아닙니다.'
+    const act=$('dialogAction');act.hidden=false;act.textContent=pagoda?'탑돌이 시작':'삼배 시작'
+    act.onclick=()=>{closeDialog();(pagoda?startTapdori:startBow)()}
+    $('dialogLink').hidden=true
+    modal.hidden=false
+    for(const n of document.body.children)if(n!==modal)n.inert=true
+    act.focus();return
+  }
+  $('dialogAction').hidden=true;$('dialogLink').hidden=false
   if(SPOT_TEXT[id]){
     $('dialogTitle').textContent=SPOT_TEXT[id][0]
     $('dialogText').textContent=SPOT_TEXT[id][1]+' 평면 위치는 사진 판독에 따른 근사값이며 실측이 아닙니다.'
@@ -150,9 +223,13 @@ function action(){
   for(const n of document.body.children)if(n!==modal)n.inert=true
   a.focus()
 }
-$('act').onclick=action;$('close').onclick=closeDialog
+$('act').onclick=()=>{if(rite){stopRite();return}action()};$('close').onclick=closeDialog
 modal.addEventListener('click',e=>{if(e.target===modal)closeDialog()})
 modal.addEventListener('keydown',e=>{
+  /* 클로드 맵과 같게, 창이 떠 있을 때 Space 를 한 번 더 누르면 들어간다.
+     창 안의 단추에 초점이 있으면 가로채지 않는다. */
+  if((e.code==='Space'||e.code==='KeyE')&&document.activeElement!==$('close')){
+    e.preventDefault();e.stopPropagation();const act=$('dialogAction');(act.hidden?$('dialogLink'):act).click();return}
   if(e.key==='Escape'){e.preventDefault();closeDialog()}
   if(e.key==='Tab'){const a=$('dialogLink'),b=$('close');if(e.shiftKey&&document.activeElement===a){e.preventDefault();b.focus()}else if(!e.shiftKey&&document.activeElement===b){e.preventDefault();a.focus()}}
 })
@@ -180,6 +257,14 @@ function tick(t){
         let mx=(keys.has('d')?1:0)-(keys.has('a')?1:0)+joy.x
         let my=(keys.has('s')?1:0)-(keys.has('w')?1:0)+joy.y
         const n=Math.hypot(mx,my);if(n>1){mx/=n;my/=n}
+        if(rite){
+          if(n>.15)stopRite('직접 움직여서 멈췄어요.')
+          else if(stepRite(dt)){follower.follow(player.x,player.z,dt);world.camera.position.y+=groundHeight(player.x,player.z)
+            $('act').hidden=false;$('act').textContent='그만하기';drawMinimap()
+            for(const l of labels){const p=new THREE.Vector3(l.x,l.y,l.z).project(world.camera),vis=p.z>-1&&p.z<1&&Math.abs(p.x)<1.05&&Math.abs(p.y)<1.05
+              l.n.hidden=!vis;if(vis){l.n.style.left=((p.x+1)*innerWidth/2)+'px';l.n.style.top=((1-p.y)*innerHeight/2)+'px'}}
+            world.renderer.render(scene,world.camera);raf=requestAnimationFrame(tick);return}
+        }
         const [dx,dz]=follower.moveVector(mx,my),speed=5.5*dt
         // 축별 충돌과 dt 상한으로 건물 모서리를 건너뛰지 않는다.
         if(canWalk(player.x+dx*speed,player.z))player.x+=dx*speed
@@ -210,10 +295,13 @@ addEventListener('pageshow',()=>{stopped=false;start()})
 cv.addEventListener('webglcontextlost',e=>{e.preventDefault();frameError=true;cancelAnimationFrame(raf);raf=0;status.textContent='3D 연결이 중단됐습니다. 새로고침해 주세요.'})
 if(import.meta.env.DEV)window.__sitePreview={visit,overview:setOverview,view:()=>({mode:viewMode,camera:(overview&&!focusSeven?planCamera:world.camera).position.toArray(),landmarks:JSON.parse(JSON.stringify(LANDMARKS))}),warp:(x,z)=>{if(canWalk(x,z)){visit('hall3');player.x=x;player.z=z}},door:()=>({door:HALL_DOOR,lobby:HALL_LOBBY,point:doorPoint,inside:inHallLobby(player.x,player.z),local:doorLocal(player.x,player.z)}),position:()=>({...player,height:groundHeight(player.x,player.z)}),canWalk,metres:SEPARATION_METRES,landmarks:()=>({seven:{x:seven.position.x,z:seven.position.z,orbs:seven.userData.orbCount},pagoda:{x:pg.group.position.x,z:pg.group.position.z},statue:{x:st.position.x,z:st.position.z,yaw:st.rotation.y}})}
 /* 클로드 맵처럼 바로 걷는 상태로 연다. 배치도는 `본원 확대`·`전체 위치` 버튼으로 본다. */
+/* 도량을 반듯하게 돌렸으므로 북쪽은 화면 위가 아니다. 나침반 바늘을 같이 돌린다. */
+{const c=$('compass');if(c){c.textContent='N';c.style.setProperty('--north',(-SITE_YAW*180/Math.PI).toFixed(1)+'deg')
+  c.insertAdjacentHTML('afterbegin','<i aria-hidden="true" style="display:inline-block;transform:rotate(var(--north));margin-right:4px">↑</i>')}}
 const requestedView=new URLSearchParams(location.search).get('view')
 document.body.dataset.view='plan'
 if(requestedView==='plan'||requestedView==='site')setOverview(requestedView)
 else if(requestedView==='seven'){setOverview();viewSeven()}
 else if(STOPS.some(s=>s.id===requestedView))visit(requestedView)
-else visit('main')
+else visit('workshop')
 $('loading').hidden=true;start()

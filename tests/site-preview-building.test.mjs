@@ -18,7 +18,10 @@ test('도량탑 마당과 문·3층 로비는 3층 바닥 높이 하나를 사�
   assert.equal(HALL_THIRD_FLOOR_Y,HALL_FLOOR_HEIGHT*2)
   assert.equal(TERRACE.y,HALL_THIRD_FLOOR_Y);assert.equal(HALL_DOOR.y,TERRACE.y)
   assert.equal(groundHeight(LANDMARKS.pagoda.x,LANDMARKS.pagoda.z),HALL_DOOR.y)
-  const from=STOPS.find(p=>p.id==='pagoda'),to=doorPoint(0,1.5)
+  /* 도량탑 앞 자리는 법당 문과 겹치지 않도록 탑 북쪽으로 옮겼다(사용자 요청: 길과 탑돌이).
+     여기서 보려는 것은 '탑 마당과 문이 같은 높이로 이어져 있다'는 것이므로,
+     탑에서 문 쪽으로 2 단위 나온 자리에서 문까지를 본다. */
+  const from={x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z+2},to=doorPoint(0,1.5)
   for(let i=0;i<=100;i++){
     const t=i/100,x=from.x+(to.x-from.x)*t,z=from.z+(to.z-from.z)*t
     assert.ok(canWalk(x,z));assert.equal(groundHeight(x,z),HALL_DOOR.y)

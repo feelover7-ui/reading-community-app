@@ -27,8 +27,17 @@ test('사진 판독 배치의 장소 앞은 보행 가능하고 벽·마당 바�
  assert.equal(canWalk(NaN,0),false);assert.equal(canWalk(-100,100),false)
  assert.equal(canWalk(MAIN.x,MAIN.z),false);assert.equal(canWalk(WORKSHOP.x,WORKSHOP.z),false)
  assert.equal(groundHeight(LANDMARKS.pagoda.x,LANDMARKS.pagoda.z),TERRACE.y)
+ /* 사용자 요청으로 도량 전체를 한 각도만큼 돌려 반듯하게 놓았다(SITE_YAW).
+    그래서 사진의 가로가 더 이상 화면의 가로가 아니다. 대신 확인할 것은 두 가지다.
+    (1) 돌리기만 했지 늘이거나 접지 않았다 — 두 점 사이 거리가 그대로다.
+    (2) 본관의 긴 변이 화면 가로축과 나란하다 — 이게 '반듯하게' 의 뜻이다. */
  const a=pixelToSite([1000,1000]),b=pixelToSite([1100,1000]),c=pixelToSite([1000,1100])
- assert.ok(b.x>a.x&&b.z===a.z);assert.ok(c.z>a.z&&c.x===a.x)
+ const d=(p,q)=>Math.hypot(p.x-q.x,p.z-q.z)
+ assert.ok(Math.abs(d(a,b)-d(a,c))<1e-9,'가로 100px 과 세로 100px 의 길이가 다르다')
+ assert.ok(Math.abs((b.x-a.x)*(c.x-a.x)+(b.z-a.z)*(c.z-a.z))<1e-9,'직각이 무너졌다')
+ const core=HALL_WINGS[0]
+ const edge={x:core[1].x-core[0].x,z:core[1].z-core[0].z}
+ assert.ok(Math.abs(edge.z)<1e-6,'본관의 변이 화면 가로축과 나란하지 않다: dz='+edge.z)
 })
 
 test('작업장은 크기와 방향을 유지한 채 본관 오른쪽 가까이 이동한다',()=>{
