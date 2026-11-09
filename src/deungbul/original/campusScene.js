@@ -1,3 +1,5 @@
+import { CAMPUS_HALL,HALL_DOOR,STATUE_CENTER,STATUE_STAND,OUTDOOR_BUILDINGS,LANDMARK_SOURCES } from '../campusLayout.js'
+import { buildPagoda,buildStatue } from './outdoorLandmarks.js'
 import { PAGODA_CENTER,GUIDED_RADIUS,advanceGuidedOrbit } from '../tapdori.js'
 /* 원본 HTML 맵 미리보기.
 
@@ -103,10 +105,10 @@ const STATIONS=[
 STATIONS.forEach(s=>block(s.x,s.y,s.w,s.h));
 block(2,4,1,6);block(29,3,4,1);block(23,7,10,4);block(15,17,6,3);block(14,13,1,1);block(21,13,1,1);block(8,17,1,1);block(2,21,2,2);block(32,21,2,2);
 // campus
-const BLD={wondang:[24,28,10,6],byeolgwan:[37,28,10,9],jaryo:[42,38,5,4],simju:[1,54,10,13],bongwan:[25,52,17,15],yosa:[44,50,5,13],pit:[4,43,12,9]};
+const BLD=Object.fromEntries(OUTDOOR_BUILDINGS.map(b=>[b.id,[b.x,b.z,b.w,b.d]]));
 Object.values(BLD).forEach(r=>block(...r));
-block(21,40,2,2);block(7,31,2,2);block(4,30,2,1);
-const CTREES=[[2,27],[12,27],[2,38],[12,38],[14,28],[35,44],[47,44],[47,66],[21,66],[16,67],[23,56],[23,62],[12,55],[12,61],[36,38],[47,48]];
+block(20,39,4,4);block(5,29,6,6);
+const CTREES=[[2,27],[12,27],[2,38],[12,38],[14,28],[35,44],[47,44],[47,66],[21,66],[16,67],[23,56],[23,62],[12,55],[12,61],[36,38],[47,48]].filter(([x,z])=>!(x>=CAMPUS_HALL.x-1&&x<=CAMPUS_HALL.x+CAMPUS_HALL.w&&z>=CAMPUS_HALL.z-1&&z<=CAMPUS_HALL.z+CAMPUS_HALL.d));
 CTREES.forEach(([x,y])=>block(x,y,1,1));
 // hall
 [[107,9],[107,13],[107,17],[120,9],[120,13],[120,17]].forEach(([x,y])=>block(x,y,1,1));block(107,5,14,2);block(121,8,2,2);
@@ -154,7 +156,7 @@ const NPCS=[
   {id:'banjang',name:'등불사장 반장 법우',x:17.5,y:9.6,face:0,ap:{gender:'m',hair:'part',hairColor:'#1e1612',outfit:'vest',color:'#3f7a5c',apron:true}},
   {id:'worker',name:'용등 만드는 법우',x:21.5,y:8.6,face:Math.PI/2,ap:{gender:'f',hair:'bun',hairColor:'#3b2618',outfit:'hoodie',color:'#5d7fb8',apron:true}},
   {id:'monk',name:'스님',x:23.5,y:18.6,face:-Math.PI/2,ap:{gender:'m',hair:'bald',outfit:'robe'}},
-  {id:'guide',name:'안내하는 보살님',x:30.5,y:50.6,face:Math.PI,ap:{gender:'f',hair:'bun',hairColor:'#3b2618',outfit:'hanbok',color:'#7a5a8f'}},
+  {id:'guide',name:'안내하는 보살님',x:29,y:44.5,face:Math.PI,ap:{gender:'f',hair:'bun',hairColor:'#3b2618',outfit:'hanbok',color:'#7a5a8f'}},
   /* 법당 내부 NPC는 기존 페이지에서 표시합니다. */];
 NPCS.forEach(n=>{solid[Math.floor(n.y-.1)][Math.floor(n.x)]=true;});
 const WALKERS=[{r:3.25,sp:.3,a:0,ap:{gender:'m',hair:'short',hairColor:'#1e1612',outfit:'practice'}},{r:3.9,sp:.25,a:2.6,ap:{gender:'f',hair:'long',hairColor:'#1e1612',outfit:'hanbok',color:'#2b5fa5'}}];
@@ -251,7 +253,7 @@ function talk(id){
     say('등불사장 반장 법우',['골조 작업대부터 시작해요. 맨 왼쪽이에요.']);}
   else if(id==='worker')say('용등 만드는 법우',['이건 연등회 때 나갈 용등 골조예요.','철사로 뼈대를 하나하나 엮고, 그 위에 한지를 여러 겹 바르고, 마르면 채색까지… 몇 달씩 걸려요.','꼬리 쪽은 한지까지 발랐고, 머리 쪽은 아직 철사만 엮어 놨어요.','손은 많이 가도, 다 같이 만들다 보면 그 시간이 그대로 공부가 되더라고요.']);
   else if(id==='monk'){if(!state.litOnce)say('스님',['등을 밝히는 건 결국 내 마음을 밝히는 일이지요.','밖에 거는 등불 하나하나가 안의 등불을 비춰 주는 거예요.','소원등을 걸었으면, 장엄등 앞에서 함께 불을 밝혀 봅시다.']);else say('스님',['한 등 한 등이 모이니 어둠이 물러갔네요.','남쪽 문 너머 본원도 다녀와요. 탑을 돌며 걷는 걸음도 공부예요.']);}
-  else if(id==='guide')say('안내하는 보살님',['어서 오세요, 한마음선원 본원이에요.','마당 가운데 탑이 구정탑이에요. 탑을 오른쪽에 두고 시계 방향으로 돌면서 탑돌이를 해요.','왼쪽 위 정원에는 대행선사 동상이 있어요. 동상 앞에서는 서서 삼배를 올려요.','제 뒤 본관 5층이 대법당이에요. 이 문으로 들어가면 바로 올라가요. 예불, 법회, 좌선, 삼배, 108배 다 할 수 있어요.']);
+  else if(id==='guide')say('안내하는 보살님',['어서 오세요, 한마음선원 본원이에요.','마당 가운데 구정탑 앞에서 자동 탑돌이를 시작할 수 있어요. 직접 움직일 필요 없이 세 바퀴를 돌아요.','왼쪽 위 정원에는 대행선사 동상이 있어요. 동상 앞에서는 서서 삼배를 올려요.','탑 오른편 건물이 법당이에요. 입구에서 들어가면 기존 대법당에서 절을 올릴 수 있어요.']);
   else if(id==='hallmonk')say('대법당 스님',['대법당에 오셨군요.','가운데 금빛 방석에 서면 예불, 법회, 좌선, 삼배, 108배 중에 골라서 할 수 있어요.','절 한 번 한 번에 마음을 실어 보세요. 숫자보다 마음이 먼저예요.']);
 }
 
@@ -273,7 +275,7 @@ function prostrationCycle(onTouch,onDone,s=1){return[F(.75*s,POSE.kneel),F(.8*s,
 function seatOnCushion(){player.x=114;player.y=9.9;player.face=Math.PI;}
 function hallFinish(msg){state.hallDone=true;changed();if(msg)toast(msg);}
 
-function statueBow(){if(ritual||seq)return;player.x=8;player.y=34.05;player.face=Math.PI;
+function statueBow(){if(ritual||seq)return;player.x=STATUE_STAND.x;player.y=STATUE_STAND.z;player.face=Math.PI;
   ritualOpen('대행선사 동상 앞 · 서서 삼배',{total:3,cap:'두 손을 모으고 마음을 가다듬어요'});
   const fr=[F(.9,POSE.hap)];for(let i=0;i<3;i++)fr.push(F(.9,POSE.bow,softTok),F(.45,POSE.bow),F(.9,POSE.hap,()=>ritualSet(i+1,i<2?`${i+1}배`:'삼배를 올렸어요')));fr.push(F(.7,POSE.stand));
   ritual.onStop=()=>{seq=null;playSeq([F(.6,POSE.stand)],ritualClose);};
@@ -287,20 +289,20 @@ function updTapUI(){
 }
 function startTapdori(){
   if(ritual||seq)return;
-  if(tap){say('구정탑',['구정탑을 중심으로 시계 방향으로 돌아요.']);return}
-  const m=modalShell('구정탑 탑돌이','탑을 오른쪽에 두고 세 바퀴 돌아요. 안내 걷기나 직접 걷기를 고를 수 있어요.');
+  if(tap){say('구정탑',['구정탑을 중심으로 자동으로 돌고 있어요. 멈추기 버튼으로 중단할 수 있어요.']);return}
+  const m=modalShell('구정탑 탑돌이','시작을 누르면 직접 움직이지 않아도 탑을 오른쪽에 두고 세 바퀴 돌아요.');
   const begin=guided=>{
     closeModal();tap={orbit:createOrbitProgress({x:PAGODA.x,z:PAGODA.z}),wrong:0,guided,angle:Math.atan2(player.y-PAGODA.z,player.x-PAGODA.x)};
     tap.orbit.sample(player.x,player.y,performance.now());tapEl.style.display='flex';updTapUI();
-    toast(guided?'탑을 따라 걷습니다. 방향키나 조이스틱을 움직이면 직접 걸어요.':'노란 안내 원을 따라 시계 방향으로 걸어요.');
+    keys.clear();joy.x=joy.y=0;toast('자동 탑돌이를 시작합니다. 멈추기 버튼이나 방향 입력으로 중단할 수 있어요.');
   };
-  const guided=el('button','btn','탑을 따라 세 바퀴 걷기'),manual=el('button','btn ghost','직접 걸어서 탑돌이');
-  guided.onclick=()=>begin(true);manual.onclick=()=>begin(false);sharedModal.primary=()=>begin(true);m.append(guided,manual);
+  const guided=el('button','btn','자동 탑돌이 시작');
+  guided.onclick=()=>begin(true);sharedModal.primary=()=>begin(true);m.append(guided);appendSourceRefs(m,'pagoda');
 }
 function guideTap(dt,canStand){
   if(!tap?.guided||dialog||modalOpen||creatorOpen||ritual||seq)return;
   const next=advanceGuidedOrbit({x:player.x,z:player.y,angle:tap.angle,dt,canStand});
-  if(next.blocked){tap.guided=false;toast('앞이 막혀 직접 걸어서 이어갑니다.');return}
+  if(next.blocked){stopTap('앞이 막혀 자동 탑돌이를 멈췄어요.');return}
   player.x=next.x;player.y=next.z;tap.angle=next.angle;
   if(next.moving){player.face=next.face;player.moving=true;player.walk+=dt}
 }
@@ -321,7 +323,7 @@ function enterHall(){
   const run=()=>{closeModal();save();writeStore('hanmaum-deungbul-nick',nick);writeStore('hanmaum-deungbul-sex',state.ap?.gender||'m');location.href='/beopdang.html?from=campus';};
   go.onclick=run;sharedModal.primary=run;m.append(go);
 }
-function exitHall(){if(ritual)return;fadeTo(()=>{player.x=33;player.y=50.4;player.face=0;yaw=0;});}
+function exitHall(){if(ritual)return;fadeTo(()=>{player.x=HALL_DOOR.x;player.y=HALL_DOOR.z;player.face=-Math.PI/2;yaw=0;});}
 function hallMenu(){if(ritual||seq)return;const m=modalShell('5층 대법당','가운데 방석에서 무엇을 할까요?');const list=el('div','menu');
   [['예불','칠정례로 부처님께 예를 올려요',doYebul],['법회','대법당 스님의 짧은 법문을 들어요',doBeophoe],['좌선','앉아서 호흡을 바라봐요',pickJwaseon],['삼배','부처님께 큰절 세 번',doSambae],['108배','108번 절하며 마음을 모아요',do108]].forEach(([t,s,fn])=>{const b=el('button');b.append(el('b',null,t),el('span',null,s));b.onclick=()=>{closeModal();fn();};list.append(b);});
   m.append(list);}
@@ -353,8 +355,8 @@ const INTERACT=[
   {x:8.5,y:18.45,name:'소원등 걸이대',fn:hangSign,mark:[8.5,2.35,17.5],key:'sign'},
   {x:18,y:20.45,name:'장엄등',fn:bigLantern,mark:[18,6.0,18.5],key:'big'},
   {x:22,y:44.7,name:'구정탑 · 탑돌이',fn:startTapdori,mark:[22,7.6,41],key:'tower'},
-  {x:8,y:33.8,name:'대행선사 동상 · 서서 삼배',fn:statueBow,mark:[8,3.9,32],key:'statue'},
-  {x:33,y:51.35,name:'법당 · 5층 대법당 올라가기',fn:enterHall,mark:[33,3.4,52],key:'hallDoor'},
+  {x:STATUE_STAND.x,y:STATUE_STAND.z,name:'대행선사 동상 · 서서 삼배',fn:statueBow,mark:[STATUE_CENTER.x,3.9,STATUE_CENTER.z],key:'statue'},
+  {x:HALL_DOOR.x,y:HALL_DOOR.z,name:'법당 · 5층 대법당 들어가기',fn:enterHall,mark:[CAMPUS_HALL.x,3.4,HALL_DOOR.z],key:'hallDoor'},
   {x:114,y:9.9,name:'가운데 방석 · 참배하기',fn:hallMenu,mark:[114,1.6,9.9],key:'cushion'},
   {x:114,y:19.35,name:'나가기 · 본관 앞마당',fn:exitHall,mark:[114,3,19.9],key:'hallExit'}];
 function nearest(){let best=null,bd=1.25;for(const it of INTERACT){const d=Math.hypot(it.x-player.x,it.y-player.y);if(d<bd){bd=d;best=it;}}return best;}
@@ -395,7 +397,19 @@ const mmEl=document.getElementById('minimap');
 function toggleMap(){mmEl.classList.toggle('hide');}
 if(window.innerWidth<700)mmEl.classList.add('hide');
 document.getElementById('mapb').onclick=toggleMap;
-document.getElementById('helpb').onclick=()=>{if(!started||creatorOpen)return;const m=modalShell('도움말',null);const h=el('div','help');h.innerHTML=`<p><b>이동</b> ${isTouch?'왼쪽 조이스틱':'<kbd>방향키</kbd> 또는 <kbd>WASD</kbd>'}<br><b>작업·대화</b> ${isTouch?'오른쪽 <b>작업</b> 버튼':'<kbd>Space</kbd> · <kbd>E</kbd> · <kbd>Enter</kbd>'}<br><b>시점</b> ${isTouch?'빈 화면을 좌우로 끌기':'마우스 드래그 또는 <kbd>Q</kbd>/<kbd>R</kbd>, 휠로 확대·축소'}<br><b>지도</b> 🗺 버튼${isTouch?'':' 또는 <kbd>M</kbd>'} · <b>옷 갈아입기</b> 👕 버튼</p><p>금색 ▼ 표시가 다음에 갈 곳이에요. 등불사장에서 소원등을 만들어 걸고 점등한 뒤, 마당 남쪽 문으로 나가면 본원이에요.</p><p><b>구정탑</b>에서는 탑을 오른쪽에 두고 시계 방향으로 세 바퀴 탑돌이를, <b>대행선사 동상</b> 앞에서는 서서 삼배를 올려요. <b>본관 5층 대법당</b>에서는 가운데 방석에서 예불·법회·좌선·삼배·108배를 할 수 있어요.</p><p style="color:#8a7a66;font-size:13px">내 모습과 소원등, 순례 기록은 지금 쓰는 브라우저에만 저장돼요. 건물 배치는 본원 조감도를 바탕으로 단순하게 옮긴 것이고, 예불은 일반적인 칠정례로 구성해서 선원에서 실제 쓰는 예불문과 다를 수 있어요.</p>`;const b=el('button','btn','닫기');b.onclick=closeModal;m.append(h,b);};
+function appendSourceRefs(parent,kind){
+  const kinds=kind?[kind]:['pagoda','statue'];
+  for(const key of kinds){
+    const source=LANDMARK_SOURCES[key],a=el('a','btn ghost',key==='pagoda'?'구정탑 공식 안내·사진':'대행선사 동상 공식 안내·사진');
+    a.href=source.page;a.target='_blank';a.rel='noopener noreferrer';parent.append(a);
+  }
+}
+document.getElementById('helpb').onclick=()=>{
+  if(!started||creatorOpen)return;
+  const m=modalShell('도움말',null),h=el('div','help');
+  h.innerHTML='<p>이동: 방향키·WASD 또는 조이스틱. 작업·살펴보기: Space·E 또는 작업 버튼.</p><p>작업장 밖 건물은 탑 오른편 법당 하나입니다. 구정탑 앞에서 <b>자동 탑돌이 시작</b>을 누르면 세 바퀴 돕니다. 멈추기 버튼이나 방향 입력으로 중단합니다.</p><p>대행선사 동상 앞에서는 서서 삼배를 올릴 수 있습니다. 법당 입구는 탑 쪽을 향하며 기존 법당 내부로 이어집니다.</p><p>게임용 배치이며 실제 본원의 건물 위치나 출입 동선을 나타내지 않습니다. 구정탑과 동상은 공식 설명의 구조를 반영한 간략 조형 시안입니다.</p>';
+  const close=el('button','btn','닫기');close.onclick=closeModal;m.append(h);appendSourceRefs(m);m.append(close);
+};
 
 /* ================= title art ================= */
 (function(){const tcv=document.getElementById('tcv');const r=Math.min(2,window.devicePixelRatio||1);tcv.width=320*r;tcv.height=110*r;tcv.style.width='320px';tcv.style.height='110px';const g=tcv.getContext('2d');g.setTransform(r,0,0,r,0,0);g.strokeStyle='rgba(232,196,90,.6)';g.lineWidth=1.2;g.beginPath();g.moveTo(0,14);g.quadraticCurveTo(160,34,320,14);g.stroke();[['lotus','#f29bb5','gold'],['wheel','#f2c037','dancheong'],['fish','#d8352f','wave'],['elephant','#f5efe2','dots']].forEach(([s,c,p],i)=>{const x=46+i*76,y=22;g.beginPath();g.moveTo(x,y);g.lineTo(x,y+10);g.stroke();drawLantern(g,x,y+44,58,{shape:s,color:c,pattern:p},{lit:true,tassel:true});});})();
@@ -446,7 +460,7 @@ function init3D(){
   ground(16,13,20,17,M('#c6b796'),.005);
   const outside=ground(-92,-97,128,123,M('#6f7d52'),-.02);
   const pave=(x0,z0,x1,z1)=>ground(x0,z0,x1,z1,M('#ffffff',{map:repTex(paveTex,(x1-x0)/4,(z1-z0)/4)}));
-  pave(0,26,50,43);pave(0,43,4,52);pave(16,43,50,52);pave(0,52,50,70);
+  pave(0,26,50,70);
   ground(2,27,14,39,M('#ffffff',{map:repTex(grassTex,6,6)}),.01);
   const ringPave=new THREE.Mesh(new THREE.RingGeometry(2,4.6,48),M('#d8cdb2'));ringPave.rotation.x=-Math.PI/2;ringPave.position.set(PAGODA.x,.012,PAGODA.z);ringPave.receiveShadow=true;scene.add(ringPave);
   const ringLine=new THREE.Mesh(new THREE.RingGeometry(4.5,4.65,64),M('#a8997a'));ringLine.rotation.x=-Math.PI/2;ringLine.position.set(PAGODA.x,.014,PAGODA.z);scene.add(ringLine);
@@ -565,41 +579,20 @@ function init3D(){
       hungGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([V3(x,ry,z),V3(x,ry-.22,z)]),ropeM));
       const g=glowSprite(h.L.color||'#ffcc66',2.4);g.position.set(x,ry-.62,z-.05);g.visible=state.night;g.material.opacity=.55;hungGroup.add(g);hungObjs.push({sp,h,x,y:ry-.62,z});});}
 
-  /* ================= main temple campus ================= */
-  // 원당
-  addFadeGroup(captured(()=>hanok(29,31,9,4.6,{baseH:.7,wallH:2.2,roofH:1.7})));
-  // 별관
-  addFadeGroup(captured(()=>building(37,28,47,37,5.2,{base:'#c9a183',floors:4,trim:'#4f7a5a'})));
-  // 자료관
-  addFadeGroup(captured(()=>{building(42,38,47,42,4.4,{base:'#efe9de',floors:3});mesh(hipRoofGeo(5.8,4.8,1.2,.3),M('#b24a3a',{side:THREE.DoubleSide}),44.5,4.4,40);}));
-  // 요사채
-  addFadeGroup(captured(()=>{building(44,50,49,63,4.2,{base:'#e8d4bb',floors:3});mesh(hipRoofGeo(6.2,14.2,1.3,.9),M(MAT.roof,{side:THREE.DoubleSide}),46.5,4.2,56.5);}));
-  // 심주관 (stone)
-  addFadeGroup(captured(()=>{const st=repTex(stoneBlockTex,3,1);const m=new THREE.Mesh(new THREE.BoxGeometry(10,3,13),[M('#ffffff',{map:st}),M('#ffffff',{map:st}),M('#6f8f58'),M('#6f8f58'),M('#ffffff',{map:repTex(stoneBlockTex,2.5,1)}),M('#ffffff',{map:repTex(stoneBlockTex,2.5,1)})]);m.position.set(6,1.5,60.5);m.castShadow=m.receiveShadow=true;scene.add(m);
-    [[3,56],[8,58],[4,64],[9,63]].forEach(([x,z])=>{mesh(new THREE.SphereGeometry(.7,12,8),M('#5a9461'),x,3.5,z);});for(let i=0;i<4;i++)box(1.6,.5,.06,'#3a4652',2.5+i*2.2,1.9,54-.01);textPlane('심주관',2,.5).position.set(6,2.5,53.98);}));
-  // 본관 + 5층 대법당 + 칠보탑
-  addFadeGroup(captured(()=>{building(25,52,42,67,5.4,{base:'#e2c8a4',floors:4,roof:'#bfae96'});
-  hanok(33.5,60,12,9,{y0:5.4,baseH:.25,wallH:1.9,roofH:1.8,wall:'#f3e6c8'});
-  box(3.2,3.2,3,'#e8d2b0',33.5,7,54.2);mesh(hipRoofGeo(4.4,4.2,1,.2),M(MAT.roof,{side:THREE.DoubleSide}),33.5,8.6,54.2);
-  const chilboM=M('#e9b94a',{emissive:'#6a4a10',emissiveIntensity:.35});
-  {let y=9.5;mesh(new THREE.CylinderGeometry(.55,.7,.3,16),M('#6fb0c8'),33.5,y,54.2);y+=.3;[.5,.46,.42,.38,.34,.3,.26].forEach(r=>{mesh(new THREE.SphereGeometry(r,18,12),chilboM,33.5,y+r,54.2);mesh(new THREE.CylinderGeometry(r*.55,r*.55,.06,14),M('#c79a34'),33.5,y+2*r,54.2);y+=2*r+.04;});mesh(new THREE.ConeGeometry(.1,.5,10),chilboM,33.5,y+.25,54.2);}
-  box(3.4,2.5,.12,'#3a2a20',33.5,1.25,51.97);box(2.6,2.1,.05,'#7d9aa8',33.5,1.1,51.9);box(4.6,.16,1.4,'#8a7a66',33.5,2.75,51.4);
-  [32,35].forEach(x=>box(.14,2.75,.14,'#8a7a66',x-.3+(x===35?.6:0),1.37,50.8));
-  textPlane('한마음선원 본관',3.6,.6).position.set(33.5,3.35,51.93);
-  {const s2=textPlane('5층 대법당',1.8,.42,{font:'"Noto Sans KR",sans-serif',fs:.55});s2.position.set(36.6,1.7,51.93);}}));
-  // 어린이법당 (sunken court)
-  {const[x,z,w,d]=BLD.pit,cx=x+w/2,cz=z+d/2,dep=1.6;ground(x,z,x+w,z+d,M('#ffffff',{map:repTex(stoneTex,3,2)}),-dep);
-    box(w,dep,.2,'#d8d0c0',cx,-dep/2,z+.1);box(w,dep,.2,'#d8d0c0',cx,-dep/2,z+d-.1);box(.2,dep,d,'#d8d0c0',x+.1,-dep/2,cz);box(.2,dep,d,'#d8d0c0',x+w-.1,-dep/2,cz);
-    [[x,z,x+w,z],[x,z+d,x+w,z+d],[x,z,x,z+d],[x+w,z,x+w,z+d]].forEach(([a,b,c,e])=>{const len=Math.hypot(c-a,e-b);box(c===a?.1:len,.08,c===a?len:.1,'#f4f1ea',(a+c)/2,.7,(b+e)/2);for(let t=0;t<=len;t+=1)box(.08,.7,.08,'#f4f1ea',a+(c-a)*t/len,.35,b+(e-b)*t/len);});
-    box(8,1.4,.7,'#f6f2ea',cx,-dep+.7,z+.6);for(let i=0;i<7;i++)mesh(new THREE.CylinderGeometry(.1,.1,1.4,10),M('#ffffff'),cx-3.5+i*7/6,-dep+.7,z+1.05);textPlane('어린이법당',2.4,.5).position.set(cx,-dep+1.2,z+.97);
-    const pond=new THREE.Mesh(new THREE.PlaneGeometry(3.2,2),M('#6aa6c4'));pond.rotation.x=-Math.PI/2;pond.position.set(x+3,-dep+.02,z+d-2);scene.add(pond);
-    [[x+8,z+5,.9],[x+9.5,z+6,.7],[x+7,z+6.8,.6],[x+10,z+3.6,.55]].forEach(([bx,bz,r])=>{mesh(new THREE.SphereGeometry(r,12,10),M('#e46a9c'),bx,-dep+r*.7,bz);});tree(x+2,z+3,.7);}
-  // 구정탑
-  const pagodaGoldM=M('#d9a531',{emissive:'#000000'});
-  {const P=new THREE.Group();P.position.set(PAGODA.x,0,PAGODA.z);scene.add(P);
-    mesh(new THREE.CylinderGeometry(1.55,1.65,.35,8),M('#a8a196'),0,.17,0,P);mesh(new THREE.CylinderGeometry(1.2,1.25,.3,8),M('#968f84'),0,.5,0,P);
-    let y=.65;for(let i=0;i<9;i++){const r=1.0-i*.07;mesh(new THREE.CylinderGeometry(r*.72,r*.74,.4,8),M('#4b4f55'),0,y+.2,0,P);mesh(new THREE.CylinderGeometry(r*.8,r*.8,.04,8),pagodaGoldM,0,y+.4,0,P);mesh(new THREE.CylinderGeometry(r*1.08,r*.95,.12,8),M('#5c6168'),0,y+.47,0,P);y+=.55;}
-    mesh(new THREE.CylinderGeometry(.06,.06,1.5,8),pagodaGoldM,0,y+.75,0,P);[.18,.15,.13,.11,.09].forEach((r,i)=>mesh(new THREE.TorusGeometry(r,.035,6,16),pagodaGoldM,0,y+.35+i*.22,0,P).rotation.x=Math.PI/2);mesh(new THREE.SphereGeometry(.12,12,10),pagodaGoldM,0,y+1.55,0,P);}
+  /* 외부 건물은 탑 오른편 법당 하나만 둔다. 게임용 배치다. */
+  addFadeGroup(captured(()=>{
+    const {x,z,w,d}=CAMPUS_HALL,cx=x+w/2,cz=z+d/2;
+    building(x,z,x+w,z+d,5.4,{base:'#e2c8a4',floors:4,roof:'#bfae96'});
+    hanok(cx,cz,w-3,d-4,{y0:5.4,baseH:.25,wallH:1.9,roofH:1.8,wall:'#f3e6c8'});
+    // 탑을 향한 서쪽 입구. 내부는 기존 법당 페이지로 이어진다.
+    box(.12,2.5,3.4,'#3a2a20',x-.03,1.25,HALL_DOOR.z);
+    box(.05,2.1,2.6,'#7d9aa8',x-.1,1.1,HALL_DOOR.z);
+    box(1.4,.16,4.6,'#8a7a66',x-.6,2.75,HALL_DOOR.z);
+    const name=textPlane('법당',3.6,.6);name.position.set(x-.12,3.35,HALL_DOOR.z);name.rotation.y=-Math.PI/2;
+  }));
+  // 공식 안내에 맞춰 아홉 개의 둥근 구로 바꾼다.
+  const pagodaModel=buildPagoda({scene,M,mesh});
+  const pagodaGoldM=pagodaModel.accentMaterial;
   const pagodaLight=new THREE.PointLight('#ffb560',0*LIGHT,14,1.6);pagodaLight.position.set(PAGODA.x,3.4,PAGODA.z+1.5);scene.add(pagodaLight);
   let flashT=0;pagodaFlash=()=>{flashT=3;};
   // lantern strings radiating from the pagoda
@@ -608,16 +601,8 @@ function init3D(){
     const top=V3(PAGODA.x+Math.cos(a)*.3,5.6,PAGODA.z+Math.sin(a)*.3),end=V3(px,3.35,pz);const P=t=>{const p=top.clone().lerp(end,t);p.y-=Math.sin(Math.PI*t)*.55;return p;};
     const ps=[];for(let i=0;i<=16;i++)ps.push(P(i/16));scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ps),ropeM));
     for(let i=0;i<6;i++){const t=.25+i*.12,p=P(t);const L={shape:'lotus',color:SC[(k+i)%SC.length]};const sp=lanternSprite(L,{},.62);sp.position.set(p.x,p.y-.32,p.z);scene.add(sp);const g=glowSprite(L.color,1.5);g.position.copy(sp.position);g.visible=false;g.material.opacity=.5;scene.add(g);stringLanterns.push({sp,g,L});}}
-  // 대행선사 동상 + 비석
-  {const bronze=M('#8c6a3c',{emissive:'#2a1a08',emissiveIntensity:.3});box(1.7,1,1.7,'#a39d92',8,.5,32);box(1.9,.15,1.9,'#8f897e',8,1.05,32);
-    const S=new THREE.Group();S.position.set(8,1.12,32);scene.add(S);
-    mesh(new THREE.CylinderGeometry(.24,.46,1.55,18),bronze,0,.78,0,S);mesh(new THREE.SphereGeometry(.3,16,12),bronze,0,1.5,0,S).scale.set(1.1,.6,.9);
-    mesh(new THREE.CylinderGeometry(.08,.09,.12,10),bronze,0,1.74,0,S);mesh(new THREE.SphereGeometry(.21,18,14),bronze,0,1.93,0,S);
-    [-1,1].forEach(s=>{const a=mesh(new THREE.CylinderGeometry(.09,.11,.62,10),bronze,s*.26,1.3,.12,S);a.rotation.x=-.9;a.rotation.z=s*.35;});mesh(new THREE.SphereGeometry(.1,10,8),bronze,0,1.25,.36,S);
-    const emb=canvasTex(256,256,(g)=>{g.fillStyle='#c9c3b6';g.fillRect(0,0,256,256);g.strokeStyle='#6b6458';g.lineWidth=10;g.beginPath();g.arc(128,128,80,0,Math.PI*2);g.stroke();g.lineWidth=5;g.beginPath();g.arc(128,128,56,0,Math.PI*2);g.stroke();g.fillStyle='#6b6458';circ(g,128,128,14);});
-    box(1.8,1.7,.35,'#c9c3b6',5,.85,30.5);const top=mesh(new THREE.CylinderGeometry(.9,.9,.35,24,1,false,0,Math.PI),M('#c9c3b6'),5,1.7,30.5);top.rotation.x=Math.PI/2;top.rotation.y=Math.PI/2;top.rotation.z=0;
-    const ep=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.1),M('#ffffff',{map:emb}));ep.position.set(5,1.15,30.68);scene.add(ep);
-    [[3.5,34.5],[11.5,34],[10,30],[4,36.5],[12,36.5]].forEach(([x,z],i)=>mesh(new THREE.SphereGeometry(.45,10,8),M(i%2?'#e46a9c':'#f2c037'),x,.3,z));}
+  // 공식 설명의 연화좌대·화엄석7개·물결 경계석을 반영한 조형 시안.
+  buildStatue({scene,M,mesh,box});
 
   // 원본의 별도 법당 내부는 생성하지 않습니다. 기존 법당으로 연결합니다.
   /* ================= people ================= */
@@ -663,7 +648,7 @@ function init3D(){
   const npcMeshes=NPCS.map(n=>{const m=buildPerson(n.ap);m.position.set(n.x,0,n.y);m.rotation.y=n.face;applyPose(m,POSE.stand,0,false);return m;});
   const walkerMeshes=WALKERS.map(w=>buildPerson(w.ap));
   const labels=NPCS.map(n=>{const d=el('div','label3d',n.name);document.body.append(d);return d;});
-  const LANDMARKS=[['등불사장',18,3.4,6],['원당',29,5,31],['별관',42,6,32.5],['자료관',44.5,6.4,40],['구정탑',22,8.6,41],['대행선사 동상',8,4.4,32],['어린이법당',10,1.2,47.5],['심주관',6,4,60.5],['법당 · 5층 대법당',33.5,12.4,58],['요사채',46.5,6.2,56.5]].map(([n,x,y,z])=>{const d=el('div','label3d lm',n);document.body.append(d);return{n,x,y,z,d};});
+  const LANDMARKS=[['등불사장',18,3.4,6],['구정탑',PAGODA.x,6.8,PAGODA.z],['대행선사 동상',STATUE_CENTER.x,4,STATUE_CENTER.z],['법당 · 5층 대법당',CAMPUS_HALL.x+CAMPUS_HALL.w/2,10,CAMPUS_HALL.z+CAMPUS_HALL.d/2]].map(([n,x,y,z])=>{const d=el('div','label3d lm',n);document.body.append(d);return{n,x,y,z,d};});
   const remoteLayer=createPeerLayer({scene,camera,M,mesh,box},{bowing:true,radius:Infinity});
   const orbitGuide=new THREE.Mesh(new THREE.RingGeometry(GUIDED_RADIUS-.04,GUIDED_RADIUS+.04,96),M('#d9a531',{transparent:true,opacity:.65,side:THREE.DoubleSide,depthWrite:false}));
   orbitGuide.rotation.x=-Math.PI/2;orbitGuide.position.set(PAGODA.x,.025,PAGODA.z);orbitGuide.visible=false;scene.add(orbitGuide);
@@ -691,11 +676,11 @@ function init3D(){
   /* minimap */
   const mm=mmEl.getContext('2d');const mmBg={out:document.createElement('canvas'),hall:document.createElement('canvas')};
   {const c=mmBg.out;c.width=240;c.height=336;const g=c.getContext('2d');const s=4.8;g.scale(s,s);g.fillStyle='#5f6d45';g.fillRect(0,0,50,70);
-    const R=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};R(1,1,34,12,'#b8854a');R(1,13,34,12,'#d6cab0');R(1,26,48,43,'#cdc1a5');R(2,27,12,12,'#86b06e');R(4,43,12,9,'#8fb0bb');
+    const R=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x,y,w,h);};R(1,1,34,12,'#b8854a');R(1,13,34,12,'#d6cab0');R(1,26,48,43,'#cdc1a5');R(2,27,12,12,'#86b06e');
     Object.entries(BLD).forEach(([k,r])=>{if(k!=='pit')R(r[0],r[1],r[2],r[3],'#6b5446');});R(15,17,6,3,'#c8402f');R(16,25,4,1,'#cdc1a5');R(16,12,4,1,'#b8854a');
     g.strokeStyle='#a8997a';g.lineWidth=.35;g.beginPath();g.arc(PAGODA.x,PAGODA.z,3.4,0,Math.PI*2);g.stroke();g.fillStyle='#3e4248';g.beginPath();g.arc(PAGODA.x,PAGODA.z,1,0,Math.PI*2);g.fill();
-    g.fillStyle='#8c6a3c';g.beginPath();g.arc(8,32,.9,0,Math.PI*2);g.fill();g.fillStyle='#d9a531';g.fillRect(31.5,50.6,4,.9);
-    g.fillStyle='#fff';g.font='bold 2.2px sans-serif';g.textAlign='center';[['등불사장',18,7.5],['법당',33.5,60],['원당',29,31.6],['별관',42,33],['심주관',6,61],['요사채',46.5,57],['어린이법당',10,48]].forEach(([t,x,y])=>g.fillText(t,x,y));}
+    g.fillStyle='#8c6a3c';g.beginPath();g.arc(8,32,.9,0,Math.PI*2);g.fill();g.fillStyle='#d9a531';g.fillRect(CAMPUS_HALL.x-.4,HALL_DOOR.z-1.2,.5,2.4);
+    g.fillStyle='#fff';g.font='bold 2.2px sans-serif';g.textAlign='center';[['등불사장',18,7.5],['법당',CAMPUS_HALL.x+CAMPUS_HALL.w/2,CAMPUS_HALL.z+CAMPUS_HALL.d/2],['구정탑',PAGODA.x,PAGODA.z+2],['동상',STATUE_CENTER.x,STATUE_CENTER.z+2]].forEach(([t,x,y])=>g.fillText(t,x,y));}
   {const c=mmBg.hall;c.width=240;c.height=336;const g=c.getContext('2d');g.fillStyle='#3a2a20';g.fillRect(0,0,240,336);g.save();g.translate(12,70);const s=12;g.scale(s,s);g.translate(-105,-5);g.fillStyle='#a9743f';g.fillRect(105,5,18,15);g.fillStyle='#6e2a1f';g.fillRect(107,5,14,2);g.fillStyle='#d9a531';g.fillRect(113.55,9.45,.9,.9);g.fillStyle='#9a2f22';[[107,9],[107,13],[107,17],[120,9],[120,13],[120,17]].forEach(([x,y])=>g.fillRect(x+.2,y+.2,.6,.6));g.fillStyle='#efe2c4';g.fillRect(113,20,2,.6);g.restore();g.fillStyle='#f3dc9a';g.font='bold 18px "Gowun Batang",serif';g.textAlign='center';g.fillText('5층 대법당',120,44);}
   function drawMinimap(){if(mmEl.classList.contains('hide'))return;const h=inHall();mm.drawImage(h?mmBg.hall:mmBg.out,0,0);const tf=h?(x,z)=>[12+(x-105)*12,70+(z-5)*12]:(x,z)=>[x*4.8,z*4.8];
     const tk=targetKey();const it=tk&&INTERACT.find(i=>i.key===tk);if(it&&((it.x>100)===h)){const[a,b]=tf(it.mark[0],it.mark[2]);mm.fillStyle='#f2c037';mm.strokeStyle='#5a3b26';mm.lineWidth=2;mm.beginPath();mm.arc(a,b,6,0,Math.PI*2);mm.fill();mm.stroke();}
@@ -712,7 +697,7 @@ function init3D(){
     if(keys.has('q'))yaw+=dt*1.6;if(keys.has('r'))yaw-=dt*1.6;
     let mx=0,my=0;const busy=dialog||modalOpen||ritual||seq||creatorOpen;
     if(started&&!busy){if(keys.has('arrowleft')||keys.has('a'))mx-=1;if(keys.has('arrowright')||keys.has('d'))mx+=1;if(keys.has('arrowup')||keys.has('w'))my-=1;if(keys.has('arrowdown')||keys.has('s'))my+=1;mx+=joy.x;my+=joy.y;}
-    const l=Math.hypot(mx,my);if(tap?.guided&&l>.15){tap.guided=false;toast('직접 걸어서 탑돌이를 이어갑니다.');}if(l>1){mx/=l;my/=l;}player.moving=l>.05;
+    const l=Math.hypot(mx,my);if(tap?.guided&&l>.15){stopTap('직접 이동해 자동 탑돌이를 멈췄어요.');}if(l>1){mx/=l;my/=l;}player.moving=l>.05;
     if(player.moving){const dx=mx*Math.cos(yaw)+my*Math.sin(yaw),dz=-mx*Math.sin(yaw)+my*Math.cos(yaw);const sp=(tap?2.8:4.3)*dt;const nx=player.x+dx*sp,ny=player.y+dz*sp;if(canStand(nx,player.y))player.x=nx;if(canStand(player.x,ny))player.y=ny;player.walk+=dt;player.face=angLerp(player.face,Math.atan2(dx,dz),Math.min(1,dt*12));}
     guideTap(dt,canStand);
     if(seq)stepSeq(dt);else{const tg=tap?POSE.hap:POSE.stand;player.pose=lerpPose(player.pose,tg,Math.min(1,dt*8));}
@@ -854,7 +839,7 @@ const fontsReady=Promise.race([Promise.all([document.fonts.load('700 40px "Gowun
 fontsReady.then(()=>{try{init3D();sharing.start();
   const from=new URLSearchParams(location.search).get('from');
   if(['beopdang','doryang'].includes(from)&&nick&&readStore('hanmaum-deungbul-sex')){
-    started=true;document.getElementById('title').classList.add('hide');player.x=33;player.y=50.4;player.face=Math.PI;
+    started=true;document.getElementById('title').classList.add('hide');player.x=HALL_DOOR.x;player.y=HALL_DOOR.z;player.face=-Math.PI/2;
     state.ap=state.ap||{...DEFAULT_AP[readStore('hanmaum-deungbul-sex')==='f'?'f':'m']};rebuildPlayer();
     if(from==='beopdang'){state.hallDone=true;changed()}
   }
