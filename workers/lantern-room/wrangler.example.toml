@@ -16,6 +16,11 @@ new_sqlite_classes = ["LanternRoom"]
 [env.staging]
 name = "lantern-room-staging"
 
+# durable_objects 는 환경에 상속되지 않습니다. 환경마다 다시 적어야 합니다.
+[[env.staging.durable_objects.bindings]]
+name = "LANTERN_ROOM"
+class_name = "LanternRoom"
+
 [env.staging.vars]
 # 쉼표로 구분한 정확한 출처만 적습니다. 와일드카드는 쓰지 않습니다.
 ALLOWED_ORIGINS = "https://example-staging.vercel.app"
