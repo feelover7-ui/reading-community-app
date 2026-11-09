@@ -1,3 +1,4 @@
+import { relayUrl,createRelayAdapter } from './realtime/adapter.js'
 import { supabase } from './supabaseClient.js'
 
 const DEFAULT_CHANNEL = 'deungbul-yard'
@@ -11,6 +12,7 @@ function cleanMeta(meta = {}, bounds = DEFAULT_BOUNDS) {
       Number.isFinite(meta.y) && meta.y >= 0 && meta.y <= bounds.h) {
     out.x = meta.x; out.y = meta.y
   }
+  if(/^#[0-9a-f]{6}$/i.test(meta.color||''))out.color=meta.color
   out.vx = Number.isFinite(meta.vx) ? Math.max(-5, Math.min(5, meta.vx)) : 0
   out.vy = Number.isFinite(meta.vy) ? Math.max(-5, Math.min(5, meta.vy)) : 0
   out.dir = ['up', 'down', 'left', 'right'].includes(meta.dir) ? meta.dir : 'down'
@@ -24,9 +26,8 @@ function cleanMeta(meta = {}, bounds = DEFAULT_BOUNDS) {
 // - broadcast 'pos': 걸어다니는 위치 (DB에 저장하지 않는다)
 // - broadcast 'say': 말풍선에 띄울 한 줄 (기록은 messages 테이블이 따로 맡는다)
 export function joinYard({ ownerId, channel: channelName = DEFAULT_CHANNEL, bounds = DEFAULT_BOUNDS, onJoin, onLeave, onSync, onPose, onSay, onLit, onReady }) {
-  if (!supabase) {
-    return null
-  }
+  if(relayUrl())return joinRelay({url:relayUrl(),channelName,onSync,onPose,onSay,onLit,onReady})
+  if (!supabase) return null
 
   const channel = supabase.channel(channelName, {
     config: { presence: { key: ownerId }, broadcast: { self: false } },
@@ -169,4 +170,19 @@ export function joinYard({ ownerId, channel: channelName = DEFAULT_CHANNEL, boun
       }
     },
   }
+}
+
+function joinRelay({url,channelName,onSync,onPose,onSay,onLit,onReady}){
+  const scene=channelName==='deungbul-campus-v2'?'campus':channelName==='deungbul-beopdang'?'hall':channelName==='deungbul-grounds'?'grounds':'yard';
+  let meta={},started=false;
+  const a=createRelayAdapter({url,hello:()=>({mapVersion:'campus-v2',sceneId:scene,nickname:meta.nick||'법우',appearance:{sex:meta.sx==='f'?'f':'m',color:meta.color||'#e3a83f'}})});
+  a.on('snapshot',records=>{
+    const list=[...records.values()].filter(r=>r.id!==a.id&&r.scene===scene).map(r=>({id:r.id,meta:{nick:r.nick,sx:r.sex,color:r.color,x:r.x,y:r.z,vx:r.vx,vy:r.vz,bw:r.motion!=='stand'&&r.motion!=='walk',dir:Math.abs(Math.sin(r.yaw))>Math.abs(Math.cos(r.yaw))?(Math.sin(r.yaw)<0?'left':'right'):(Math.cos(r.yaw)<0?'up':'down')}}));
+    onSync?.(list);for(const r of list)onPose?.(r.id,r.meta);
+  });
+  a.on('state',s=>{if(s==='live')onReady?.();if(['offline','full','protocol_error'].includes(s))globalThis.dispatchEvent?.(new CustomEvent('lantern-connection',{detail:s}));});
+  a.on('event',m=>{if(m.from===a.id||m.scene!==scene)return;if(m.type==='say')onSay?.(m.from,{nick:m.nick,text:m.payload.text});if(m.type==='lit')onLit?.({nick:m.nick});});
+  return{get joined(){return a.live},track(m){meta={...meta,...m};if(!started){started=true;a.connect()}},
+    sendPose(p){const dir={up:Math.PI,down:0,left:-Math.PI/2,right:Math.PI/2};a.sendPose({sceneId:scene,x:p.x,z:p.y,vx:p.vx||0,vz:p.vy||0,yaw:Number.isFinite(p.yaw)?Math.atan2(Math.sin(p.yaw),Math.cos(p.yaw)):(dir[p.dir]||0),motion:p.bw?'bow':Math.hypot(p.vx||0,p.vy||0)>.01?'walk':'stand'})},
+    sendSay(text){a.sendEvent('say',{text})},sendLit(){a.sendEvent('lit',{})},leave(){a.disconnect()}};
 }

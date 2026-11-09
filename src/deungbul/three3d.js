@@ -116,7 +116,7 @@ export function createWorld (cv, opt = {}) {
   const ray = new THREE.Raycaster()
   function fadeOccluders (px, pz, dt) {
     if (!fadeables.length) return
-    const target = V3(px, .9, pz)
+    const target = V3(px, lookHeight, pz)
     const hits = new Set()
     for (const h of [V3(px, .9, pz), V3(px, 1.6, pz)]) {
       const dir = h.clone().sub(camera.position)
@@ -205,6 +205,7 @@ export function createFollower (cv, camera, opt = {}) {
     min: opt.min ?? 5,
     max: opt.max ?? 16
   }
+  const lookHeight=opt.lookHeight??.9
   const pos = V3(0, 8, 0), look = V3(0, 1, 0)
   const camRay = new THREE.Raycaster()
   let first = true, drag = null
@@ -230,6 +231,7 @@ export function createFollower (cv, camera, opt = {}) {
 
   return {
     state,
+    reset(values={}){Object.assign(state,values);first=true},
     turn (keys, dt) {
       if (keys.has('q')) state.yaw += dt * 1.6
       if (keys.has('r')) state.yaw -= dt * 1.6
@@ -250,7 +252,7 @@ export function createFollower (cv, camera, opt = {}) {
       }
       const want = V3(
         px + Math.sin(state.yaw) * dist * Math.cos(state.pitch),
-        .9 + dist * Math.sin(state.pitch),
+        lookHeight + dist * Math.sin(state.pitch),
         pz + Math.cos(state.yaw) * dist * Math.cos(state.pitch)
       )
       // 방 안에서는 카메라가 벽 밖으로 나가지 않게 가둔다.
@@ -262,7 +264,7 @@ export function createFollower (cv, camera, opt = {}) {
         if (cx !== want.x || cz !== want.z) {
           const hx = cx - px, hz = cz - pz
           const up = Math.sqrt(Math.max(0, dist * dist - (hx * hx + hz * hz)))
-          want.y = Math.max(want.y, .9 + up)
+          want.y = Math.max(want.y, lookHeight + up)
         }
         want.x = cx; want.z = cz
         if (bounds.yMax != null) want.y = Math.min(bounds.yMax, want.y)

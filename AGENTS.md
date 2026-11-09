@@ -235,3 +235,14 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 원본 외형 복원은 preview부터 진행합니다. 이전 삭제 건물·법당 명칭·작업장 위치는 유지합니다. 이식 preview는 좌표 변환표와 충돌 검증을 갖춰 기존 좌표를 변경할 수 있습니다.
 - Cloudflare DO relay와 실제 80개 WS/실기기 시험을 단계별로 진행하며 설계 수치와 무료 예산은 보장이 아닙니다. 독서 홈페이지는 수정하지 않습니다.
 - Claude 인계: .claude/commands/original-map-80.md. PR #7은 e797fea에 반영되었습니다. #8 상태를 확인하고 자동 머지하지 않습니다.
+
+## 2026-11-09 최신 사용자 요청: 원본 외부 맵 + 기존 법당 내부
+
+- 사용자가 "맵은 처음 공유한 맵으로, 법당 내부는 기존 것"을 요청했습니다. 이 요청에 따라 원본 외부 건물 배치/외형을 복원합니다. 이전 삭제 건물/작업장 위치 유지 규칙과 충돌하면 이 최신 요청을 우선합니다. 실측 지도라고 표현하지 않습니다.
+- deungbul.html은 original/campusScene.js로 원본 외부 맵을 엽니다. original.html은 참조 미리보기로 유지합니다. 운영 파일에서 원본의 별도 법당 내부 geometry는 생성하지 않고 기존 beopdang.html로 연결합니다.
+- beopdang은 내부 건축/좌복/절 기능을 유지합니다. 시점은 낮춘 기본 각도와 불단 방향 초기화 버튼을 사용합니다. 출구는 원본 외부 법당 앞(33,50.4)입니다. doryang 주소도 새 외부 맵으로 연결합니다.
+- 구정탑 탑돌이는 orbitProgress.js에서 탑 중심의 실제 이동 각도로 계산합니다. 제자리 회전/순간이동은 무효이고 반시계 이동은 진행량을 뺍니다. 세 바퀴를 채우면 완료합니다. 안내 원과 카메라 시선의 기준도 구정탑입니다.
+- 기존 공유 등불/방명록/대화 API를 campusServices.js로 연결합니다. 새 저장 키 hanmaum-campus-v2는 이전 로컬 등을 읽기 전용으로 이관하며 기존 저장 키를 덮지 않습니다.
+- presence.js가 relay 어댑터를 실제로 선택합니다. 수정 Worker를 배포한 뒤 VITE_LANTERN_RELAY_URL 또는 hanmaum-deungbul-relay에 URL을 지정합니다. 설정 전 기본 Supabase 경로를 유지하며 두 통신을 동시에 구독하지 않습니다.
+- client 입력 4KiB와 server 80인 명단 128KiB를 분리합니다. 전체 snapshot 교체/seq gate, 무작위 resumeToken, DO 저장 복원/hello 중복 방지를 유지합니다. 이전 staging 시험 결과를 새 코드 시험 결과로 표현하지 않습니다.
+- 이번 상세 변경/검증/미실행 항목은 docs/CAMPUS_V2_REVIEW.md에 기록합니다. PR 본문은 사용자 요청대로 "검증 못 했음"만 씁니다. 독서 홈페이지는 수정하지 않습니다.

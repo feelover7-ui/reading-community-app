@@ -135,7 +135,7 @@ function nearSpot () {
   return best
 }
 function promptNow () {
-  if (atDoor(player.x, player.y)) return { label: '도량으로 나가기', run: () => travel('/doryang.html?from=beopdang') }
+  if (atDoor(player.x, player.y)) return { label: '도량으로 나가기', run: () => travel('/deungbul.html?from=beopdang') }
   const c = cushionAt(player.x, player.y)
   if (c) return { label: '절하기', run: () => openBowPicker(c) }
   const s = nearSpot()
@@ -222,7 +222,7 @@ byId('helpb').onclick = () => {
   const b = el('button', 'btn', '닫기'); b.onclick = modal.close
   m.append(h, b)
 }
-byId('backb').addEventListener('click', e => { e.preventDefault(); travel('/doryang.html?from=beopdang') })
+byId('backb').addEventListener('click', e => { e.preventDefault(); travel('/deungbul.html?from=beopdang') })
 
 /* ---------- 한 줄 이야기 ---------- */
 let myLine = '', myLineUntil = 0
@@ -270,7 +270,12 @@ if (window.innerWidth < 640) {
 /* ---------- 3D 세계 ---------- */
 const world = createWorld(cv, { fov: 56, bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: true, light: .3, sunLight: .18, sky: '#ffe9c8', groundLight: '#6b4a32' })
 const hall = buildHall(world)
-const follower = createFollower(cv, world.camera, { dist: 9, pitch: .42, min: 4, max: 14, yaw: 0 })
+const follower = createFollower(cv, world.camera, { dist: 9, pitch: .32, min: 6, max: 14, yaw: 0, lookHeight: 1.2 })
+// 낮은 시점에서 앞을 보되, 시야를 잃으면 한 번에 불단 방향으로 되돌린다.
+const viewReset=el('button','iconbtn','🧭')
+viewReset.type='button';viewReset.title='법당 시점 초기화';viewReset.setAttribute('aria-label','법당 시점을 불단 방향으로 초기화')
+viewReset.onclick=()=>{follower.reset({yaw:0,dist:9,pitch:.32});try{cv.focus({preventScroll:true})}catch{}}
+byId('helpb').parentElement.append(viewReset)
 const labels = createLabelLayer(world.camera)
 const meBody = makePerson(world, myLook)
 const hallPeers = createHallPeers(world)
