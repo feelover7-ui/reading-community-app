@@ -201,10 +201,16 @@ export const HALL_ENTRY=Object.freeze(pixelToSite(REFERENCE_PIXELS.mainEntry))
 export const WORKSHOP_ENTRY=Object.freeze(moveWorkshop(pixelToSite(REFERENCE_PIXELS.workshopEntry)))
 const sy=statueFacingYaw()
 /* 사용자 요청: 시작 지점도 등불사장으로. 첫 자리가 출발점이다. */
+/* 본관 앞은 마당 쪽(북쪽)에 둔다. 서쪽 벽에 붙여 두면 뒤따라오는 카메라가
+   벽과 나무에 파묻혀 화면이 통째로 막힌다. */
+/* 카메라는 yaw 0 에서 사람의 남쪽(+z)에 서서 북쪽을 본다.
+   본관은 마당 남쪽에 있으므로 본관을 보려면 카메라가 북쪽(yaw = π)에 서야 한다.
+   이걸 빼면 카메라가 본관 벽 안으로 들어가 화면이 통째로 막힌다. */
+export const HALL_VIEW=Object.freeze({x:30,z:33})
 export const STOPS=Object.freeze([
  {id:'workshop',name:'등불사 작업장',x:WORKSHOP_INSIDE.x,z:WORKSHOP_INSIDE.z},
- {id:'main',name:'본관 앞',...HALL_ENTRY},
- {id:'pagoda',name:'도량탑 앞',x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z-2.9},
+ {id:'main',name:'본관 앞',...HALL_VIEW,yaw:Math.PI},
+ {id:'pagoda',name:'도량탑 앞',x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z-3.2,yaw:Math.PI},
  {id:'statue',name:'동상 앞',x:LANDMARKS.statue.x+Math.sin(sy)*2.8,z:LANDMARKS.statue.z+Math.cos(sy)*2.8},
  {id:'hall3',name:'법당 문 앞',...doorPoint(0,1.5)}
 ])
@@ -237,28 +243,47 @@ function farFromPaths(x,z,m){
   if(Math.hypot(x-(a.x+dx*t),z-(a.z+dz*t))<m)return false}
  return true
 }
-const STOP_POINTS=[{x:WORKSHOP_INSIDE.x,z:WORKSHOP_INSIDE.z},HALL_ENTRY,
- {x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z-2.9},PATH_NORTH,{x:HALL_DOOR.x,z:HALL_DOOR.z-1.5}]
+const STOP_POINTS=[{x:WORKSHOP_INSIDE.x,z:WORKSHOP_INSIDE.z},HALL_VIEW,
+ {x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z-2.9},PATH_NORTH,{x:HALL_DOOR.x,z:HALL_DOOR.z-1.5},
+ {x:LANDMARKS.statue.x,z:LANDMARKS.statue.z+2.4}]
+/* 마당 조경. 위성사진에서 읽은 녹지(PLANTING·LOWER_GARDEN) 안에 심고,
+   담 안쪽에는 드문드문 몇 그루만 둔다. 담을 빙 둘러 숲처럼 세우지 않는다.
+   가지는 카메라 눈높이(마당에서 2칸쯤) 위에 있어야 뒤따라오는 화면이 막히지 않는다.
+   게임용 배치이고 실제 조경이 아니다. */
+/* 밑동에서 가지까지의 높이. 뒤따라오는 카메라는 사람 발치에서 약 2.9칸 위에 있으므로
+   가지는 그보다 위에 달려야 한다. 줄이면 카메라가 잎 속에 들어가 화면이 초록으로 막힌다. */
+export const TREE_LIFT=3.9
 export const GARDEN_TREES=Object.freeze((()=>{
  const out=[],rnd=(i,j)=>{const v=Math.sin(i*127.1+j*311.7)*43758.5453;return v-Math.floor(v)}
+ const ok=(x,z,i)=>{
+  if(!inYard(x,z))return false
+  if(inWorkshopBounds(x,z))return false
+  if(Math.hypot(x-LANDMARKS.pagoda.x,z-LANDMARKS.pagoda.z)<PAGODA_APRON.r+3)return false
+  if(Math.hypot(x-LANDMARKS.statue.x,z-LANDMARKS.statue.z)<4.5)return false
+  if(STOP_POINTS.some(q=>Math.hypot(x-q.x,z-q.z)<6))return false
+  if(!farFromPaths(x,z,4))return false
+  if(BUILDINGS.some(bd=>bd.polygons.some(pl=>pointInPolygon(x,z,pl)||closeToEdge(x,z,pl))))return false
+  if(out.some(t=>Math.hypot(t.x-x,t.z-z)<2.4))return false
+  return true
+ }
+ const put=(x,z,i)=>{if(ok(x,z,i))out.push({x:+x.toFixed(2),z:+z.toFixed(2),r:+(.62+rnd(i,4)*.26).toFixed(3)})}
+ // (1) 사진에서 읽은 녹지 안
  let i=0
- for(let x=YARD.x0+2;x<YARD.x1-1;x+=2.6)for(let z=YARD.z0+2;z<YARD.z1-1;z+=2.6){
+ for(const area of [...PLANTING.map(a=>a.polygon),LOWER_GARDEN]){
+  const xs=area.map(p=>p.x),zs=area.map(p=>p.z)
+  const x0=Math.min(...xs),x1=Math.max(...xs),z0=Math.min(...zs),z1=Math.max(...zs)
+  for(let x=x0+1;x<x1;x+=2.6)for(let z=z0+1;z<z1;z+=2.6){
+   i++
+   const px=x+(rnd(i,1)-.5)*1.1,pz=z+(rnd(i,2)-.5)*1.1
+   if(pointInPolygon(px,pz,area))put(px,pz,i)
+  }
+ }
+ // (2) 담 안쪽에 드문드문
+ for(let t=0;t<1;t+=1/14){
   i++
-  const px=x+(rnd(i,1)-.5)*1.4,pz=z+(rnd(i,2)-.5)*1.4
-  if(!inYard(px,pz))continue
-  if(inWorkshopBounds(px,pz))continue
-  if(Math.hypot(px-LANDMARKS.pagoda.x,pz-LANDMARKS.pagoda.z)<PAGODA_APRON.r+2.6)continue
-  if(Math.hypot(px-LANDMARKS.statue.x,pz-LANDMARKS.statue.z)<4)continue
-  if(Math.hypot(px-WORKSHOP_DOOR.x,pz-WORKSHOP_DOOR.z)<3)continue
-  if(Math.hypot(px-HALL_DOOR.x,pz-HALL_DOOR.z)<5)continue
-  if(!farFromPaths(px,pz,3.4))continue
-  if(STOP_POINTS.some(q=>Math.hypot(px-q.x,pz-q.z)<2.6))continue
-  if(BUILDINGS.some(b=>b.polygons.some(pl=>pointInPolygon(px,pz,pl)||closeToEdge(px,pz,pl))))continue
-  // 담에서 조금 떨어뜨리고, 안쪽은 드문드문 둔다.
-  const edge=Math.min(px-YARD.x0,YARD.x1-px,pz-YARD.z0,YARD.z1-pz)
-  if(edge<1.6)continue
-  if(edge>7&&rnd(i,3)>.22)continue
-  out.push({x:+px.toFixed(2),z:+pz.toFixed(2),r:.72+rnd(i,4)*.38})
+  const peri=[[YARD.x0+2.2,YARD.z0+2.2+(YARD.z1-YARD.z0-4.4)*t],[YARD.x1-2.2,YARD.z0+2.2+(YARD.z1-YARD.z0-4.4)*t],
+   [YARD.x0+2.2+(YARD.x1-YARD.x0-4.4)*t,YARD.z0+2.2],[YARD.x0+2.2+(YARD.x1-YARD.x0-4.4)*t,YARD.z1-2.2]]
+  for(const [px,pz] of peri)if(rnd(i,px|0)>.42)put(px,pz,i)
  }
  return out
 })().map(Object.freeze))
@@ -272,6 +297,6 @@ export function canWalk(x,z){
  for(const b of BUILDINGS)if(b.polygons.some(p=>pointInPolygon(x,z,p)||closeToEdge(x,z,p)))return false
  if(Math.hypot(x-LANDMARKS.pagoda.x,z-LANDMARKS.pagoda.z)<1.1)return false
  if(Math.hypot(x-LANDMARKS.statue.x,z-LANDMARKS.statue.z)<1.8)return false
- for(const t of GARDEN_TREES)if(Math.hypot(x-t.x,z-t.z)<t.r*.55)return false
+ for(const t of GARDEN_TREES)if(Math.hypot(x-t.x,z-t.z)<t.r*.5)return false
  return true
 }

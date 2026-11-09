@@ -26,7 +26,7 @@ export const STATIONS=Object.freeze([
 export const RACK=Object.freeze({x0:WS.x0+1.4,x1:WS.x0+5.6,z:WS.z1-1.5})
 export const BIG_LANTERN=Object.freeze({x:WS.x1-2.6,z:WS.z1-2.6})
 export const WS_NPCS=Object.freeze([
- {id:'banjang',name:'등불사장 반장 법우',x:WS.x0+1.4,z:WS.z0+5.3,face:Math.PI/2},
+ {id:'banjang',name:'등불사장 반장 법우',x:WS.x0+3.2,z:WS.z0+4.3,face:Math.PI/2},
  {id:'worker',name:'용등 만드는 법우',x:WS.x1-1.0,z:WS.z0+3.9,face:-Math.PI/2},
  {id:'monk',name:'스님',x:WS.x1-1.9,z:WS.z1-.9,face:Math.PI}
 ].map(Object.freeze))

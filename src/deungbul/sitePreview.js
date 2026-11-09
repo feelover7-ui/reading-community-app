@@ -34,8 +34,8 @@ buildSatelliteHall(world,atmosphere)
 const shop=buildWorkshopYard(world)
 const bigLantern=buildBigLantern(world)
 buildTerraceArchitecture(world)
-const pg=buildPagoda({scene,M,mesh});pg.group.scale.setScalar(.4);pg.group.position.set(LANDMARKS.pagoda.x,TERRACE.y,LANDMARKS.pagoda.z)
-const st=buildStatue({scene,M,mesh,box});st.scale.setScalar(.4);st.position.set(LANDMARKS.statue.x,TERRACE.y,LANDMARKS.statue.z);st.rotation.y=statueFacingYaw()
+const pg=buildPagoda({scene,M,mesh});pg.group.scale.setScalar(.26);pg.group.position.set(LANDMARKS.pagoda.x,TERRACE.y,LANDMARKS.pagoda.z)
+const st=buildStatue({scene,M,mesh,box});st.scale.setScalar(.32);st.position.set(LANDMARKS.statue.x,TERRACE.y,LANDMARKS.statue.z);st.rotation.y=statueFacingYaw()
 const seven=buildSevenTreasure(world,LANDMARKS.seven)
 const planCamera=new THREE.OrthographicCamera(-30,30,30,-30,.1,700)
 planCamera.up.set(0,0,-1)
@@ -84,7 +84,8 @@ function visit(id){
   if(rite)stopRite('자리를 옮겨서 멈췄어요.')
   reset();focusSeven=false;world.camera.up.set(0,1,0);world.camera.fov=48;world.camera.updateProjectionMatrix();$('compass').hidden=true;$('viewNote').textContent='직접 둘러보기';$('planview').setAttribute('aria-pressed','false');$('sevenview').setAttribute('aria-pressed','false');player.x=stop.x;player.z=stop.z;overview=false;person.visible=true;for(const w of walkers)w.visible=true;for(const q of npcs)q.visible=true;peerRoot.visible=true
   document.body.classList.add('walk');$('overview').setAttribute('aria-pressed','false');ensurePeers()
-  follower.reset(id==='hall3'?{yaw:Math.atan2(HALL_DOOR.normal.x,HALL_DOOR.normal.z),dist:2.2,pitch:.14,min:1.6}:{yaw:0,dist:5,pitch:.42,min:2.6})
+  follower.reset(id==='hall3'?{yaw:Math.atan2(HALL_DOOR.normal.x,HALL_DOOR.normal.z),dist:2.2,pitch:.14,min:1.6}:{yaw:stop.yaw??0,dist:5,pitch:.42,min:2.6})
+  if(stop.yaw!=null)player.face=stop.yaw+Math.PI
   if(id==='hall3'&&world.camera.aspect<.8){world.camera.fov=74;world.camera.updateProjectionMatrix()}
   status.textContent=stop.name+' · '+(touch?'조이스틱 이동 · 화면 끌기·두 손가락 확대':'방향키/WASD 이동 · 끌기 회전 · Q/R · 휠 확대')
   cv.focus({preventScroll:true})
@@ -607,7 +608,7 @@ document.addEventListener('visibilitychange',()=>{reset();if(document.hidden){ca
 addEventListener('pagehide',()=>{stopped=true;reset();cancelAnimationFrame(raf);raf=0})
 addEventListener('pageshow',()=>{stopped=false;start()})
 cv.addEventListener('webglcontextlost',e=>{e.preventDefault();frameError=true;cancelAnimationFrame(raf);raf=0;status.textContent='3D 연결이 중단됐습니다. 새로고침해 주세요.'})
-if(import.meta.env.DEV)window.__sitePreview={peerDebug:()=>({joined:peers.joined,n:peers.peers.size,bodies:peerLayer.bodies.size,stats:{...peerLayer.stats},tags:peerTags.size,hasIdentity}),visit,overview:setOverview,view:()=>({mode:viewMode,camera:(overview&&!focusSeven?planCamera:world.camera).position.toArray(),landmarks:JSON.parse(JSON.stringify(LANDMARKS))}),warp:(x,z)=>{if(canWalk(x,z)){visit('hall3');player.x=x;player.z=z}},door:()=>({door:HALL_DOOR,lobby:HALL_LOBBY,point:doorPoint,inside:inHallLobby(player.x,player.z),local:doorLocal(player.x,player.z)}),position:()=>({...player,height:groundHeight(player.x,player.z)}),canWalk,metres:SEPARATION_METRES,landmarks:()=>({seven:{x:seven.position.x,z:seven.position.z,orbs:seven.userData.orbCount},pagoda:{x:pg.group.position.x,z:pg.group.position.z},statue:{x:st.position.x,z:st.position.z,yaw:st.rotation.y}})}
+if(import.meta.env.DEV)window.__sitePreview={peerDebug:()=>({joined:peers.joined,n:peers.peers.size,bodies:peerLayer.bodies.size,tags:peerTags.size,hasIdentity}),visit,overview:setOverview,view:()=>({mode:viewMode,camera:(overview&&!focusSeven?planCamera:world.camera).position.toArray(),landmarks:JSON.parse(JSON.stringify(LANDMARKS))}),warp:(x,z)=>{if(canWalk(x,z)){visit('hall3');player.x=x;player.z=z}},door:()=>({door:HALL_DOOR,lobby:HALL_LOBBY,point:doorPoint,inside:inHallLobby(player.x,player.z),local:doorLocal(player.x,player.z)}),position:()=>({...player,height:groundHeight(player.x,player.z)}),canWalk,metres:SEPARATION_METRES,landmarks:()=>({seven:{x:seven.position.x,z:seven.position.z,orbs:seven.userData.orbCount},pagoda:{x:pg.group.position.x,z:pg.group.position.z},statue:{x:st.position.x,z:st.position.z,yaw:st.rotation.y}})}
 /* 클로드 맵처럼 바로 걷는 상태로 연다. 배치도는 `본원 확대`·`전체 위치` 버튼으로 본다. */
 /* 도량을 반듯하게 돌렸으므로 북쪽은 화면 위가 아니다. 나침반 바늘을 같이 돌린다. */
 {const c=$('compass');if(c){c.textContent='N';c.style.setProperty('--north',(-SITE_YAW*180/Math.PI).toFixed(1)+'deg')
