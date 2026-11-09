@@ -41,7 +41,9 @@ export function createWorld (cv, opt = {}) {
   const camera = new THREE.PerspectiveCamera(opt.fov || 45, 1, .1, 240)
   function resize () {
     const w = window.innerWidth, h = window.innerHeight
-    renderer.setSize(w, h, false)
+    // setSize(w, h, false) 로 두면 캔버스가 화면 배율만큼 커진 채 자리를 잡는다.
+    // 배율 2 인 화면에서는 캔버스가 창의 두 배가 되어 왼쪽 위 4 분의 1 만 보인다.
+    renderer.setSize(w, h)
     camera.aspect = w / h
     const baseFov = opt.fov || 45
     camera.fov = w < h ? baseFov + 15 : baseFov   // 좁은 화면에서는 더 넓게 본다
