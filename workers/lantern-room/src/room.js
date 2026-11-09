@@ -5,13 +5,14 @@ import { LIMITS, createSeqGate, createTokenBucket, validatePose, validateEvent }
 export const SCENE_BOUNDS = {
   yard: { w: 36, h: 26, maxSpeed: 8 },
   grounds: { w: 48, h: 34, maxSpeed: 8 },
-  hall: { w: 26, h: 20, maxSpeed: 8 }
+  hall: { w: 26, h: 20, maxSpeed: 8 },
+  campus: { w:126,h:70,maxSpeed:8 }
 }
 
 export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSessions } = {}) {
   const sessions = new Map()   // participantId -> session
   const pending = new Map()    // 끊겼지만 유예 중인 사람
-  let epoch = now()
+  let epoch = crypto.randomUUID()
   let nextId = 1
   let changed = new Set()
 
@@ -28,6 +29,7 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
 
     /* 81번째는 거절합니다. 이미 들어온 사람을 밀어내지 않습니다. */
     join (hello, resumeToken) {
+      this.sweep()
       if (resumeToken) {
         for (const [id, held] of pending) {
           if (held.resumeToken === resumeToken) {
@@ -46,9 +48,9 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
       const s = {
         id, nickname: hello.nickname, appearance: hello.appearance, sceneId: hello.sceneId,
         x: b.w / 2, z: b.h / 2, vx: 0, vz: 0, yaw: 0, motion: 'stand', at: now(),
-        linkState: 'live', resumeToken: 'r' + id + '-' + epoch,
+        linkState: 'live', resumeToken: crypto.randomUUID(),
         gate: createSeqGate(),
-        poseBucket: createTokenBucket({ capacity: 8, refillPerSec: LIMITS.poseHz * 2, now }),
+        poseBucket: createTokenBucket({ capacity: 2, refillPerSec: LIMITS.poseHz, now }),
         eventBucket: createTokenBucket({ capacity: 5, refillPerSec: 1, now })
       }
       sessions.set(id, s); changed.add(id)
@@ -58,12 +60,14 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
     pose (id, msg) {
       const s = sessions.get(id)
       if (!s) return { ok: false, reason: 'unknown_session' }
-      if (!s.gate.accept(epoch, msg.clientSeq)) return { ok: false, reason: 'stale_seq' }
-      if (!s.poseBucket.take()) return { ok: false, reason: 'rate_limited' }
-      const bounds = SCENE_BOUNDS[msg.sceneId]
+            const bounds = SCENE_BOUNDS[msg.sceneId]
       if (!bounds) return { ok: false, reason: 'bad_scene' }
       const v = validatePose(msg, bounds)
       if (!v.ok) return v
+      if(s.sceneId!==msg.sceneId)return{ok:false,reason:'bad_scene'}
+      if(msg.clientSeq<=s.gate.state.last)return{ok:false,reason:'stale_seq'}
+      if (!s.poseBucket.take()) return {ok:false,reason:'rate_limited'}
+      if (!s.gate.accept(epoch,msg.clientSeq)) return {ok:false,reason:'stale_seq'}
       Object.assign(s, {
         sceneId: v.value.sceneId, x: v.value.x, z: v.value.z,
         vx: v.value.vx, vz: v.value.vz, yaw: v.value.yaw,
@@ -115,6 +119,19 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
     fullSnapshot (serverSeq) {
       return { t: 'snapshot', serverSeq, serverTime: now(), epoch, full: true, records: this.roster(), removed: [] }
     },
-    restart () { epoch = now(); for (const s of sessions.values()) s.gate = createSeqGate() }
+    exportState(){
+      const serial=s=>{const {gate,poseBucket,eventBucket,...rest}=s;return {...rest,lastSeq:gate.state.last}};
+      return{epoch,nextId,sessions:[...sessions.values()].map(serial),pending:[...pending.values()].map(serial)};
+    },
+    restore(saved){
+      if(!saved)return;epoch=saved.epoch;nextId=saved.nextId;sessions.clear();pending.clear();
+      const hydrate=s=>{const gate=createSeqGate();if(s.lastSeq>=0)gate.accept(epoch,s.lastSeq);return {...s,gate,
+        poseBucket:createTokenBucket({capacity:2,refillPerSec:LIMITS.poseHz,now}),
+        eventBucket:createTokenBucket({capacity:5,refillPerSec:1,now})}};
+      for(const s of saved.sessions||[])sessions.set(s.id,hydrate(s));
+      for(const s of saved.pending||[])pending.set(s.id,hydrate(s));
+      changed=new Set();this.sweep();
+    },
+    restart () { epoch = crypto.randomUUID(); for (const s of sessions.values()) s.gate = createSeqGate() }
   }
 }
