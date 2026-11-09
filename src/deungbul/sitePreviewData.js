@@ -16,11 +16,22 @@ const bx=relativeMetres(NORTH_REFERENCE.basis.o,NORTH_REFERENCE.basis.x),by=rela
 export const METRES_PER_PIXEL=(Math.hypot(bx.east,bx.north)+Math.hypot(by.east,by.north))/200
 export const UNITS_PER_PIXEL=METRES_PER_PIXEL*SITE_METRES_TO_UNITS
 export const MAIN=Object.freeze({x:30,z:40})
+/* 사용자 요청: 맵을 사각형으로, 반듯하게 보이도록.
+   본관은 정북에서 기울어 앉아 있어 사진 그대로 두면 화면에서 비스듬합니다.
+   같은 사진의 본관 지붕 긴 변을 화면 가로축에 맞추도록 도량 전체를 한 번 돌립니다.
+   한 점을 따로 옮기는 것이 아니라 전부 같은 각도로 돌리므로 서로의 자리 관계는 그대로입니다.
+   북쪽은 더 이상 화면 위가 아니며, 나침반은 돌아간 북쪽을 가리킵니다. */
+const hc=REFERENCE_PIXELS.hallCore
+const yawX=(hc[1][0]-hc[0][0])+(hc[2][0]-hc[3][0]),yawY=(hc[1][1]-hc[0][1])+(hc[2][1]-hc[3][1])
+export const SITE_YAW=Math.atan2(yawY,yawX)
+const SY=Math.sin(SITE_YAW),CY=Math.cos(SITE_YAW)
 export function pixelToSite([x,y]){
- return{x:MAIN.x+(x-REFERENCE_PIXELS.mainPin[0])*UNITS_PER_PIXEL,z:MAIN.z+(y-REFERENCE_PIXELS.mainPin[1])*UNITS_PER_PIXEL}
+ const dx=(x-REFERENCE_PIXELS.mainPin[0])*UNITS_PER_PIXEL,dz=(y-REFERENCE_PIXELS.mainPin[1])*UNITS_PER_PIXEL
+ return{x:MAIN.x+dx*CY+dz*SY,z:MAIN.z-dx*SY+dz*CY}
 }
 export function siteToPixel({x,z}){
- return[REFERENCE_PIXELS.mainPin[0]+(x-MAIN.x)/UNITS_PER_PIXEL,REFERENCE_PIXELS.mainPin[1]+(z-MAIN.z)/UNITS_PER_PIXEL]
+ const dx=x-MAIN.x,dz=z-MAIN.z,px=dx*CY-dz*SY,pz=dx*SY+dz*CY
+ return[REFERENCE_PIXELS.mainPin[0]+px/UNITS_PER_PIXEL,REFERENCE_PIXELS.mainPin[1]+pz/UNITS_PER_PIXEL]
 }
 export const sitePoint=pixelToSite
 export const HALL_FLOOR_HEIGHT=2
@@ -124,20 +135,65 @@ export const PLANTING=Object.freeze(['statueGarden','field','island1','island2']
 export const STAIR_OUTLINES=Object.freeze(['stairsA','stairsB'].map(id=>({id,polygon:REFERENCE_PIXELS[id].map(pixelToSite),heightResolved:false})))
 export const TREES=Object.freeze(REFERENCE_PIXELS.trees.map(pixelToSite))
 export const ROADS=Object.freeze(REFERENCE_PIXELS.roads.map(r=>({width:r.width*UNITS_PER_PIXEL,points:r.points.map(pixelToSite)})))
+/* 사용자 요청: 맵을 사각형으로.
+   사진에서 읽은 들쭉날쭉한 담 윤곽 대신, 도량 전체를 담는 네모난 마당을 걷는 범위로 씁니다.
+   원래 윤곽(PRECINCT)은 근거로 남겨 두고 바닥 무늬로만 보여 줍니다. */
+export const YARD=Object.freeze({x0:16,x1:56,z0:8,z1:50})
+export const inYard=(x,z)=>x>YARD.x0&&x<YARD.x1&&z>YARD.z0&&z<YARD.z1
+
+/* 높은 마당(도량탑·동상)과 아래 마당을 잇는 비탈길.
+   사진에서 실제 계단의 단차를 읽지 못했기 때문에 걸어 올라갈 수 있는 비탈로 뒀습니다.
+   실제 계단의 자리·형태가 아니라 걸어 다니기 위한 장치입니다. */
+export const RAMP=Object.freeze({xLow:18.6,xHigh:23.0,z0:21.8,z1:25.6})
+export function onRamp(x,z){return z>RAMP.z0-.4&&z<RAMP.z1+.4&&x>RAMP.xLow-.6&&x<RAMP.xHigh+1.6}
+export function rampHeight(x){
+  const t=(x-RAMP.xLow)/(RAMP.xHigh-RAMP.xLow)
+  return Math.max(0,Math.min(1,t))*HALL_THIRD_FLOOR_Y
+}
+
+/* 도량탑을 도는 마당. 탑돌이는 반지름 4 로 한 바퀴를 도는데,
+   사진에서 읽은 높은 마당은 탑 동쪽이 1.2 밖에 안 남아 한 바퀴가 돌아지지 않습니다.
+   그래서 탑 둘레에 걸을 수 있는 둥근 마당을 따로 둡니다.
+   사진에서 읽은 마당 윤곽이 아니라 탑돌이를 위해 둔 자리입니다. */
+export const PAGODA_APRON=Object.freeze({r:5.6})
+export function inApron(x,z){return Math.hypot(x-LANDMARKS.pagoda.x,z-LANDMARKS.pagoda.z)<PAGODA_APRON.r}
+
+/* 길. 작업장에서 법당으로, 작업장에서 도량탑으로 이어집니다. 바닥 포장으로 보여 줍니다. */
+const strip=(a,b,w)=>{
+  const dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1,nx=-dz/l*w/2,nz=dx/l*w/2
+  return[{x:a.x+nx,z:a.z+nz},{x:b.x+nx,z:b.z+nz},{x:b.x-nx,z:b.z-nz},{x:a.x-nx,z:a.z-nz}]
+}
+export const WORKSHOP_DOOR=Object.freeze({x:47,z:38.6})
+export const RAMP_FOOT=Object.freeze({x:RAMP.xLow,z:(RAMP.z0+RAMP.z1)/2})
+export const RAMP_TOP=Object.freeze({x:RAMP.xHigh+.8,z:(RAMP.z0+RAMP.z1)/2})
+export const PATHS=Object.freeze([
+  // 작업장 문 → 본관 남쪽을 지나 서쪽으로
+  {id:'yardSouth',y:0,polygon:strip(WORKSHOP_DOOR,{x:19.6,z:46.6},3.2)},
+  // 서쪽을 따라 비탈 아래까지
+  {id:'yardWest',y:0,polygon:strip({x:19.6,z:46.6},{x:19.6,z:RAMP_FOOT.z},3.2)},
+  // 비탈 위에서 도량탑으로
+  {id:'toPagoda',y:HALL_THIRD_FLOOR_Y,polygon:strip(RAMP_TOP,{x:LANDMARKS.pagoda.x-4.4,z:LANDMARKS.pagoda.z},3)},
+  // 비탈 위에서 법당 문으로
+  {id:'toHallDoor',y:HALL_THIRD_FLOOR_Y,polygon:strip({x:LANDMARKS.pagoda.x-4.4,z:LANDMARKS.pagoda.z},{x:HALL_DOOR.x,z:HALL_DOOR.z-1.6},3)}
+])
+
 export function groundHeight(x,z){
- if(inHallPassage(x,z)||inHallLobby(x,z)||pointInPolygon(x,z,TERRACE.polygon))return HALL_THIRD_FLOOR_Y
+ if(onRamp(x,z))return rampHeight(x)
+ if(inHallPassage(x,z)||inHallLobby(x,z)||pointInPolygon(x,z,TERRACE.polygon)||inApron(x,z))return HALL_THIRD_FLOOR_Y
  return 0
 }
 export const HALL_ENTRY=Object.freeze(pixelToSite(REFERENCE_PIXELS.mainEntry))
 export const WORKSHOP_ENTRY=Object.freeze(moveWorkshop(pixelToSite(REFERENCE_PIXELS.workshopEntry)))
 const sy=statueFacingYaw()
+/* 사용자 요청: 시작 지점도 등불사장으로. 첫 자리가 출발점이다. */
 export const STOPS=Object.freeze([
+ {id:'workshop',name:'등불사 작업장 앞',x:WORKSHOP_DOOR.x,z:WORKSHOP_DOOR.z+1.4},
  {id:'main',name:'본관 앞',...HALL_ENTRY},
- {id:'workshop',name:'작업장 앞',...WORKSHOP_ENTRY},
- {id:'pagoda',name:'도량탑 앞',x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z+2.8},
+ {id:'pagoda',name:'도량탑 앞',x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z-2.9},
  {id:'statue',name:'동상 앞',x:LANDMARKS.statue.x+Math.sin(sy)*2.8,z:LANDMARKS.statue.z+Math.cos(sy)*2.8},
- {id:'hall3',name:'본관 3층 문 앞',...doorPoint(0,1.5)}
+ {id:'hall3',name:'법당 문 앞',...doorPoint(0,1.5)}
 ])
+export const stopOf=id=>STOPS.find(s=>s.id===id)
 // 주변 주택을 가로지르는 임의 연결 길은 만들지 않는다.
 export const WALKWAY=Object.freeze([])
 export function pointInPolygon(x,z,poly){
@@ -160,9 +216,13 @@ function closeToEdge(x,z,poly){
 export function canWalk(x,z){
  if(!Number.isFinite(x)||!Number.isFinite(z))return false
  if(inHallPassage(x,z)||inHallLobby(x,z))return true
- if(!pointInPolygon(x,z,PRECINCT)&&!pointInPolygon(x,z,WORKSHOP_YARD))return false
+ if(!inYard(x,z))return false
  for(const b of BUILDINGS)if(b.polygons.some(p=>pointInPolygon(x,z,p)||closeToEdge(x,z,p)))return false
- // 실제 지상↔3층 계단의 단차는 미확정이다. 경계에서 떨어지지 않도록 막는다.
+ // 비탈길은 높은 마당으로 올라가는 유일한 길이다.
+ if(onRamp(x,z))return true
+ // 탑 둘레의 둥근 마당. 탑 자체만 비켜 간다.
+ if(inApron(x,z))return Math.hypot(x-LANDMARKS.pagoda.x,z-LANDMARKS.pagoda.z)>1.1
+ // 실제 지상↔3층 계단의 단차는 미확정이다. 비탈 말고는 경계에서 떨어지지 않도록 막는다.
  if(closeToEdge(x,z,TERRACE.polygon))return false
  if(Math.hypot(x-LANDMARKS.pagoda.x,z-LANDMARKS.pagoda.z)<1.1)return false
  if(Math.hypot(x-LANDMARKS.statue.x,z-LANDMARKS.statue.z)<1.8)return false

@@ -28,3 +28,15 @@ body.creating #mapChoiceReturn{display:none}
 .title-map-return{display:inline-block;color:#f2dfb4;text-underline-offset:4px;padding:10px;min-height:44px;font-size:13px}
 @media(max-width:640px){#mapChoice{padding:28px 18px;align-content:start;gap:22px}#mapChoice .choice-grid{grid-template-columns:1fr;gap:18px}#mapChoice h1{font-size:29px}#mapChoice .choice-copy{padding:18px 20px}#mapChoice h2{font-size:24px}#mapChoice .choice-description{margin-bottom:16px}#mapChoice .choice-image{aspect-ratio:16/8}}
 @media(prefers-reduced-motion:reduce){#mapChoice .choice-card{transition:none}#mapChoice .choice-card:hover{transform:none}}
+
+/* 사용자 요청: 도량을 크게 내놓고 예전 클로드 맵은 작게 둔다. */
+#mapChoice .choice-grid.choice-one{grid-template-columns:minmax(0,1fr);max-width:min(720px,100%)}
+#mapChoice .choice-aside{width:min(720px,100%);margin:0 auto}
+#mapChoice .choice-small{display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:56px;border:1px solid #d2d8ca;border-radius:14px;background:#fffdf6;color:inherit;text-decoration:none}
+#mapChoice .choice-small:hover{border-color:#b9c3b0}
+#mapChoice .choice-small:focus-visible{outline:3px solid #a76c26;outline-offset:3px}
+#mapChoice .choice-small img{width:64px;height:40px;border-radius:8px;object-fit:cover;flex:0 0 auto}
+#mapChoice .choice-small span{display:flex;flex-direction:column;min-width:0}
+#mapChoice .choice-small b{font-size:14px}
+#mapChoice .choice-small small{color:#6b7a70;font-size:12px;line-height:1.5}
+#mapChoice .choice-small-go{margin-left:auto;color:#77603d;font-weight:700}
