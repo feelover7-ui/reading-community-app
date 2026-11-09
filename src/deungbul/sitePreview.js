@@ -8,7 +8,7 @@ import {THREE,createWorld,createFollower,makePerson,stepPerson} from './three3d.
 import {bindJoystick} from './touchControls.js'
 import {installMobileViewport} from './mobileUi.js'
 import {buildPagoda,buildStatue} from './original/outdoorLandmarks.js'
-import {HALL_DOOR,HALL_LOBBY,doorLocal,doorPoint,inHallLobby,HALL_ENTRY,MAIN,WORKSHOP,BUILDINGS,WALKWAY,STOPS,canWalk,SEPARATION_METRES,LANDMARKS,TERRACE,groundHeight,statueFacingYaw} from './sitePreviewData.js'
+import {HALL_DOOR,HALL_LOBBY,doorLocal,doorPoint,inHallLobby,HALL_ENTRY,MAIN,WORKSHOP,BUILDINGS,WALKWAY,STOPS,canWalk,SEPARATION_METRES,LANDMARKS,TERRACE,PRECINCT,WORKSHOP_YARD,groundHeight,statueFacingYaw} from './sitePreviewData.js'
 
 const $=id=>document.getElementById(id),cv=$('game'),keys=new Set()
 const motion=matchMedia('(prefers-reduced-motion: reduce)')
@@ -77,11 +77,54 @@ const locations=[
   {x:LANDMARKS.statue.x,z:LANDMARKS.statue.z,y:TERRACE.y+4.5,title:'대행선사 동상',sub:'본관 북서쪽'}
 ]
 const labels=locations.map(l=>{const n=document.createElement('div');n.className='place-label';const b=document.createElement('b'),s=document.createElement('small');b.textContent=l.title;s.textContent=l.sub;n.append(b,s);$('labels').append(n);return{...l,n}})
+/* 미니맵. 클로드 맵과 같은 자리에 같은 방식으로 둔다. */
+const mmEl=$('minimap'),mm=mmEl&&mmEl.getContext('2d')
+let mmTf=null
+const mmBg=document.createElement('canvas')
+function buildMiniBg(){
+  if(!mm)return
+  const pts=[...PRECINCT,...WORKSHOP_YARD,...BUILDINGS.flatMap(b=>b.polygons.flat())]
+  const xs=pts.map(p=>p.x),zs=pts.map(p=>p.z),pad=4
+  const x0=Math.min(...xs)-pad,x1=Math.max(...xs)+pad,z0=Math.min(...zs)-pad,z1=Math.max(...zs)+pad
+  const w=mmEl.width,h=mmEl.height,sc=Math.min(w/(x1-x0),h/(z1-z0))
+  const ox=(w-(x1-x0)*sc)/2,oz=(h-(z1-z0)*sc)/2
+  mmTf=(x,z)=>[ox+(x-x0)*sc,oz+(z-z0)*sc]
+  mmBg.width=w;mmBg.height=h
+  const g=mmBg.getContext('2d')
+  g.fillStyle='#55613f';g.fillRect(0,0,w,h)
+  const poly=(pl,fill)=>{if(!pl||!pl.length)return;g.beginPath();pl.forEach((q,i)=>{const[a,b]=mmTf(q.x,q.z);i?g.lineTo(a,b):g.moveTo(a,b)});g.closePath();g.fillStyle=fill;g.fill()}
+  poly(PRECINCT,'#cdc1a5');poly(WORKSHOP_YARD,'#bfae8c')
+  poly(TERRACE.polygon,'#ded2b4')
+  for(const b of BUILDINGS)for(const pl of b.polygons)poly(pl,'#6b5446')
+  const dot=(p,col,r)=>{const[a,b]=mmTf(p.x,p.z);g.fillStyle=col;g.beginPath();g.arc(a,b,r,0,Math.PI*2);g.fill()}
+  dot(LANDMARKS.pagoda,'#efe7d2',3.2);dot(LANDMARKS.statue,'#8c6a3c',3)
+  g.fillStyle='#fff';g.font='bold 9px sans-serif';g.textAlign='center'
+  const say=(t,p,dz=0)=>{const[a,b]=mmTf(p.x,p.z);g.fillText(t,a,b+dz)}
+  say('본관',MAIN,4);say('작업장',WORKSHOP,4);say('구정탑',LANDMARKS.pagoda,-6);say('동상',LANDMARKS.statue,-6)
+  g.fillStyle='#d9a531';g.font='bold 8px sans-serif';g.fillText('↑N',12,12)
+}
+function drawMinimap(){
+  if(!mm||!mmTf)return
+  mm.drawImage(mmBg,0,0)
+  const[a,b]=mmTf(player.x,player.z)
+  mm.save();mm.translate(a,b);mm.rotate(-player.face+Math.PI)
+  mm.fillStyle='#c8402f';mm.strokeStyle='#fff';mm.lineWidth=1.6
+  mm.beginPath();mm.moveTo(0,-7);mm.lineTo(5,5);mm.lineTo(-5,5);mm.closePath();mm.fill();mm.stroke();mm.restore()
+}
+buildMiniBg()
+
 function nearby(){
   if(inHallLobby(player.x,player.z)||Math.hypot(player.x-STOPS[4].x,player.z-STOPS[4].z)<2)return 'hall3'
   if(Math.hypot(player.x-STOPS[1].x,player.z-STOPS[1].z)<4)return 'workshop'
   if(Math.hypot(player.x-STOPS[0].x,player.z-STOPS[0].z)<4)return 'main'
+  /* 조형물도 걸어가서 살펴볼 수 있게 한다. */
+  if(Math.hypot(player.x-LANDMARKS.pagoda.x,player.z-LANDMARKS.pagoda.z)<3.2)return 'pagoda'
+  if(Math.hypot(player.x-LANDMARKS.statue.x,player.z-LANDMARKS.statue.z)<3.6)return 'statue'
   return null
+}
+const SPOT_TEXT={
+  pagoda:['구정탑','본관 북쪽 마당에 선 탑입니다. 공식 도량 안내에서 확인한 아홉 개의 둥근 구를 얹었습니다. 마당과 본관 3층이 같은 높이라는 점을 반영했습니다.'],
+  statue:['대행선사 동상','본관 북서쪽에 있습니다. 공식 안내에서 확인한 청동 입상과 연화 좌대, 화엄석 일곱, 물결 경계석의 특징을 줄여 옮겼습니다.']
 }
 function closeDialog(){
   modal.hidden=true
@@ -91,6 +134,14 @@ function closeDialog(){
 function action(){
   const id=nearby();if(!id||overview||!modal.hidden)return
   reset()
+  if(SPOT_TEXT[id]){
+    $('dialogTitle').textContent=SPOT_TEXT[id][0]
+    $('dialogText').textContent=SPOT_TEXT[id][1]+' 평면 위치는 사진 판독에 따른 근사값이며 실측이 아닙니다.'
+    const link=$('dialogLink');link.href='/deungbul.html?map=claude';link.textContent='클로드 맵에서 탑돌이·삼배 하기'
+    modal.hidden=false
+    for(const n of document.body.children)if(n!==modal)n.inert=true
+    link.focus();return
+  }
   $('dialogTitle').textContent=id==='hall3'?'본관 3층 출입구':id==='workshop'?'등불사 작업장':'본원 법당'
   $('dialogText').textContent=id==='hall3'?'도량탑 마당과 본관 3층은 같은 높이입니다. 열린 문을 통해 3층 진입 공간을 걸어볼 수 있습니다. 대법당은 5층이며 아래 링크는 기존 대법당 화면으로 이동합니다.':id==='workshop'?'삼막로 23(석수동 93-1)의 작업장입니다. 등 만들기는 기존 버전의 체험 화면으로 연결됩니다. 이 건물의 높이·외관·입구는 아직 확인하지 않은 시안입니다.':'기존 법당 내부와 참배 기능을 엽니다. 새 배치는 위치 비교용이며 동일한 위성사진의 축척을 적용한 시안이며 실측 지도나 실제 출입 안내가 아닙니다.'
   const a=$('dialogLink');a.href=id==='workshop'?'/deungbul.html?map=claude':'/beopdang.html?from=codex'
@@ -139,8 +190,9 @@ function tick(t){
       }
       follower.follow(player.x,player.z,dt)
       world.camera.position.y+=groundHeight(player.x,player.z)
+      drawMinimap()
       const near=nearby();$('act').hidden=!near
-      $('act').textContent=near==='hall3'?'본관 3층 안내':near==='workshop'?'작업장 살펴보기':'법당 살펴보기'
+      $('act').textContent=near==='hall3'?'본관 3층 안내':near==='workshop'?'작업장 살펴보기':SPOT_TEXT[near]?SPOT_TEXT[near][0]+' 살펴보기':'법당 살펴보기'
     }
     for(const l of labels){
       const p=new THREE.Vector3(l.x,l.y,l.z).project(overview&&!focusSeven?planCamera:world.camera),visible=p.z>-1&&p.z<1&&Math.abs(p.x)<1.05&&Math.abs(p.y)<1.05
@@ -157,4 +209,11 @@ addEventListener('pagehide',()=>{stopped=true;reset();cancelAnimationFrame(raf);
 addEventListener('pageshow',()=>{stopped=false;start()})
 cv.addEventListener('webglcontextlost',e=>{e.preventDefault();frameError=true;cancelAnimationFrame(raf);raf=0;status.textContent='3D 연결이 중단됐습니다. 새로고침해 주세요.'})
 if(import.meta.env.DEV)window.__sitePreview={visit,overview:setOverview,view:()=>({mode:viewMode,camera:(overview&&!focusSeven?planCamera:world.camera).position.toArray(),landmarks:JSON.parse(JSON.stringify(LANDMARKS))}),warp:(x,z)=>{if(canWalk(x,z)){visit('hall3');player.x=x;player.z=z}},door:()=>({door:HALL_DOOR,lobby:HALL_LOBBY,point:doorPoint,inside:inHallLobby(player.x,player.z),local:doorLocal(player.x,player.z)}),position:()=>({...player,height:groundHeight(player.x,player.z)}),canWalk,metres:SEPARATION_METRES,landmarks:()=>({seven:{x:seven.position.x,z:seven.position.z,orbs:seven.userData.orbCount},pagoda:{x:pg.group.position.x,z:pg.group.position.z},statue:{x:st.position.x,z:st.position.z,yaw:st.rotation.y}})}
-const requestedView=new URLSearchParams(location.search).get('view');setOverview(requestedView);if(requestedView==='seven')viewSeven();if(requestedView==='hall3')visit('hall3');$('loading').hidden=true;start()
+/* 클로드 맵처럼 바로 걷는 상태로 연다. 배치도는 `본원 확대`·`전체 위치` 버튼으로 본다. */
+const requestedView=new URLSearchParams(location.search).get('view')
+document.body.dataset.view='plan'
+if(requestedView==='plan'||requestedView==='site')setOverview(requestedView)
+else if(requestedView==='seven'){setOverview();viewSeven()}
+else if(STOPS.some(s=>s.id===requestedView))visit(requestedView)
+else visit('main')
+$('loading').hidden=true;start()
