@@ -1,16 +1,20 @@
-import {buildNorthGround,buildNorthWorkshop,buildYardFrame} from './northScene.js'
+import {buildNorthGround,buildYardFrame} from './northScene.js'
 import {buildTerraceArchitecture} from './terraceArchitecture.js'
 import {northPlanBounds} from './sitePreviewCamera.js'
 import {buildSatelliteHall} from './satelliteHall.js'
 import {buildSevenTreasure} from './sevenTreasure.js'
 import {courtyardMaterials} from './siteAtmosphere.js'
 import {THREE,createWorld,createFollower,makePerson,stepPerson,bowPose} from './three3d.js'
+import {createModal,readStore,writeStore} from './sceneKit.js'
+import {createCraft,craftQuest,riteQuest,fillList,makePreview,drawLantern,el} from './lanternCraft.js'
+import {buildWorkshopYard,buildBigLantern,lanternSprite,STATIONS,RACK,BIG_LANTERN,WS_NPCS,WS,PROP} from './workshopYard.js'
+import {normalizeLantern} from './original/campusServices.js'
 import {advanceGuidedOrbit,PAGODA_CENTER} from './tapdori.js'
 import {createOrbitProgress} from './orbitProgress.js'
 import {bindJoystick} from './touchControls.js'
 import {installMobileViewport} from './mobileUi.js'
 import {buildPagoda,buildStatue} from './original/outdoorLandmarks.js'
-import {HALL_DOOR,HALL_LOBBY,doorLocal,doorPoint,inHallLobby,HALL_ENTRY,MAIN,WORKSHOP,BUILDINGS,WALKWAY,STOPS,stopOf,SITE_YAW,canWalk,SEPARATION_METRES,LANDMARKS,TERRACE,PRECINCT,WORKSHOP_YARD,YARD,RAMP,PATHS,groundHeight,statueFacingYaw} from './sitePreviewData.js'
+import {ORBIT_RADIUS,WORKSHOP_INSIDE,inWorkshopYard,YARD_Y,HALL_DOOR,HALL_LOBBY,doorLocal,doorPoint,inHallLobby,HALL_ENTRY,MAIN,WORKSHOP,BUILDINGS,WALKWAY,STOPS,stopOf,SITE_YAW,canWalk,SEPARATION_METRES,LANDMARKS,TERRACE,PRECINCT,WORKSHOP_YARD,YARD,PATHS,groundHeight,statueFacingYaw} from './sitePreviewData.js'
 
 const $=id=>document.getElementById(id),cv=$('game'),keys=new Set()
 const motion=matchMedia('(prefers-reduced-motion: reduce)')
@@ -25,10 +29,11 @@ const atmosphere=courtyardMaterials(world)
 buildNorthGround(world,atmosphere)
 buildYardFrame(world,atmosphere)
 buildSatelliteHall(world,atmosphere)
-buildNorthWorkshop(world)
+const shop=buildWorkshopYard(world)
+const bigLantern=buildBigLantern(world)
 buildTerraceArchitecture(world)
 const pg=buildPagoda({scene,M,mesh});pg.group.scale.setScalar(.4);pg.group.position.set(LANDMARKS.pagoda.x,TERRACE.y,LANDMARKS.pagoda.z)
-const st=buildStatue({scene,M,mesh,box});st.position.set(LANDMARKS.statue.x,TERRACE.y,LANDMARKS.statue.z);st.rotation.y=statueFacingYaw()
+const st=buildStatue({scene,M,mesh,box});st.scale.setScalar(.4);st.position.set(LANDMARKS.statue.x,TERRACE.y,LANDMARKS.statue.z);st.rotation.y=statueFacingYaw()
 const seven=buildSevenTreasure(world,LANDMARKS.seven)
 const planCamera=new THREE.OrthographicCamera(-30,30,30,-30,.1,700)
 planCamera.up.set(0,0,-1)
@@ -37,9 +42,26 @@ function updatePlanCamera(){
  Object.assign(planCamera,{left:b.left,right:b.right,top:b.top,bottom:b.bottom})
  planCamera.position.set(b.x,250,b.z);planCamera.lookAt(b.x,0,b.z);planCamera.updateProjectionMatrix();planCamera.updateMatrixWorld()
 }
-const person=makePerson(world,{body:'#c99845',pants:'#4d5c5a',hair:'#302a23'})
+/* 사람은 도량 축척(1칸 = 2.5m)에 맞춰 0.4칸(≈1.7m)으로 그린다.
+   이 값을 1 로 두면 사람이 본관 한 층보다 커 보이고, 작업대도 발판처럼 작아진다. */
+export const PERSON=PROP
+let rite=null
+const person=makePerson(world,{body:'#c99845',pants:'#4d5c5a',hair:'#302a23'});person.scale.setScalar(PERSON)
+const peers=WS_NPCS.map(n=>{const pp=makePerson(world,{body:n.id==='monk'?'#8a6a3a':'#3f7a5c',pants:'#4a4a52',hair:n.id==='monk'?'#6b5a48':'#241c15'})
+ pp.scale.setScalar(PERSON);stepPerson(pp,n.x,n.z,n.face,false,0,true);pp.position.y=YARD_Y;return pp})
+/* 탑돌이 돌던 법우들. 클로드 맵의 WALKERS 를 그대로 옮긴다. */
+const WALKERS=[{r:2.2,sp:.34,a:0,body:'#b8623a'},{r:2.9,sp:.27,a:2.6,body:'#2b5fa5'}]
+const walkers=WALKERS.map(w=>{const pp=makePerson(world,{body:w.body,pants:'#44454d',hair:'#241c15'});pp.scale.setScalar(PERSON);return pp})
+function stepWalkers(dt,quiet){
+ WALKERS.forEach((w,i)=>{
+  if(!quiet)w.a+=dt*w.sp
+  const x=LANDMARKS.pagoda.x+Math.cos(w.a)*w.r,z=LANDMARKS.pagoda.z+Math.sin(w.a)*w.r
+  stepPerson(walkers[i],x,z,Math.atan2(-Math.sin(w.a),-Math.cos(w.a))+Math.PI/2,!quiet,w.a*w.r/.6,quiet)
+  walkers[i].position.y=groundHeight(x,z)
+ })
+}
 const player={x:STOPS[0].x,z:STOPS[0].z,face:Math.PI,walk:0},joy=bindJoystick($('joy'))
-const follower=createFollower(cv,world.camera,{dist:12,pitch:.48,min:7,max:22,yaw:0})
+const follower=createFollower(cv,world.camera,{dist:5,pitch:.42,min:2.6,max:11,yaw:0})
 let focusSeven=false,viewMode='plan'
 let overview=true,raf=0,last=0,stopped=false,frameError=false
 const status=$('status'),modal=$('modal')
@@ -47,7 +69,7 @@ const reset=()=>{keys.clear();joy.reset()}
 installMobileViewport({onInterrupt:reset})
 function setOverview(mode='plan'){
  viewMode=mode==='site'?'site':'plan'
- reset();focusSeven=false;overview=true;person.visible=false;document.body.classList.remove('walk')
+ reset();focusSeven=false;overview=true;person.visible=false;for(const w of walkers)w.visible=false;for(const q of peers)q.visible=false;document.body.classList.remove('walk')
  document.body.dataset.view=viewMode
  $('overview').setAttribute('aria-pressed',String(viewMode==='plan'));$('planview').setAttribute('aria-pressed',String(viewMode==='site'))
  $('sevenview').setAttribute('aria-pressed','false');$('act').hidden=true;$('compass').hidden=false
@@ -57,9 +79,10 @@ function setOverview(mode='plan'){
 }
 function visit(id){
   const stop=STOPS.find(s=>s.id===id);if(!stop)return
-  reset();focusSeven=false;world.camera.up.set(0,1,0);world.camera.fov=48;world.camera.updateProjectionMatrix();$('compass').hidden=true;$('viewNote').textContent='직접 둘러보기';$('planview').setAttribute('aria-pressed','false');$('sevenview').setAttribute('aria-pressed','false');player.x=stop.x;player.z=stop.z;overview=false;person.visible=true
+  if(rite)stopRite('자리를 옮겨서 멈췄어요.')
+  reset();focusSeven=false;world.camera.up.set(0,1,0);world.camera.fov=48;world.camera.updateProjectionMatrix();$('compass').hidden=true;$('viewNote').textContent='직접 둘러보기';$('planview').setAttribute('aria-pressed','false');$('sevenview').setAttribute('aria-pressed','false');player.x=stop.x;player.z=stop.z;overview=false;person.visible=true;for(const w of walkers)w.visible=true;for(const q of peers)q.visible=true
   document.body.classList.add('walk');$('overview').setAttribute('aria-pressed','false')
-  follower.reset(id==='hall3'?{yaw:Math.atan2(HALL_DOOR.normal.x,HALL_DOOR.normal.z),dist:4,pitch:.15,min:3}:{yaw:0,dist:12,pitch:.48,min:7})
+  follower.reset(id==='hall3'?{yaw:Math.atan2(HALL_DOOR.normal.x,HALL_DOOR.normal.z),dist:2.2,pitch:.14,min:1.6}:{yaw:0,dist:5,pitch:.42,min:2.6})
   if(id==='hall3'&&world.camera.aspect<.8){world.camera.fov=74;world.camera.updateProjectionMatrix()}
   status.textContent=stop.name+' · '+(touch?'조이스틱 이동 · 화면 끌기·두 손가락 확대':'방향키/WASD 이동 · 끌기 회전 · Q/R · 휠 확대')
   cv.focus({preventScroll:true})
@@ -97,8 +120,14 @@ function buildMiniBg(){
   poly([{x:YARD.x0,z:YARD.z0},{x:YARD.x1,z:YARD.z0},{x:YARD.x1,z:YARD.z1},{x:YARD.x0,z:YARD.z1}],'#cdc1a5')
   poly(TERRACE.polygon,'#ded2b4')
   for(const path of PATHS)poly(path.polygon,'#efe6cd')
-  poly([{x:RAMP.xLow,z:RAMP.z0},{x:RAMP.xHigh,z:RAMP.z0},{x:RAMP.xHigh,z:RAMP.z1},{x:RAMP.xLow,z:RAMP.z1}],'#e3d6b4')
-  for(const b of BUILDINGS)for(const pl of b.polygons)poly(pl,'#6b5446')
+  // 탑돌이 길
+  {const[a,b]=mmTf(LANDMARKS.pagoda.x,LANDMARKS.pagoda.z)
+   g.strokeStyle='#efe6cd';g.lineWidth=Math.max(2,ORBIT_RADIUS*sc*.5)
+   g.beginPath();g.arc(a,b,ORBIT_RADIUS*sc,0,Math.PI*2);g.stroke()}
+  for(const b of BUILDINGS)for(const pl of b.polygons)poly(pl,b.id==='workshop'?'#9a8468':'#6b5446')
+  // 작업장은 담을 두른 열린 마당이다. 안의 작업대와 걸이대를 표시한다.
+  for(const st2 of STATIONS)poly([{x:st2.x-.6,z:st2.z-.35},{x:st2.x+.6,z:st2.z-.35},{x:st2.x+.6,z:st2.z+.35},{x:st2.x-.6,z:st2.z+.35}],'#c99a62')
+  poly([{x:RACK.x0,z:RACK.z-.2},{x:RACK.x1,z:RACK.z-.2},{x:RACK.x1,z:RACK.z+.2},{x:RACK.x0,z:RACK.z+.2}],'#a52a24')
   const dot=(p,col,r)=>{const[a,b]=mmTf(p.x,p.z);g.fillStyle=col;g.beginPath();g.arc(a,b,r,0,Math.PI*2);g.fill()}
   dot(LANDMARKS.pagoda,'#efe7d2',3.2);dot(LANDMARKS.statue,'#8c6a3c',3)
   g.fillStyle='#fff';g.font='bold 9px sans-serif';g.textAlign='center'
@@ -116,18 +145,122 @@ function drawMinimap(){
 }
 buildMiniBg()
 
+
+/* ================= 등 만들기 =================
+   클로드 맵과 같은 lanternCraft.js 를 쓴다. 작업대 넷 → 걸이대 → 장엄등 순서도 같다.
+   저장 키도 같은 hanmaum-campus-v2 라서 어느 맵에서 만든 등이든 같이 보인다. */
+const OWNER=readStore('hanmaum-deungbul-owner')||('beopu-'+crypto.randomUUID())
+writeStore('hanmaum-deungbul-owner',OWNER)
+const KEY='hanmaum-campus-v2'
+const state={stage:0,craft:{},hasHung:false,litOnce:false,night:false,talked:false,lanterns:[],
+ tapdoriDone:false,statueDone:false,hallDone:false,best108:0}
+try{const d=JSON.parse(localStorage.getItem(KEY)||'null')
+ if(d){state.lanterns=Array.isArray(d.lanterns)?d.lanterns.filter(L=>L&&typeof L==='object').map(L=>({...normalizeLantern(L),owner:OWNER})).slice(-120):[]
+  for(const k of ['litOnce','talked','tapdoriDone','statueDone','hallDone'])state[k]=!!d[k]
+  state.best108=d.best108|0;state.hasHung=state.lanterns.length>0}}catch(e){}
+function saveState(){try{localStorage.setItem(KEY,JSON.stringify({lanterns:state.lanterns,litOnce:state.litOnce,
+ talked:state.talked,tapdoriDone:state.tapdoriDone,statueDone:state.statueDone,hallDone:state.hallDone,best108:state.best108}))}catch(e){}}
+
+/* 말풍선. 누르면 다음 줄로 넘어간다. */
+const sayBox=$('say'),sayName=$('sayName'),sayText=$('sayText')
+let dialog=null
+function say(name,lines,onEnd){dialog={name,lines,i:0,onEnd};sayName.textContent=name;sayText.textContent=lines[0];sayBox.style.display='block'}
+function sayNext(){if(!dialog)return;dialog.i++
+ if(dialog.i>=dialog.lines.length){const f=dialog.onEnd;dialog=null;sayBox.style.display='none';f&&f()}
+ else sayText.textContent=dialog.lines[dialog.i]}
+function sayClose(){dialog=null;sayBox.style.display='none'}
+sayBox.addEventListener('click',sayNext)
+
+const toastEl=$('toast');let toastTimer=0
+function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(toastTimer)
+ toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2800)}
+
+const craftWrap=$('craft'),card=$('card')
+const sharedModal=createModal(craftWrap,card,{onClose:()=>{reset();try{cv.focus({preventScroll:true})}catch{}}})
+function modalShell(title,sub){reset();return sharedModal.shell(title,sub)}
+const closeCraft=()=>sharedModal.close()
+
+/* 소리. 등불사장과 같은 Web Audio 효과음이고 음원 파일을 받지 않는다. */
+let AC=null
+const ac=()=>{if(!AC){try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC}
+function tone(f,dur,type,vol,delay){const a=ac();if(!a)return
+ const o=a.createOscillator(),g=a.createGain();o.type=type||'sine';o.frequency.value=f
+ const t0=a.currentTime+(delay||0);g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(vol||.2,t0+.01)
+ g.gain.exponentialRampToValueAtTime(.0001,t0+dur);o.connect(g).connect(a.destination);o.start(t0);o.stop(t0+dur+.05)}
+const tok=()=>{tone(640,.13,'triangle',.28);tone(320,.09,'sine',.12)}
+const chime=()=>{tone(784,.7,'sine',.12);tone(1046,.9,'sine',.1,.13);tone(1318,1,'sine',.07,.26)}
+const bell=()=>{for(const [f,d,v] of [[98,7,.28],[196,6,.16],[294,5.5,.1],[392,4,.05]])tone(f,d,'sine',v)}
+addEventListener('pointerdown',()=>ac(),{once:true});addEventListener('keydown',()=>ac(),{once:true})
+
+/* 오늘의 소임 */
+const soim=$('soim'),soimh=$('soimh')
+soimh.onclick=()=>{soim.classList.toggle('collapsed')
+ const open=!soim.classList.contains('collapsed')
+ soimh.setAttribute('aria-expanded',String(open));soimh.querySelector('small').textContent=open?'접기':'펼치기'}
+soimh.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();soimh.click()}})
+if(touch||innerWidth<640){soim.classList.add('collapsed');soimh.setAttribute('aria-expanded','false');soimh.querySelector('small').textContent='펼치기'}
+function updateSoim(){
+ const a=craftQuest(state);fillList($('quest'),a,true);fillList($('quest2'),riteQuest(state),a.every(i=>i[1]))
+ $('soimfoot').textContent='내 소원등 '+state.lanterns.length+'개'+(state.night?' · 점등 중':'')
+}
+/* 이 화면은 공유 저장(Supabase)에 쓰지 않습니다. 만든 등은 이 브라우저에만 보관합니다. */
+const localSharing={publish:async L=>({local:true,row:L})}
+let hungSprites=[]
+function redrawHung(){
+ for(const s of hungSprites){s.parent?.remove(s);s.material.map?.dispose();s.material.dispose()}
+ hungSprites=[]
+ const list=state.lanterns.slice(-14)
+ list.forEach((L,i)=>{
+  const t=list.length===1?.5:i/(list.length-1)
+  const x=RACK.x0+1+(RACK.x1-RACK.x0-2)*t
+  const sp=lanternSprite(L,state.night,PROP*1.15)
+  sp.position.set(x,shop.ropeY(x)-PROP*.6,RACK.z);scene.add(sp);hungSprites.push(sp)
+ })
+}
+function setNight(on){
+ state.night=!!on
+ for(const f of shop.fires)f.material.emissive?.set(on?'#ffbf6a':'#000000')
+ bigLantern.setLit(on)
+ redrawHung()
+}
+function changed(){updateSoim();saveState();redrawHung()}
+const craft=createCraft({state,say,modalShell,closeModal:closeCraft,toast,tok,chime,bell,changed,
+ sharing:localSharing,owner:OWNER,normalizeLantern,setNight,
+ outsideLine:'작업장 문으로 나가면 도량이에요. 마당에도 연등이 켜졌어요.',
+ lines:{intro:'끝나고 문 밖 도량에서 구정탑 탑돌이랑 대법당 참배도 해 봐요.',
+  hang:'마당 남쪽 걸이대에 걸어요.',
+  done:'문 밖 도량에서 구정탑 탑돌이도 하고, 대행선사 동상 앞에서 삼배도 올리고, 5층 대법당에도 올라가 봐요.'}})
+updateSoim();redrawHung()
+
 function nearby(){
   if(inHallLobby(player.x,player.z))return 'hall3'
   /* 법당 문과 도량탑이 가까워서, 가장 가까운 것 하나만 고른다. */
   const cands=[]
   const add=(id,p,r)=>{if(!p)return;const d=Math.hypot(player.x-p.x,player.z-p.z);if(d<r)cands.push({id,d:d/r})}
+  if(inWorkshopYard(player.x,player.z)){
+    /* 작업장 안. 작업대 넷 · 걸이대 · 장엄등 · 법우들. */
+    for(const st of STATIONS)add('st:'+st.id,{x:st.x,z:st.z+1},1.3)
+    add('rack',{x:Math.min(RACK.x1,Math.max(RACK.x0,player.x)),z:RACK.z-.8},1.6)
+    add('big',BIG_LANTERN,2)
+    for(const n of WS_NPCS)add('npc:'+n.id,n,1.5)
+    cands.sort((a,b)=>a.d-b.d)
+    return cands.length?cands[0].id:null
+  }
   add('hall3',stopOf('hall3'),1.9)
-  add('workshop',stopOf('workshop'),4)
+  add('workshop',stopOf('workshop'),3)
   add('main',stopOf('main'),4)
   add('pagoda',LANDMARKS.pagoda,3.4)
   add('statue',LANDMARKS.statue,3.6)
   cands.sort((a,b)=>a.d-b.d)
   return cands.length?cands[0].id:null
+}
+const NEAR_TEXT={rack:'소원등 걸기',big:'장엄등'}
+function actLabel(id){
+  if(!id)return ''
+  if(id.startsWith('st:'))return (STATIONS.find(s=>s.id===id.slice(3))?.name||'작업대')
+  if(id.startsWith('npc:'))return (WS_NPCS.find(n=>n.id===id.slice(4))?.name||'법우')+' 말 걸기'
+  if(NEAR_TEXT[id])return NEAR_TEXT[id]
+  return id==='hall3'?'본관 3층 안내':id==='workshop'?'작업장 들어가기':SPOT_TEXT[id]?SPOT_TEXT[id][0]+' 살펴보기':'법당 살펴보기'
 }
 const SPOT_TEXT={
   pagoda:['구정탑','본관 북쪽 마당에 선 탑입니다. 공식 도량 안내에서 확인한 아홉 개의 둥근 구를 얹었습니다. 마당과 본관 3층이 같은 높이라는 점을 반영했습니다.'],
@@ -136,8 +269,6 @@ const SPOT_TEXT={
 /* 클로드 맵의 탑돌이와 삼배를 그대로 옮긴다.
    바퀴 수는 orbitProgress 가 탑 중심의 실제 이동 각도로 세고, 제자리 회전이나 순간이동은 세지 않는다.
    절은 three3d 의 bowPose 로 합장 → 무릎 → 엎드림 → 합장 관절 동작을 그린다. */
-let rite=null
-const PAGODA_RADIUS=4
 function startTapdori(){
   const counter=createOrbitProgress({x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z})
   const a0=Math.atan2(player.z-LANDMARKS.pagoda.z,player.x-LANDMARKS.pagoda.x)
@@ -147,7 +278,7 @@ function startTapdori(){
 }
 function startBow(){
   const sy=statueFacingYaw()
-  player.x=LANDMARKS.statue.x+Math.sin(sy)*2.6;player.z=LANDMARKS.statue.z+Math.cos(sy)*2.6
+  player.x=LANDMARKS.statue.x+Math.sin(sy)*2.2;player.z=LANDMARKS.statue.z+Math.cos(sy)*2.2
   player.face=sy+Math.PI
   rite={kind:'bow',done:0,goal:3,u:0}
   status.textContent='대행선사 동상 앞에서 삼배를 올립니다.'
@@ -161,7 +292,7 @@ function stepRite(dt){
   if(!rite)return false
   if(rite.kind==='tapdori'){
     const next=advanceGuidedOrbit({x:player.x,z:player.z,angle:rite.angle,dt,
-      canStand:(x,z)=>canWalk(x,z),center:LANDMARKS.pagoda,radius:PAGODA_RADIUS})
+      canStand:(x,z)=>canWalk(x,z),center:LANDMARKS.pagoda,radius:ORBIT_RADIUS})
     if(next.blocked){stopRite('앞이 막혀 탑돌이를 멈췄어요.');return false}
     player.x=next.x;player.z=next.z;rite.angle=next.angle
     if(next.face!=null)player.face=next.face
@@ -171,13 +302,13 @@ function stepRite(dt){
     status.textContent='탑돌이 '+rite.laps.toFixed(1)+' / 3바퀴 · 탑을 오른쪽에 두고 돕니다.'
     stepPerson(person,player.x,player.z,player.face,true,player.walk,quiet)
     person.position.y=groundHeight(player.x,player.z)
-    if(rite.counter.done){stopRite('탑돌이 세 바퀴를 마쳤어요.');}
+    if(rite.counter.done){stopRite('탑돌이 세 바퀴를 마쳤어요.');state.tapdoriDone=true;changed();chime()}
     return true
   }
   // 삼배
   rite.u+=dt/(quiet?1.1:2.2)
   if(rite.u>=1){rite.u=0;rite.done++
-    if(rite.done>=rite.goal){stopRite('삼배를 올렸어요.');return true}}
+    if(rite.done>=rite.goal){stopRite('삼배를 올렸어요.');state.statueDone=true;changed();chime();return true}}
   stepPerson(person,player.x,player.z,player.face,false,player.walk,quiet,bowPose(rite.u,quiet))
   person.position.y=groundHeight(player.x,player.z)
   status.textContent='삼배 '+Math.min(rite.done+1,rite.goal)+' / '+rite.goal
@@ -189,9 +320,15 @@ function closeDialog(){
   reset();cv.focus({preventScroll:true})
 }
 function action(){
+  if(dialog){sayNext();return}
   if(rite)return
+  if(sharedModal.open){sharedModal.runPrimary();return}
   const id=nearby();if(!id||overview||!modal.hidden)return
   reset()
+  if(id.startsWith('st:')){const f={frame:craft.stFrame,paper:craft.stPaper,paint:craft.stPaint,light:craft.stLight}[id.slice(3)];f&&f();return}
+  if(id.startsWith('npc:')){const f={banjang:craft.talkBanjang,worker:craft.talkWorker,monk:craft.talkMonk}[id.slice(4)];f&&f();return}
+  if(id==='rack'){craft.hangSign();return}
+  if(id==='big'){craft.bigLantern();return}
   if(id==='pagoda'||id==='statue'){
     const pagoda=id==='pagoda'
     $('dialogTitle').textContent=pagoda?'구정탑 탑돌이':'대행선사 동상 · 서서 삼배'
@@ -215,9 +352,21 @@ function action(){
     for(const n of document.body.children)if(n!==modal)n.inert=true
     link.focus();return
   }
-  $('dialogTitle').textContent=id==='hall3'?'본관 3층 출입구':id==='workshop'?'등불사 작업장':'본원 법당'
+  if(id==='workshop'){
+    $('dialogTitle').textContent='등불사 작업장'
+    $('dialogText').textContent='담을 두른 열린 작업장입니다. 골조 · 한지 · 채색 · 전기 네 작업대를 왼쪽부터 돌아 소원등을 만들고, 남쪽 걸이대에 걸고 장엄등을 점등합니다. 삼막로 23(석수동 93-1)이라는 주소는 사용자가 알려 준 것이고, 이 건물의 외관·입구·안의 배치는 아직 확인하지 않은 시안입니다.'
+    const act=$('dialogAction');act.hidden=false;act.textContent='작업장으로 들어가기'
+    act.onclick=()=>{closeDialog();player.x=WORKSHOP_INSIDE.x;player.z=WORKSHOP_INSIDE.z;player.face=-Math.PI/2
+      status.textContent='등불사 작업장 · 왼쪽 골조 작업대부터 시작해요.'}
+    $('dialogLink').hidden=true
+    modal.hidden=false
+    for(const n of document.body.children)if(n!==modal)n.inert=true
+    act.focus();return
+  }
+  $('dialogTitle').textContent=id==='hall3'?'본관 3층 출입구':'본원 법당'
   $('dialogText').textContent=id==='hall3'?'도량탑 마당과 본관 3층은 같은 높이입니다. 열린 문을 통해 3층 진입 공간을 걸어볼 수 있습니다. 대법당은 5층이며 아래 링크는 기존 대법당 화면으로 이동합니다.':id==='workshop'?'삼막로 23(석수동 93-1)의 작업장입니다. 등 만들기는 기존 버전의 체험 화면으로 연결됩니다. 이 건물의 높이·외관·입구는 아직 확인하지 않은 시안입니다.':'기존 법당 내부와 참배 기능을 엽니다. 새 배치는 위치 비교용이며 동일한 위성사진의 축척을 적용한 시안이며 실측 지도나 실제 출입 안내가 아닙니다.'
   const a=$('dialogLink');a.href=id==='workshop'?'/deungbul.html?map=claude':'/beopdang.html?from=codex'
+  a.onclick=()=>{state.hallDone=true;changed()}
   a.textContent=id==='hall3'?'5층 대법당 화면 열기':id==='workshop'?'기존 등 만들기 체험 열기':'기존 법당 내부 열기'
   modal.hidden=false
   for(const n of document.body.children)if(n!==modal)n.inert=true
@@ -235,7 +384,9 @@ modal.addEventListener('keydown',e=>{
 })
 const key=e=>({KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',KeyQ:'q',KeyR:'r',ArrowUp:'w',ArrowLeft:'a',ArrowDown:'s',ArrowRight:'d'}[e.code])
 addEventListener('keydown',e=>{
-  if(!modal.hidden||document.activeElement?.tagName==='SUMMARY')return
+  if(document.activeElement?.tagName==='SUMMARY')return
+  if(dialog&&(e.code==='Space'||e.code==='KeyE')){e.preventDefault();sayNext();return}
+  if(!modal.hidden)return
   const k=key(e);if(k&&!overview){e.preventDefault();keys.add(k)}
   if((e.code==='Space'||e.code==='KeyE')&&document.activeElement===cv){e.preventDefault();action()}
 })
@@ -265,19 +416,20 @@ function tick(t){
               l.n.hidden=!vis;if(vis){l.n.style.left=((p.x+1)*innerWidth/2)+'px';l.n.style.top=((1-p.y)*innerHeight/2)+'px'}}
             world.renderer.render(scene,world.camera);raf=requestAnimationFrame(tick);return}
         }
-        const [dx,dz]=follower.moveVector(mx,my),speed=5.5*dt
+        const [dx,dz]=follower.moveVector(mx,my),speed=2.4*dt
         // 축별 충돌과 dt 상한으로 건물 모서리를 건너뛰지 않는다.
         if(canWalk(player.x+dx*speed,player.z))player.x+=dx*speed
         if(canWalk(player.x,player.z+dz*speed))player.z+=dz*speed
         if(n>.05){player.face=Math.atan2(dx,dz);player.walk+=dt}
         stepPerson(person,player.x,player.z,player.face,n>.05,player.walk,quiet)
         person.position.y=groundHeight(player.x,player.z)
+        stepWalkers(dt,quiet)
       }
       follower.follow(player.x,player.z,dt)
       world.camera.position.y+=groundHeight(player.x,player.z)
       drawMinimap()
       const near=nearby();$('act').hidden=!near
-      $('act').textContent=near==='hall3'?'본관 3층 안내':near==='workshop'?'작업장 살펴보기':SPOT_TEXT[near]?SPOT_TEXT[near][0]+' 살펴보기':'법당 살펴보기'
+      $('act').textContent=actLabel(near)
     }
     for(const l of labels){
       const p=new THREE.Vector3(l.x,l.y,l.z).project(overview&&!focusSeven?planCamera:world.camera),visible=p.z>-1&&p.z<1&&Math.abs(p.x)<1.05&&Math.abs(p.y)<1.05

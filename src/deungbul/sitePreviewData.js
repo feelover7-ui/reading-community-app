@@ -111,8 +111,10 @@ export function statueFacingYaw(){return Math.atan2(MAIN.x-LANDMARKS.statue.x,MA
 export const REFERENCE_WORKSHOP=Object.freeze(pixelToSite(REFERENCE_PIXELS.workshopPin))
 export const REFERENCE_WORKSHOP_POLYGON=Object.freeze(REFERENCE_PIXELS.workshopRoof.map(pixelToSite))
 // 사용자 최신 요청: 본원 내부는 유지하고 작업장만 본관 오른쪽 가까이 평행 이동한다.
-const hallRight=Math.max(...HALL_WINGS.flat().map(p=>p.x)),workshopLeft=Math.min(...REFERENCE_WORKSHOP_POLYGON.map(p=>p.x))
-export const WORKSHOP_OFFSET=Object.freeze({x:hallRight+3-workshopLeft,z:MAIN.z-8-REFERENCE_WORKSHOP.z})
+/* 사용자 요청: 작업장을 더 멀리 두고 도량탑 탑돌이 범위와 겹치지 않게 한다.
+   탑돌이는 탑(본관 북쪽) 둘레를 도므로, 작업장을 북동쪽으로 보내고 길도 탑 북쪽으로 돌린다. */
+const wsMinX=Math.min(...REFERENCE_WORKSHOP_POLYGON.map(p=>p.x)),wsMinZ=Math.min(...REFERENCE_WORKSHOP_POLYGON.map(p=>p.z))
+export const WORKSHOP_OFFSET=Object.freeze({x:44.5-wsMinX,z:11.5-wsMinZ})
 export const moveWorkshop=p=>({x:p.x+WORKSHOP_OFFSET.x,z:p.z+WORKSHOP_OFFSET.z})
 export const WORKSHOP=Object.freeze(moveWorkshop(REFERENCE_WORKSHOP))
 export const WORKSHOP_POLYGON=Object.freeze(REFERENCE_WORKSHOP_POLYGON.map(moveWorkshop))
@@ -138,24 +140,19 @@ export const ROADS=Object.freeze(REFERENCE_PIXELS.roads.map(r=>({width:r.width*U
 /* 사용자 요청: 맵을 사각형으로.
    사진에서 읽은 들쭉날쭉한 담 윤곽 대신, 도량 전체를 담는 네모난 마당을 걷는 범위로 씁니다.
    원래 윤곽(PRECINCT)은 근거로 남겨 두고 바닥 무늬로만 보여 줍니다. */
-export const YARD=Object.freeze({x0:16,x1:56,z0:8,z1:50})
+export const YARD=Object.freeze({x0:16,x1:58,z0:8,z1:50})
 export const inYard=(x,z)=>x>YARD.x0&&x<YARD.x1&&z>YARD.z0&&z<YARD.z1
 
-/* 높은 마당(도량탑·동상)과 아래 마당을 잇는 비탈길.
-   사진에서 실제 계단의 단차를 읽지 못했기 때문에 걸어 올라갈 수 있는 비탈로 뒀습니다.
-   실제 계단의 자리·형태가 아니라 걸어 다니기 위한 장치입니다. */
-export const RAMP=Object.freeze({xLow:18.6,xHigh:23.0,z0:21.8,z1:25.6})
-export function onRamp(x,z){return z>RAMP.z0-.4&&z<RAMP.z1+.4&&x>RAMP.xLow-.6&&x<RAMP.xHigh+1.6}
-export function rampHeight(x){
-  const t=(x-RAMP.xLow)/(RAMP.xHigh-RAMP.xLow)
-  return Math.max(0,Math.min(1,t))*HALL_THIRD_FLOOR_Y
-}
+/* 사용자 요청: 서쪽 계단을 없애고 작업장도 본관 3층 높이로 맞춘다.
+   그래서 마당 전체가 본관 3층과 같은 한 높이입니다. 오르내릴 곳이 없습니다.
+   실제 도량의 단차가 아니라, 걸어 다니기 위해 한 높이로 고른 것입니다. */
+export const YARD_Y=HALL_THIRD_FLOOR_Y
 
 /* 도량탑을 도는 마당. 탑돌이는 반지름 4 로 한 바퀴를 도는데,
    사진에서 읽은 높은 마당은 탑 동쪽이 1.2 밖에 안 남아 한 바퀴가 돌아지지 않습니다.
    그래서 탑 둘레에 걸을 수 있는 둥근 마당을 따로 둡니다.
    사진에서 읽은 마당 윤곽이 아니라 탑돌이를 위해 둔 자리입니다. */
-export const PAGODA_APRON=Object.freeze({r:5.6})
+export const PAGODA_APRON=Object.freeze({r:4})
 export function inApron(x,z){return Math.hypot(x-LANDMARKS.pagoda.x,z-LANDMARKS.pagoda.z)<PAGODA_APRON.r}
 
 /* 길. 작업장에서 법당으로, 작업장에서 도량탑으로 이어집니다. 바닥 포장으로 보여 줍니다. */
@@ -163,31 +160,49 @@ const strip=(a,b,w)=>{
   const dx=b.x-a.x,dz=b.z-a.z,l=Math.hypot(dx,dz)||1,nx=-dz/l*w/2,nz=dx/l*w/2
   return[{x:a.x+nx,z:a.z+nz},{x:b.x+nx,z:b.z+nz},{x:b.x-nx,z:b.z-nz},{x:a.x-nx,z:a.z-nz}]
 }
-export const WORKSHOP_DOOR=Object.freeze({x:47,z:38.6})
-export const RAMP_FOOT=Object.freeze({x:RAMP.xLow,z:(RAMP.z0+RAMP.z1)/2})
-export const RAMP_TOP=Object.freeze({x:RAMP.xHigh+.8,z:(RAMP.z0+RAMP.z1)/2})
+export const WORKSHOP_DOOR=Object.freeze({x:44.2,z:16.4})
+/* 작업장 안. 담이 둘러 있고 서쪽 가운데가 문이다.
+   안의 작업대·걸이대·장엄등 자리는 workshopYard.js 에 있고 여기서 막는 것만 적는다. */
+const WSB=Object.freeze({x0:Math.min(...WORKSHOP_POLYGON.map(p=>p.x)),x1:Math.max(...WORKSHOP_POLYGON.map(p=>p.x)),
+ z0:Math.min(...WORKSHOP_POLYGON.map(p=>p.z)),z1:Math.max(...WORKSHOP_POLYGON.map(p=>p.z))})
+export const WORKSHOP_BOUNDS=WSB
+const WALL=.42,GATE=.6
+export const inWorkshopBounds=(x,z)=>x>WSB.x0-WALL&&x<WSB.x1+WALL&&z>WSB.z0-WALL&&z<WSB.z1+WALL
+export function inWorkshopYard(x,z){
+ // 문으로 드나드는 통로
+ if(x<=WSB.x0+WALL&&Math.abs(z-WORKSHOP_DOOR.z)<GATE)return x>WSB.x0-WALL-1.2&&z>WSB.z0&&z<WSB.z1
+ if(x<WSB.x0+WALL||x>WSB.x1-WALL||z<WSB.z0+WALL||z>WSB.z1-WALL)return false
+ // 작업대 넷 · 걸이대 기둥 둘 · 장엄등 수레
+ for(let i=0;i<4;i++){const sx=WSB.x0+2.0+i*2.1,sz=WSB.z0+1.9
+  if(Math.abs(x-sx)<.75&&Math.abs(z-sz)<.5)return false}
+ for(const px of [WSB.x0+1.4,WSB.x0+5.6])if(Math.hypot(x-px,z-(WSB.z1-1.5))<.35)return false
+ if(Math.abs(x-(WSB.x1-2.6))<1.2&&Math.abs(z-(WSB.z1-2.6))<.6)return false
+ return true
+}
+export const WORKSHOP_INSIDE=Object.freeze({x:WSB.x0+1.4,z:WORKSHOP_DOOR.z})
+/* 길은 탑 북쪽으로 돌아 탑돌이 길(반지름 4.6)을 밟지 않습니다. */
+export const PATH_NORTH=Object.freeze({x:31.2,z:17.4})
+/* 탑돌이가 걷는 띠. 길은 이 띠에서 떨어져 있어야 한다(사용자 요청). */
+export const ORBIT_RADIUS=2.6
+const PAGODA_CLEAR=ORBIT_RADIUS+.9
 export const PATHS=Object.freeze([
-  // 작업장 문 → 본관 남쪽을 지나 서쪽으로
-  {id:'yardSouth',y:0,polygon:strip(WORKSHOP_DOOR,{x:19.6,z:46.6},3.2)},
-  // 서쪽을 따라 비탈 아래까지
-  {id:'yardWest',y:0,polygon:strip({x:19.6,z:46.6},{x:19.6,z:RAMP_FOOT.z},3.2)},
-  // 비탈 위에서 도량탑으로
-  {id:'toPagoda',y:HALL_THIRD_FLOOR_Y,polygon:strip(RAMP_TOP,{x:LANDMARKS.pagoda.x-4.4,z:LANDMARKS.pagoda.z},3)},
-  // 비탈 위에서 법당 문으로
-  {id:'toHallDoor',y:HALL_THIRD_FLOOR_Y,polygon:strip({x:LANDMARKS.pagoda.x-4.4,z:LANDMARKS.pagoda.z},{x:HALL_DOOR.x,z:HALL_DOOR.z-1.6},3)}
+  {id:'fromWorkshop',y:YARD_Y,polygon:strip(WORKSHOP_DOOR,PATH_NORTH,3.4)},
+  {id:'toPagoda',y:YARD_Y,polygon:strip(PATH_NORTH,{x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z-5.6},3)},
+  {id:'toHallDoor',y:YARD_Y,polygon:strip(PATH_NORTH,{x:PATH_NORTH.x,z:34.8},3)},
+  {id:'hallFront',y:YARD_Y,polygon:strip({x:PATH_NORTH.x,z:34.8},{x:HALL_DOOR.x,z:HALL_DOOR.z-1.2},2)},
+  {id:'toStatue',y:YARD_Y,polygon:strip(PATH_NORTH,{x:LANDMARKS.statue.x,z:LANDMARKS.statue.z+2.6},2.6)}
 ])
 
 export function groundHeight(x,z){
- if(onRamp(x,z))return rampHeight(x)
- if(inHallPassage(x,z)||inHallLobby(x,z)||pointInPolygon(x,z,TERRACE.polygon)||inApron(x,z))return HALL_THIRD_FLOOR_Y
- return 0
+ // 마당 전체가 본관 3층과 같은 한 높이다.
+ return inYard(x,z)||inHallPassage(x,z)||inHallLobby(x,z)?YARD_Y:0
 }
 export const HALL_ENTRY=Object.freeze(pixelToSite(REFERENCE_PIXELS.mainEntry))
 export const WORKSHOP_ENTRY=Object.freeze(moveWorkshop(pixelToSite(REFERENCE_PIXELS.workshopEntry)))
 const sy=statueFacingYaw()
 /* 사용자 요청: 시작 지점도 등불사장으로. 첫 자리가 출발점이다. */
 export const STOPS=Object.freeze([
- {id:'workshop',name:'등불사 작업장 앞',x:WORKSHOP_DOOR.x,z:WORKSHOP_DOOR.z+1.4},
+ {id:'workshop',name:'등불사 작업장',x:WORKSHOP_INSIDE.x,z:WORKSHOP_INSIDE.z},
  {id:'main',name:'본관 앞',...HALL_ENTRY},
  {id:'pagoda',name:'도량탑 앞',x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z-2.9},
  {id:'statue',name:'동상 앞',x:LANDMARKS.statue.x+Math.sin(sy)*2.8,z:LANDMARKS.statue.z+Math.cos(sy)*2.8},
@@ -213,18 +228,47 @@ function closeToEdge(x,z,poly){
   return false
 }
 
+/* 마당 조경. 위성사진에서 읽은 녹지(PLANTING)와 담 안쪽의 빈 곳에 나무를 놓는다.
+   길·탑돌이 길·장소 버튼 자리·건물은 비워 둔다. 게임용 배치이고 실제 조경이 아니다. */
+function farFromPaths(x,z,m){
+ for(const p of PATHS)for(let i=0;i<4;i++){
+  const a=p.polygon[i],b=p.polygon[(i+1)%4],dx=b.x-a.x,dz=b.z-a.z
+  const t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz||1)))
+  if(Math.hypot(x-(a.x+dx*t),z-(a.z+dz*t))<m)return false}
+ return true
+}
+export const GARDEN_TREES=Object.freeze((()=>{
+ const out=[],rnd=(i,j)=>{const v=Math.sin(i*127.1+j*311.7)*43758.5453;return v-Math.floor(v)}
+ let i=0
+ for(let x=YARD.x0+2;x<YARD.x1-1;x+=2.6)for(let z=YARD.z0+2;z<YARD.z1-1;z+=2.6){
+  i++
+  const px=x+(rnd(i,1)-.5)*1.4,pz=z+(rnd(i,2)-.5)*1.4
+  if(!inYard(px,pz))continue
+  if(inWorkshopBounds(px,pz))continue
+  if(Math.hypot(px-LANDMARKS.pagoda.x,pz-LANDMARKS.pagoda.z)<PAGODA_APRON.r+2.6)continue
+  if(Math.hypot(px-LANDMARKS.statue.x,pz-LANDMARKS.statue.z)<4)continue
+  if(Math.hypot(px-WORKSHOP_DOOR.x,pz-WORKSHOP_DOOR.z)<3)continue
+  if(Math.hypot(px-HALL_DOOR.x,pz-HALL_DOOR.z)<5)continue
+  if(!farFromPaths(px,pz,2.6))continue
+  if(BUILDINGS.some(b=>b.polygons.some(pl=>pointInPolygon(px,pz,pl)||closeToEdge(px,pz,pl))))continue
+  // 담에서 조금 떨어뜨리고, 안쪽은 드문드문 둔다.
+  const edge=Math.min(px-YARD.x0,YARD.x1-px,pz-YARD.z0,YARD.z1-pz)
+  if(edge<1.6)continue
+  if(edge>7&&rnd(i,3)>.3)continue
+  out.push({x:+px.toFixed(2),z:+pz.toFixed(2),r:.9+rnd(i,4)*.5})
+ }
+ return out
+})().map(Object.freeze))
+
 export function canWalk(x,z){
  if(!Number.isFinite(x)||!Number.isFinite(z))return false
  if(inHallPassage(x,z)||inHallLobby(x,z))return true
  if(!inYard(x,z))return false
+ // 작업장은 담을 두른 열린 마당이다. 안으로 걸어 들어가 등을 만든다.
+ if(inWorkshopBounds(x,z))return inWorkshopYard(x,z)
  for(const b of BUILDINGS)if(b.polygons.some(p=>pointInPolygon(x,z,p)||closeToEdge(x,z,p)))return false
- // 비탈길은 높은 마당으로 올라가는 유일한 길이다.
- if(onRamp(x,z))return true
- // 탑 둘레의 둥근 마당. 탑 자체만 비켜 간다.
- if(inApron(x,z))return Math.hypot(x-LANDMARKS.pagoda.x,z-LANDMARKS.pagoda.z)>1.1
- // 실제 지상↔3층 계단의 단차는 미확정이다. 비탈 말고는 경계에서 떨어지지 않도록 막는다.
- if(closeToEdge(x,z,TERRACE.polygon))return false
  if(Math.hypot(x-LANDMARKS.pagoda.x,z-LANDMARKS.pagoda.z)<1.1)return false
  if(Math.hypot(x-LANDMARKS.statue.x,z-LANDMARKS.statue.z)<1.8)return false
+ for(const t of GARDEN_TREES)if(Math.hypot(x-t.x,z-t.z)<t.r*.55)return false
  return true
 }

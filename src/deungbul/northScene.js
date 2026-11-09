@@ -1,55 +1,65 @@
 import {THREE} from './three3d.js'
-import {TERRACE,PLANTING,LOWER_GARDEN,FORECOURT,WORKSHOP_YARD,WORKSHOP_POLYGON,WORKSHOP_ENTRY,STAIR_OUTLINES,TREES,ROADS,groundHeight,YARD,RAMP,PATHS,PRECINCT,HALL_THIRD_FLOOR_Y,PAGODA_APRON,LANDMARKS} from './sitePreviewData.js'
+import {TERRACE,PLANTING,LOWER_GARDEN,FORECOURT,WORKSHOP_YARD,WORKSHOP_ENTRY,TREES,ROADS,groundHeight,YARD,YARD_Y,PATHS,PRECINCT,HALL_THIRD_FLOOR_Y,PAGODA_APRON,LANDMARKS,GARDEN_TREES} from './sitePreviewData.js'
 function shapeOf(poly){return new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,-p.z)))}
 export function drawPolygon(world,poly,material,y=0){
  const m=world.mesh(new THREE.ShapeGeometry(shapeOf(poly)),material,0,y,0);m.rotation.x=-Math.PI/2;m.castShadow=false;return m
 }
 export function buildNorthGround(world,materials){
  const {M,mesh,box}=world
- /* 사용자 요청: 맵을 사각형으로. 네모난 마당을 바탕으로 깔고 담으로 두른다. */
- const {x0,x1,z0,z1}=YARD,w=x1-x0,d=z1-z0,cx=(x0+x1)/2,cz=(z0+z1)/2
- drawPolygon(world,[{x:x0-14,z:z0-14},{x:x1+14,z:z0-14},{x:x1+14,z:z1+14},{x:x0-14,z:z1+14}],M('#6f7d58'),-.06)
- drawPolygon(world,[{x:x0,z:z0},{x:x1,z:z0},{x:x1,z:z1},{x:x0,z:z1}],materials.paving,-.02)
- /* 사진에서 읽은 원래 담 윤곽은 근거로 남겨 바닥 무늬로만 보여 준다. */
- drawPolygon(world,PRECINCT,M('#c3b89c'),-.01)
- drawPolygon(world,LOWER_GARDEN,M('#6b795d'),.01)
- drawPolygon(world,FORECOURT,materials.paving,.015)
- drawPolygon(world,WORKSHOP_YARD,M('#bdb49c'),.01)
- /* 탑 둘레의 둥근 마당. 탑돌이가 한 바퀴 돌 수 있도록 둔 자리다. */
+ /* 사용자 요청: 맵을 사각형으로. 서쪽 계단은 없애고 마당 전체를 본관 3층 높이로 맞춘다.
+    오르내릴 곳이 없는 한 높이의 네모난 마당이다. 실제 도량의 단차가 아니다. */
+ const {x0,x1,z0,z1}=YARD,Y=YARD_Y
+ drawPolygon(world,[{x:x0-20,z:z0-20},{x:x1+20,z:z0-20},{x:x1+20,z:z1+20},{x:x0-20,z:z1+20}],M('#6f7d58'),-.06)
+ // 마당을 받치는 단. 마당이 길보다 높이 올라앉아 있다.
  {
-  const ap=mesh(new THREE.RingGeometry(1.1,PAGODA_APRON.r,48),M('#d6cbae'),LANDMARKS.pagoda.x,HALL_THIRD_FLOOR_Y+.02,LANDMARKS.pagoda.z)
+  const plinth=mesh(new THREE.ExtrudeGeometry(shapeOf([{x:x0,z:z0},{x:x1,z:z0},{x:x1,z:z1},{x:x0,z:z1}]),{depth:Y,bevelEnabled:false}),M('#a9a18e'),0,0,0)
+  plinth.rotation.x=-Math.PI/2
+ }
+ drawPolygon(world,[{x:x0,z:z0},{x:x1,z:z0},{x:x1,z:z1},{x:x0,z:z1}],materials.paving,Y+.01)
+ /* 사진에서 읽은 원래 담 윤곽은 근거로 남겨 바닥 무늬로만 보여 준다. */
+ drawPolygon(world,PRECINCT,M('#c3b89c'),Y+.02)
+ drawPolygon(world,LOWER_GARDEN,M('#6b795d'),Y+.03)
+ drawPolygon(world,FORECOURT,materials.paving,Y+.035)
+ drawPolygon(world,WORKSHOP_YARD,M('#bdb49c'),Y+.03)
+ drawPolygon(world,TERRACE.polygon,M('#ded2b4'),Y+.04)
+ for(const area of PLANTING)drawPolygon(world,area.polygon,M(area.id==='field'?'#6c9a73':'#60774d'),Y+.05)
+ /* 탑 둘레의 둥근 마당. 탑돌이가 한 바퀴 돌 수 있도록 둔 자리다.
+    사용자 요청에 따라 길은 이 안으로 들어오지 않는다. */
+ {
+  const ap=mesh(new THREE.RingGeometry(1.1,PAGODA_APRON.r,48),M('#d6cbae'),LANDMARKS.pagoda.x,Y+.07,LANDMARKS.pagoda.z)
   ap.rotation.x=-Math.PI/2;ap.receiveShadow=true
-  const edge=mesh(new THREE.RingGeometry(PAGODA_APRON.r-.14,PAGODA_APRON.r,48),M('#b7a888'),LANDMARKS.pagoda.x,HALL_THIRD_FLOOR_Y+.03,LANDMARKS.pagoda.z)
+  const edge=mesh(new THREE.RingGeometry(PAGODA_APRON.r-.12,PAGODA_APRON.r,48),M('#b7a888'),LANDMARKS.pagoda.x,Y+.08,LANDMARKS.pagoda.z)
   edge.rotation.x=-Math.PI/2
  }
- /* 길. 작업장에서 비탈로, 비탈 위에서 도량탑과 법당 문으로. */
- for(const path of PATHS)drawPolygon(world,path.polygon,M('#d8cdb0'),path.y+.03)
- /* 비탈길. 실제 계단의 단차를 읽지 못해 걸어 올라가는 비탈로 둔다.
-    실제 계단의 자리나 형태가 아니라 걸어 올라가기 위한 장치다. */
+ /* 길. 작업장 문에서 탑 북쪽을 돌아 도량탑·법당 문·동상으로 이어진다. */
+ for(const path of PATHS)drawPolygon(world,path.polygon,M('#d8cdb0'),path.y+.06)
+ // 돌 이음새만 얹는다. 칸마다 색을 흔들지 않는다.
  {
-  const {xLow,xHigh,z0:rz0,z1:rz1}=RAMP,H=HALL_THIRD_FLOOR_Y
-  const g=new THREE.BufferGeometry()
-  g.setAttribute('position',new THREE.Float32BufferAttribute([
-   xLow,0,rz0, xHigh,H,rz0, xHigh,H,rz1,
-   xLow,0,rz0, xHigh,H,rz1, xLow,0,rz1],3))
-  g.computeVertexNormals()
-  const ramp=new THREE.Mesh(g,M('#cbbfa2',{side:THREE.DoubleSide}))
-  ramp.receiveShadow=true;world.scene.add(ramp)
-  const len=Math.hypot(xLow-xHigh,H),tilt=Math.atan2(H,xHigh-xLow)
-  for(const z of [rz0,rz1]){
-   const rail=box(len,.16,.16,M('#a9a18e'),(xLow+xHigh)/2,H/2+.22,z)
-   rail.rotation.z=tilt
+  const seams=[]
+  for(const path of PATHS){
+   const [a,b2,c,d]=path.polygon
+   for(let i=0;i<=8;i++){const t=i/8
+    seams.push(new THREE.Vector3(a.x+(b2.x-a.x)*t,path.y+.07,a.z+(b2.z-a.z)*t),new THREE.Vector3(d.x+(c.x-d.x)*t,path.y+.07,d.z+(c.z-d.z)*t))}
   }
+  world.scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seams),new THREE.LineBasicMaterial({color:'#b9ab8a'})))
  }
-
- const base=mesh(new THREE.ExtrudeGeometry(shapeOf(TERRACE.polygon),{depth:TERRACE.y,bevelEnabled:false}),M('#a9a18e'),0,0,0);base.rotation.x=-Math.PI/2
- drawPolygon(world,TERRACE.polygon,materials.paving,TERRACE.y+.01)
- for(const area of PLANTING)drawPolygon(world,area.polygon,M(area.id==='field'?'#6c9a73':'#60774d'),TERRACE.y+.025)
- // 단차가 판독되지 않는 계단 추정 띠는 평면 윤곽만 표시한다.
- for(const step of STAIR_OUTLINES){
-  const [a,b,c,d]=step.polygon,points=[]
-  for(let i=0;i<=5;i++){const t=i/5;points.push(new THREE.Vector3(a.x+(d.x-a.x)*t,TERRACE.y+.04,a.z+(d.z-a.z)*t),new THREE.Vector3(b.x+(c.x-b.x)*t,TERRACE.y+.04,b.z+(c.z-b.z)*t))}
-  world.scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:'#ad8666'})))
+ /* 마당 안 조경. 담 안쪽을 따라 두르고 가운데는 드문드문 둔다.
+    길·탑돌이 길·문 앞은 비워 둔다. 게임용 배치이고 실제 조경이 아니다. */
+ {
+  const n=GARDEN_TREES.length,pose=new THREE.Object3D()
+  const crown=new THREE.InstancedMesh(new THREE.SphereGeometry(1,10,7),M('#4e6a4c'),n)
+  const trunk=new THREE.InstancedMesh(new THREE.CylinderGeometry(.09,.13,1,6),M('#6f5c47'),n)
+  const bed=new THREE.InstancedMesh(new THREE.CircleGeometry(1,14),M('#6b7d5a'),n)
+  GARDEN_TREES.forEach((t,i)=>{
+   pose.position.set(t.x,Y+.09,t.z);pose.rotation.set(-Math.PI/2,0,0);pose.scale.setScalar(t.r*1.25)
+   pose.updateMatrix();bed.setMatrixAt(i,pose.matrix);pose.rotation.set(0,0,0)
+   pose.position.set(t.x,Y+t.r*1.9,t.z);pose.scale.set(t.r,t.r*1.25,t.r)
+   pose.updateMatrix();crown.setMatrixAt(i,pose.matrix)
+   pose.position.set(t.x,Y+t.r*.75,t.z);pose.scale.set(t.r,t.r*1.5,t.r)
+   pose.updateMatrix();trunk.setMatrixAt(i,pose.matrix)
+  })
+  crown.castShadow=trunk.castShadow=false
+  world.scene.add(bed,trunk,crown)
  }
  const crowns=new THREE.InstancedMesh(new THREE.SphereGeometry(1,12,8),M('#526e50'),TREES.length),trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.12,.17,1.4,6),M('#796650'),TREES.length),pose=new THREE.Object3D()
  TREES.forEach((p,i)=>{const y=groundHeight(p.x,p.z);pose.position.set(p.x,y+1.8,p.z);pose.scale.set(1.1,1.3,1.1);pose.updateMatrix();crowns.setMatrixAt(i,pose.matrix);pose.position.y=y+.7;pose.scale.set(1,1,1);pose.updateMatrix();trunks.setMatrixAt(i,pose.matrix)})
@@ -99,18 +109,3 @@ export function buildYardFrame(world,materials){
  world.scene.add(crown,trunk)
 }
 
-export function buildNorthWorkshop(world){
- const {M,mesh,box}=world,poly=WORKSHOP_POLYGON,h=3.8
- const body=mesh(new THREE.ExtrudeGeometry(shapeOf(poly),{depth:h,bevelEnabled:false}),M('#d2d4cf'),0,0,0);body.rotation.x=-Math.PI/2
- drawPolygon(world,poly,M('#697d85'),h+.01)
- // 태양광 패널은 사진의 지붕 외곽 안에서만 표시한다.
- const center=poly.reduce((p,v)=>({x:p.x+v.x/4,z:p.z+v.z/4}),{x:0,z:0})
- const solar=poly.map(p=>({x:center.x+(p.x-center.x)*.84,z:center.z+(p.z-center.z)*.84}))
- drawPolygon(world,solar,M('#395666'),h+.03)
- const grid=[],[a,b,c,d]=solar
- for(let i=0;i<=10;i++){const t=i/10;grid.push(new THREE.Vector3(a.x+(b.x-a.x)*t,h+.04,a.z+(b.z-a.z)*t),new THREE.Vector3(d.x+(c.x-d.x)*t,h+.04,d.z+(c.z-d.z)*t),new THREE.Vector3(a.x+(d.x-a.x)*t,h+.04,a.z+(d.z-a.z)*t),new THREE.Vector3(b.x+(c.x-b.x)*t,h+.04,b.z+(c.z-b.z)*t))}
- world.scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(grid),new THREE.LineBasicMaterial({color:'#779098'})))
- const frontA=poly[2],frontB=poly[3],dx=frontB.x-frontA.x,dz=frontB.z-frontA.z,len=Math.hypot(dx,dz),yaw=-Math.atan2(dz,dx)
- for(let i=0;i<5;i++){const t=(i+.5)/5,m=box(.8,.8,.05,M('#607d82'),frontA.x+dx*t+dz/len*.04,1.7,frontA.z+dz*t-dx/len*.04);m.rotation.y=yaw}
- const sign=world.textPlane('등불사 작업장',4,.55);sign.position.set((frontA.x+frontB.x)/2+dz/len*.1,2.9,(frontA.z+frontB.z)/2-dx/len*.1);sign.rotation.y=Math.atan2(dz/len,-dx/len)
-}
