@@ -312,8 +312,11 @@ function modalShell(title,sub){
 function closeModal(){
   if(!modalOpen)return;
   modalWrap.classList.remove('show');modalOpen=false;card.innerHTML='';boardUI=null;clearInterval(boardTimer);boardTimer=0;
-  const target=modalReturnFocus&&modalReturnFocus.isConnected&&!modalReturnFocus.closest('#title.hide')?modalReturnFocus:cv;
-  target.focus({preventScroll:true});modalReturnFocus=null;
+  // 창을 연 버튼으로 초점을 돌리면 그 버튼이 Space 를 가로채, 다음 Space 가
+  // 작업 대신 창을 다시 엽니다. 버튼·링크면 게임 화면으로 돌립니다.
+  const back=modalReturnFocus,tag=back&&back.tagName;
+  const keep=back&&back.isConnected&&!back.closest('#title.hide')&&tag!=='BUTTON'&&tag!=='A';
+  (keep?back:cv).focus({preventScroll:true});modalReturnFocus=null;
 }
 modalWrap.addEventListener('keydown',e=>{
   if(e.isComposing||e.keyCode===229)return;
