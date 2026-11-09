@@ -442,3 +442,15 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - mapChoiceRoutes.js가 선택/법당 복귀 주소 기준이다. 기존 ?from=beopdang 복귀는 클로드로 바로 돌아간다. 코덱스가 여는 법당에는 ?from=codex를 붙이고 출구/뒤로 버튼은 /site-preview.html?view=hall3로 돌아간다. 기존 사용자 이름 확인은 유지한다.
 - Claude 카드의 claude.jpg는 현재 캠퍼스를 초기화 완료한 뒤 로컬에서 실행·촬영한 화면이다. Codex 카드의 plan.jpg도 실제 실행 화면이다. map-choice.jpg / map-choice-mobile.jpg는 최종 선택 화면 기록이다. 위성/공식 사진 복제 없음.
 - 기존 PR #22에 함께 반영한다. PR 본문은 요청대로 ‘검증 못 했음’만 유지하고 실제 검증 결과는 아래 문서에 남긴다.
+
+## 코덱스 맵도 걸어 다니는 화면이다
+
+- 사용자 요청: **코덱스 맵도 클로드 맵처럼** 만듭니다. `site-preview.html` 은 이제 처음부터
+  본관 앞에 서서 **걷는 상태로 엽니다.** 배치도(북쪽 위 정사영)는 `본원 확대`·`전체 위치` 단추로 봅니다.
+- 걷기·충돌·높이는 원래 `sitePreviewData.js` 의 `canWalk()`·`groundHeight()` 가 이미 갖고 있었습니다.
+  바꾼 것은 **첫 화면을 배치도에서 걷기로 돌린 것**과 미니맵·조형물 살펴보기입니다.
+- 미니맵은 `PRECINCT`·`WORKSHOP_YARD`·`BUILDINGS` 폴리곤에서 한 번 그려 두고 사람만 매 프레임 얹습니다.
+  걷는 동안(`body.walk`)에만 보입니다.
+- 구정탑·동상 앞에서도 `살펴보기` 가 뜹니다. 탑돌이·삼배 같은 실제 동작은 클로드 맵에 있고,
+  코덱스 맵의 안내창은 그쪽으로 보냅니다.
+- `?view=plan|site|seven` 과 `?view=<정류장 id>` 는 그대로 동작합니다. 아무것도 없으면 본관 앞에서 걷습니다.

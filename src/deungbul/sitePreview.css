@@ -21,3 +21,9 @@ header>div{background:#fffdf2ed;padding:9px 13px;border-radius:13px;border:1px s
 @media(max-height:500px){#viewNote{top:auto;bottom:12px;right:12px;max-width:45vw}#compass{top:140px}}
 
 body.walk #viewNote{display:none}
+
+/* 미니맵. 걷는 동안에만 보인다. */
+#minimap{position:fixed;right:18px;bottom:calc(var(--safe-b) + 18px);z-index:5;width:200px;height:200px;display:none;border-radius:10px;border:2px solid #fffdf2e6;box-shadow:0 4px 14px rgba(0,0,0,.28);background:#55613f;pointer-events:none}
+body.walk #minimap{display:block}
+@media(max-width:1000px){#minimap{width:132px;height:132px;right:16px;bottom:calc(var(--safe-b) + 112px)}}
+@media(max-height:500px){#minimap{width:108px;height:108px;bottom:calc(var(--safe-b) + 10px)}}
