@@ -1,3 +1,4 @@
+import {bindCameraGestures,mountCameraButtons} from './mobileUi.js'
 /* 세 화면이 같이 쓰는 3D 바탕.
    좌표는 2D 때와 같은 칸(x, y)을 그대로 씁니다. 3D 에서는 y 가 z 로 갑니다.
    걷는 속도와 충돌 판정도 2D 와 같은 값을 씁니다. */
@@ -41,8 +42,6 @@ export function createWorld (cv, opt = {}) {
   const camera = new THREE.PerspectiveCamera(opt.fov || 45, 1, .1, 240)
   function resize () {
     const w = window.innerWidth, h = window.innerHeight
-    // setSize(w, h, false) 로 두면 캔버스가 화면 배율만큼 커진 채 자리를 잡는다.
-    // 배율 2 인 화면에서는 캔버스가 창의 두 배가 되어 왼쪽 위 4 분의 1 만 보인다.
     renderer.setSize(w, h)
     camera.aspect = w / h
     const baseFov = opt.fov || 45
@@ -208,29 +207,15 @@ export function createFollower (cv, camera, opt = {}) {
   const lookHeight=opt.lookHeight??.9
   const pos = V3(0, 8, 0), look = V3(0, 1, 0)
   const camRay = new THREE.Raycaster()
-  let first = true, drag = null
-  cv.addEventListener('pointerdown', e => {
-    if (e.target !== cv) return
-    drag = { id: e.pointerId, x: e.clientX }
-    try { cv.setPointerCapture(e.pointerId) } catch (_) {}
-  })
-  cv.addEventListener('pointermove', e => {
-    if (!drag || drag.id !== e.pointerId) return
-    state.yaw -= (e.clientX - drag.x) * .006
-    drag.x = e.clientX
-  })
-  const end = e => { if (drag && drag.id === e.pointerId) drag = null }
-  cv.addEventListener('pointerup', end)
-  cv.addEventListener('pointercancel', end)
-  cv.addEventListener('lostpointercapture', end)
-  cv.addEventListener('wheel', e => {
-    if (e.ctrlKey || e.metaKey) return
-    e.preventDefault()
-    state.dist = Math.max(state.min, Math.min(state.max, state.dist + Math.sign(e.deltaY) * .8))
-  }, { passive: false })
+  let first = true
+  const gestures=bindCameraGestures(cv,{getYaw:()=>state.yaw,setYaw:v=>{state.yaw=v},
+    getDistance:()=>state.dist,setDistance:v=>{state.dist=v},min:state.min,max:state.max})
+  const zoomButtons=mountCameraButtons({getDistance:()=>state.dist,setDistance:v=>{state.dist=v},min:state.min,max:state.max,
+    onChange:()=>cv.dispatchEvent(new Event('camera-adjust'))})
 
   return {
     state,
+    dispose(){gestures.dispose();zoomButtons.remove()},
     reset(values={}){Object.assign(state,values);first=true},
     turn (keys, dt) {
       if (keys.has('q')) state.yaw += dt * 1.6

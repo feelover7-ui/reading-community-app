@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>한마음선원 등불사장 · 본원 탐방</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -136,8 +136,20 @@ html,body{overscroll-behavior:none;touch-action:auto}
 @media(max-width:640px){#topbtns{left:12px;right:12px;justify-content:flex-end}#minimap{width:144px;height:202px}#connection{font-size:11px}#prompt{max-width:calc(100vw - 24px);white-space:normal;text-align:center}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
+<link rel="stylesheet" href="/src/deungbul/mobileUi.css">
+<link rel="stylesheet" href="/src/deungbul/mapChoice.css">
 </head>
-<body>
+<body class="prestart map-select">
+<section id="mapChoice" aria-labelledby="mapChoiceTitle">
+ <div class="choice-heading"><p class="choice-kicker">한마음선원 · 본원 탐방</p><h1 id="mapChoiceTitle">어떤 맵으로 들어갈까요?</h1><p class="choice-intro">두 가지 도량을 둘러보고, 마음에 드는 공간을 골라 보세요.</p></div>
+ <div class="choice-grid">
+  <a class="choice-card" id="chooseClaude" href="/deungbul.html?map=claude" aria-labelledby="claudeTitle claudeEnter" aria-describedby="claudeDescription"><div class="choice-image"><img src="/scene-comparison/claude.jpg" width="1000" height="625" alt="클로드 버전의 본원 도량 실행 화면"><span class="choice-number" aria-hidden="true">01</span></div><div class="choice-copy"><span class="choice-tag">등 만들기 · 탑돌이 · 법당 참배</span><h2 id="claudeTitle">클로드 맵</h2><p class="choice-description" id="claudeDescription">도량의 여러 건물을 둘러보고 소원등을 만들어 보세요. 기존 체험 기능을 이용할 수 있어요.</p><span class="choice-enter" id="claudeEnter">클로드 맵으로 들어가기 <span aria-hidden="true">→</span></span></div></a>
+  <a class="choice-card" id="chooseCodex" href="/site-preview.html" aria-labelledby="codexTitle codexEnter" aria-describedby="codexDescription"><div class="choice-image"><img src="/scene-comparison/plan.jpg" width="1000" height="694" alt="코덱스 버전의 북쪽 위 도량 배치 실행 화면"><span class="choice-number" aria-hidden="true">02</span></div><div class="choice-copy"><span class="choice-tag">북쪽 위 도량 · 배치 미리보기</span><h2 id="codexTitle">코덱스 맵</h2><p class="choice-description" id="codexDescription">위성사진을 기준으로 만든 본원과 가까운 작업장을 둘러보세요. 장소 버튼으로 이동하고 3층 문으로 들어가 볼 수 있어요.</p><span class="choice-enter" id="codexEnter">코덱스 맵으로 들어가기 <span aria-hidden="true">→</span></span></div></a>
+ </div>
+ <p class="choice-foot">언제든 ‘맵 선택’으로 돌아와 다른 버전을 볼 수 있어요. 코덱스 맵은 배치 미리보기이며 등 만들기와 법당 체험은 기존 화면으로 연결됩니다.</p>
+ <p id="mapChoiceError" hidden role="alert" tabindex="-1"></p><noscript><p>맵 체험을 이용하려면 브라우저의 JavaScript를 켜 주세요.</p></noscript>
+</section>
+<a id="mapChoiceReturn" href="/deungbul.html">맵 선택</a>
 <canvas id="game" tabindex="0" aria-label="등불사장과 본원 탐방 맵"></canvas>
 <div id="vignette"></div>
 <div id="hud" class="panel"><h3 id="hudh" role="button" tabindex="0" aria-expanded="true" aria-controls="quest-body">오늘의 소임 <small>접기</small></h3><div class="body" id="quest-body"><ol id="quest"></ol><h4>본원 순례</h4><ol id="quest2"></ol><div class="foot" id="hudfoot"></div><div class="foot" id="here" role="status"></div></div></div>
@@ -147,11 +159,11 @@ html,body{overscroll-behavior:none;touch-action:auto}
 <div id="wish"></div>
 <div id="ritual" class="panel"><div class="rt" id="rtitle"></div><div id="breath">들숨</div><div class="rc" id="rcount"></div><div class="rcap" id="rcap"></div><div class="bar" id="rbarw"><i id="rbar"></i></div><div class="row"><button id="rspeed">빠르게 ×2.5</button><button class="stop" id="rstop">그만하기</button></div></div>
 <div id="tapdori" class="panel"><svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="21" fill="none" stroke="#eadcc0" stroke-width="6"/><circle id="tapring" cx="26" cy="26" r="21" fill="none" stroke="#c8402f" stroke-width="6" stroke-linecap="round" stroke-dasharray="131.9" stroke-dashoffset="131.9" transform="rotate(-90 26 26)"/></svg><div><div class="tt" id="taptxt">탑돌이 0 / 3바퀴</div><div class="ts">탑을 오른쪽에 두고 시계 방향으로</div></div><button id="tapstop">멈추기</button></div>
-<div id="dialog"><div class="name" id="dname"></div><div class="text" id="dtext"></div><div class="next">▼ 계속</div></div>
+<div id="dialog" role="status" aria-live="polite"><div class="name" id="dname"></div><div class="text" id="dtext"></div><div class="next">▼ 계속</div></div>
 <div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" tabindex="-1"></div></div>
 <div id="creator"></div>
 <div id="toast"></div>
-<div id="joy"><i></i></div>
+<div id="joy" role="group" aria-label="이동 조이스틱"><i aria-hidden="true"></i></div>
 <button id="act">작업</button>
 <div id="fade"></div>
 <div id="title">
@@ -161,11 +173,12 @@ html,body{overscroll-behavior:none;touch-action:auto}
     <canvas id="tcv" width="320" height="110"></canvas>
     <p>등불사장에서 나만의 소원등을 만들어 걸고,<br>본원으로 나가 탑돌이와 삼배, 대법당 참배까지 해 봐요.</p>
     <button id="startb" disabled>준비 중…</button>
+    <a class="title-map-return" href="/deungbul.html">다른 맵 선택</a>
     <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업·대화 Space<br>시점 돌리기 마우스 드래그 · Q/R &nbsp;|&nbsp; 확대·축소 휠</div>
     <div id="err" role="alert">3D 화면을 불러오지 못했어요. 새로고침해 보세요.</div>
   </div>
 </div>
-<script type="module" src="/src/deungbul/original/campusScene.js"></script>
+<script type="module" src="/src/deungbul/mapChoice.js"></script>
 
 </body>
 </html>

@@ -1,3 +1,5 @@
+import {hallReturnUrl} from './mapChoiceRoutes.js'
+import {installMobileViewport} from './mobileUi.js'
 import { fitHallView } from './hallCamera.js'
 /* 대법당 안.
    칸 크기·걷는 속도·화면 배율은 등불사장·도량과 같은 값(sceneKit)을 씁니다.
@@ -74,6 +76,7 @@ const keys = bindKeys({
   isModalOpen: () => modal.open
 })
 const joy = bindJoystick(byId('joy'))
+installMobileViewport({onInterrupt:()=>{keys.clear();joy.reset()}})
 addEventListener('blur', () => { keys.clear(); joy.reset() })
 document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); joy.reset() } })
 
@@ -136,7 +139,7 @@ function nearSpot () {
   return best
 }
 function promptNow () {
-  if (atDoor(player.x, player.y)) return { label: '도량으로 나가기', run: () => travel('/deungbul.html?from=beopdang') }
+  if (atDoor(player.x, player.y)) return { label: '도량으로 나가기', run: () => travel(hallReturnUrl(location.search)) }
   const c = cushionAt(player.x, player.y)
   if (c) return { label: '절하기', run: () => openBowPicker(c) }
   const s = nearSpot()
@@ -190,6 +193,7 @@ function openBowPicker (c) {
 }
 function startBow (c, goal) {
   syncBowDay()
+  document.body.classList.add('bow-active')
   bow.on = true; bow.goal = goal; bow.done = 0; bow.t = 0; bow.spot = c
   player.x = c.x; player.y = c.y; player.dir = 'up'
   player.vx = 0; player.vy = 0; player.moving = false
@@ -203,6 +207,7 @@ function startBow (c, goal) {
 function stopBow (why) {
   if (!bow.on) return
   const done = bow.done, goal = bow.goal
+  document.body.classList.remove('bow-active')
   bow.on = false; bow.t = 0
   bowBar.classList.remove('show')
   peers.send(true)
@@ -220,11 +225,11 @@ byId('helpb').onclick = () => {
     '<p>바닥에 깔린 <b>좌복</b> 위에 서서 누르면 절을 시작합니다. 한 배·삼배·일곱 배·스물한 배·백팔배 중에 고를 수 있고, 하는 중에 다시 누르면 멈춥니다. 한 만큼 오늘 숫자에 쌓입니다.</p>' +
     '<p>🧭는 부처님과 내 캐릭터를 함께 담습니다. 화면 끌기·Q/R·휠은 자유 시점, 🧭를 누르면 자동 구도로 돌아옵니다.</p>' +
     '<p>아래쪽 문으로 나가면 원본 외부 맵으로 돌아갑니다.</p>' +
-    '<p style="color:#8a7a66;font-size:13px">공식 안내와 내부 사진을 보고 자리 관계만 옮긴 게임용 축척입니다. 실측 치수가 아니고, 사진을 복제하지 않았습니다. 오늘 숫자는 이 브라우저에만 남습니다.</p>'
+    '<p style="color:#8a7a66;font-size:13px">공식 안내를 참고해 본존불·세 부분 목탱화·닫집·단청을 구성한 시안입니다. 사진 세부 대조는 아직 하지 못했습니다. 실측 치수가 아니고, 사진을 복제하지 않았습니다. 오늘 숫자는 이 브라우저에만 남습니다.</p>'
   const b = el('button', 'btn', '닫기'); b.onclick = modal.close
   m.append(h, b)
 }
-byId('backb').addEventListener('click', e => { e.preventDefault(); travel('/deungbul.html?from=beopdang') })
+byId('backb').addEventListener('click', e => { e.preventDefault(); travel(hallReturnUrl(location.search)) })
 
 /* ---------- 한 줄 이야기 ---------- */
 let myLine = '', myLineUntil = 0
@@ -232,11 +237,12 @@ const chat = createChat({
   bar: byId('chatbar'), log: byId('chatlog'),
   input: byId('chatmsg'), sendBtn: byId('chatsend'), toggleBtn: byId('chatb'),
   send: text => {
-    if (!peers.say(text)) { setStatus('지금은 혼자 있는 법당이라 이야기를 나눌 수 없어요.'); return }
+    if (!peers.say(text)) { setStatus('지금은 혼자 있는 법당이라 이야기를 나눌 수 없어요.'); return false }
     chat.push(me.nick, text, true)
     myLine = text; myLineUntil = Date.now() + SAY_MS
+    return true
   },
-  onOpenChange: open => { if (!open) { keys.clear(); joy.reset(); try { cv.focus({ preventScroll: true }) } catch (e) {} } }
+  onOpenChange: open => { keys.clear();joy.reset();if (!open) { try { cv.focus({ preventScroll: true }) } catch (e) {} } }
 })
 
 /* ---------- 배경음악 ---------- */
@@ -263,14 +269,14 @@ hudH.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return
   e.preventDefault(); e.stopPropagation(); toggleHud()
 })
-if (window.innerWidth < 640) {
+if (isTouch || window.innerWidth < 640) {
   hudEl.classList.add('collapsed')
   hudH.querySelector('small').textContent = '펼치기'
   hudH.setAttribute('aria-expanded', 'false')
 }
 
 /* ---------- 3D 세계 ---------- */
-const world = createWorld(cv, { fov: 56, bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: true, light: .3, sunLight: .18, sky: '#ffe9c8', groundLight: '#6b4a32' })
+const world = createWorld(cv, { fov: 56, bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: !isTouch, light: .3, sunLight: .18, sky: '#ffe9c8', groundLight: '#6b4a32' })
 const hall = buildHall(world)
 const follower = createFollower(cv, world.camera, { dist: 9, pitch: .32, min: 6, max: 14, yaw: 0, lookHeight: 1.2 })
 // #17의 자동 구도. 자유 시점은 #18의 낮은 pitch/높은 시선/최소 거리를 유지한다.
@@ -285,6 +291,7 @@ const freeView=()=>{
   follower.reset({yaw:follower.state.yaw,dist:9,pitch:.32})
 }
 cv.addEventListener('pointerdown',freeView)
+cv.addEventListener('camera-adjust',freeView)
 cv.addEventListener('wheel',event=>{if(!event.ctrlKey&&!event.metaKey)freeView()},{passive:true})
 viewButton.onclick=()=>{altarView=true;firstView=true;viewButton.setAttribute('aria-pressed','true');keys.clear();joy.reset()}
 releaseFocus(viewButton,cv)

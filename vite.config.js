@@ -14,6 +14,8 @@ export default defineConfig({
         doryang: fileURLToPath(new URL('./doryang.html', import.meta.url)),
         beopdang: fileURLToPath(new URL('./beopdang.html', import.meta.url)),
         // 원본 HTML 맵 미리보기. 운영 화면과 분리된 별도 진입점입니다.
+        sitePreview: fileURLToPath(new URL('./site-preview.html', import.meta.url)),
+        siteCompare: fileURLToPath(new URL('./site-compare.html', import.meta.url)),
         original: fileURLToPath(new URL('./original.html', import.meta.url)),
       },
     },
