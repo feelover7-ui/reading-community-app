@@ -116,7 +116,6 @@ export function createWorld (cv, opt = {}) {
   const ray = new THREE.Raycaster()
   function fadeOccluders (px, pz, dt) {
     if (!fadeables.length) return
-    const target = V3(px, lookHeight, pz)
     const hits = new Set()
     for (const h of [V3(px, .9, pz), V3(px, 1.6, pz)]) {
       const dir = h.clone().sub(camera.position)
@@ -136,7 +135,6 @@ export function createWorld (cv, opt = {}) {
         a.material.depthWrite = mat.opacity > .9
       }
     }
-    void target
   }
 
   let night = false
