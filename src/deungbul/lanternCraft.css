@@ -1,0 +1,50 @@
+/* 등 만들기 창·말풍선·오늘의 소임.
+   클로드 맵(deungbul.html) 안에 있던 규칙을 두 화면이 같이 쓰도록 꺼낸 것입니다.
+   클래스 이름은 lanternCraft.js 가 만드는 요소와 같아야 합니다. */
+:root{--craft-paper:#fbf4e4;--craft-ink:#2b1d14;--craft-line:#d8c6a3;--craft-accent:#c8402f}
+#craft{position:fixed;inset:0;background:rgba(20,12,6,.6);display:none;align-items:center;justify-content:center;z-index:30;touch-action:auto}
+#craft.show{display:flex}
+#craft .card{background:var(--craft-paper);color:var(--craft-ink);border-radius:16px;width:min(540px,calc(100vw - 20px));max-height:calc(100% - 20px);overflow:auto;padding:20px 20px 18px;position:relative;border:2px solid #6b4a2f;user-select:text;-webkit-user-select:text}
+#craft .card h2{font-family:'Gowun Batang',serif;margin:0 0 4px;font-size:22px}
+#craft .card .sub{margin:0 0 12px;color:#6b5a48;font-size:14px;line-height:1.5}
+#craft .card .x{position:absolute;right:8px;top:8px;border:none;background:none;font-size:20px;cursor:pointer;color:#6b5a48;width:40px;height:40px}
+#craft .pv{display:flex;justify-content:center;margin:4px 0 12px;background:#f1e3c4;border-radius:12px;padding:8px;transition:background .8s}
+#craft .pv.dark{background:#1d1830}
+#craft .opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-bottom:12px}
+#craft .opt{border:2px solid #e2d3b4;background:#fffaf0;border-radius:10px;padding:7px 4px;cursor:pointer;font:inherit;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--craft-ink);min-height:50px}
+#craft .opt.sel{border-color:var(--craft-accent);background:#fff0e6;font-weight:700}
+#craft .opt:disabled{opacity:.4;cursor:default}
+#craft .opt .sw{width:30px;height:30px;border-radius:50%;border:1px solid rgba(70,35,15,.3)}
+#craft .bar{height:10px;background:#eadcc0;border-radius:999px;overflow:hidden;margin:2px 0 12px}
+#craft .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#e0913a,#c8402f);transition:width .2s}
+#craft .btn{width:100%;padding:14px;border:none;border-radius:11px;background:var(--craft-accent);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer}
+#craft .btn:disabled{background:#cdbfa6;cursor:default}
+#craft .btn.ghost{background:#eadcc0;color:var(--craft-ink);margin-top:8px}
+#craft .card label{display:block;font-size:13px;color:#6b5a48;margin:4px 0 6px}
+#craft .card textarea{width:100%;border:2px solid #e2d3b4;border-radius:10px;padding:10px 12px;font:inherit;font-size:16px;resize:none;background:#fffaf0;margin-bottom:10px;font-family:'Gowun Batang',serif}
+#craft .card button:focus-visible,#craft .card textarea:focus-visible{outline:3px solid #b8860b;outline-offset:2px}
+
+#say{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(660px,calc(100vw - 24px));background:var(--craft-paper);color:var(--craft-ink);border:2px solid #6b4a2f;border-radius:14px;padding:20px 20px 16px;display:none;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:22}
+#say .name{position:absolute;top:-15px;left:18px;background:#6b4a2f;color:#fbf4e4;padding:4px 14px;border-radius:999px;font-size:13px;font-weight:700}
+#say .text{font-size:16px;line-height:1.65;min-height:2.6em;white-space:pre-wrap}
+#say .next{position:absolute;right:14px;bottom:8px;font-size:12px;color:#9a8a76}
+#toast{position:fixed;left:50%;top:14px;transform:translate(-50%,-14px);background:#2b1d14;color:#fbf4e4;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:40}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#soim{position:fixed;left:16px;top:84px;width:250px;padding:11px 13px;font-size:13px;z-index:6;max-height:calc(100vh - 24px);overflow:auto;background:rgba(251,244,228,.94);color:var(--craft-ink);border:1px solid var(--craft-line);border-radius:12px;display:none}
+body.walk #soim{display:block}
+#soim h3{margin:0 0 6px;font-family:'Gowun Batang',serif;font-size:15px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
+#soim h3 small{font-family:inherit;font-size:11px;color:#9a8a76;font-weight:400}
+#soim h4{margin:9px 0 4px;font-family:'Gowun Batang',serif;font-size:13px;color:#6b4a2f;border-top:1px dashed var(--craft-line);padding-top:7px}
+#soim ol{margin:0;padding:0;list-style:none}
+#soim li{padding:2px 0;color:#8a7a66;display:flex;gap:7px;line-height:1.4}
+#soim li b{width:16px;flex:none;text-align:center}
+#soim li.done{color:#a89880;text-decoration:line-through}
+#soim li.cur{color:var(--craft-ink);font-weight:700}
+#soim .foot{margin-top:8px;padding-top:7px;border-top:1px dashed var(--craft-line);color:#6b5a48;font-size:12px;line-height:1.5}
+#soim.collapsed .body{display:none}
+#soim.collapsed{width:auto}
+@media (max-width:1000px){#soim{top:auto;bottom:calc(150px + env(safe-area-inset-bottom,0px));width:210px;font-size:12px}}
+@media (prefers-reduced-motion:reduce){#toast,#craft .bar i{transition:none}}
+
+/* 걷는 동안 배치도 설명띠는 오늘의 소임과 겹치므로 감춘다. */
+body.walk #legend,body.walk #info{display:none}

@@ -25,7 +25,12 @@ test('마당·녹지·계단·작업장 외곽은 동일한 사진의 점을 그
 test('사진 판독 배치의 장소 앞은 보행 가능하고 벽·마당 바깥은 막힌다',()=>{
  for(const p of STOPS)assert.ok(canWalk(p.x,p.z),p.id)
  assert.equal(canWalk(NaN,0),false);assert.equal(canWalk(-100,100),false)
- assert.equal(canWalk(MAIN.x,MAIN.z),false);assert.equal(canWalk(WORKSHOP.x,WORKSHOP.z),false)
+ assert.equal(canWalk(MAIN.x,MAIN.z),false)
+ /* 사용자 요청으로 작업장은 담을 두른 열린 마당이 되어 안으로 걸어 들어간다.
+    막히는 것은 담과 안의 작업대다. */
+ const wz0=Math.min(...WORKSHOP_POLYGON.map(p=>p.z))
+ assert.equal(canWalk(WORKSHOP.x,wz0+.2),false,'작업장 담이 뚫려 있다')
+ assert.equal(canWalk(WORKSHOP.x,wz0+6),true,'작업장 안을 걸을 수 없다')
  assert.equal(groundHeight(LANDMARKS.pagoda.x,LANDMARKS.pagoda.z),TERRACE.y)
  /* 사용자 요청으로 도량 전체를 한 각도만큼 돌려 반듯하게 놓았다(SITE_YAW).
     그래서 사진의 가로가 더 이상 화면의 가로가 아니다. 대신 확인할 것은 두 가지다.
@@ -40,10 +45,13 @@ test('사진 판독 배치의 장소 앞은 보행 가능하고 벽·마당 바�
  assert.ok(Math.abs(edge.z)<1e-6,'본관의 변이 화면 가로축과 나란하지 않다: dz='+edge.z)
 })
 
-test('작업장은 크기와 방향을 유지한 채 본관 오른쪽 가까이 이동한다',()=>{
+test('작업장은 크기와 방향을 유지한 채 본관에서 더 멀리 간다',()=>{
+ /* 사용자 요청: 작업장을 좀 더 멀어지게 하고 길을 만들어 탑돌이 범위와 겹치지 않게 한다.
+    크기와 회전은 보존하고 자리만 평행 이동한다. */
  const right=Math.max(...HALL_WINGS.flat().map(p=>p.x)),left=Math.min(...WORKSHOP_POLYGON.map(p=>p.x))
- assert.ok(Math.abs(left-right-3)<1e-9)
- assert.ok(Math.hypot(WORKSHOP.x-MAIN.x,WORKSHOP.z-MAIN.z)<25)
+ assert.ok(left-right>4,'작업장이 본관에 너무 붙어 있다: '+(left-right).toFixed(2))
+ const away=Math.hypot(WORKSHOP.x-MAIN.x,WORKSHOP.z-MAIN.z)
+ assert.ok(away>18&&away<40,'작업장 거리가 '+away.toFixed(1))
  for(let i=0;i<4;i++)for(let j=i+1;j<4;j++)assert.ok(Math.abs(Math.hypot(WORKSHOP_POLYGON[i].x-WORKSHOP_POLYGON[j].x,WORKSHOP_POLYGON[i].z-WORKSHOP_POLYGON[j].z)-Math.hypot(REFERENCE_WORKSHOP_POLYGON[i].x-REFERENCE_WORKSHOP_POLYGON[j].x,REFERENCE_WORKSHOP_POLYGON[i].z-REFERENCE_WORKSHOP_POLYGON[j].z))<1e-9)
  assert.ok(canWalk(STOPS.find(p=>p.id==='workshop').x,STOPS.find(p=>p.id==='workshop').z))
 })

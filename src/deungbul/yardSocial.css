@@ -1,0 +1,34 @@
+/* 한 줄 이야기 · 접속자 이름표 · 배경음악 단추.
+   도량(anyangMap.css)에서 쓰던 규칙과 같은 모양이며, 코덱스 도량 화면이 씁니다. */
+#chatlog{position:fixed;left:16px;bottom:96px;display:none;flex-direction:column;justify-content:flex-end;gap:4px;width:min(420px,calc(100vw - 32px));max-height:140px;overflow:hidden;z-index:14;pointer-events:none}
+#chatlog.show{display:flex}
+#chatlog div{align-self:flex-start;max-width:100%;padding:6px 10px;border-radius:9px;background:rgba(34,25,16,.82);color:#fbf4e4;font-size:13px;line-height:1.45;word-break:break-word}
+#chatlog b{color:#f0cf83;margin-right:6px}
+#chatlog div.mine b{color:#ffbc9b}
+#chatbar{position:fixed;left:16px;bottom:24px;width:min(460px,calc(100vw - 32px));display:none;gap:8px;opacity:0;transform:translateY(16px);transition:opacity .18s,transform .18s;z-index:15}
+#chatbar.show{display:flex;opacity:1;transform:translateY(0)}
+#chatbar input{flex:1;min-width:0;min-height:48px;padding:12px;border:1px solid #a08256;border-radius:12px;background:#fffdf3;color:#2b1d14;font:inherit;font-size:16px}
+#chatbar button{flex:none;border:0;border-radius:12px;padding:0 16px;min-height:48px;background:#c8402f;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+#chatbar input:focus-visible,#chatbar button:focus-visible{outline:3px solid #b8860b;outline-offset:2px}
+.chat-feedback{position:absolute;left:0;bottom:calc(100% + 6px);background:rgba(34,25,16,.9);color:#fbf4e4;border-radius:8px;padding:5px 9px;font-size:12px}
+body:has(#chatbar.show) #soim{visibility:hidden}
+
+.tag3d,.bubble3d{position:fixed;transform:translate(-50%,-100%);pointer-events:none;white-space:nowrap;z-index:9}
+.tag3d{background:rgba(34,25,16,.76);color:#fbf4e4;border-radius:8px;padding:3px 8px;font-size:12px}
+.tag3d.mine{background:rgba(200,64,47,.86)}
+.bubble3d{background:#fffdf3;color:#2b1d14;border:1px solid #b9a784;border-radius:11px;padding:6px 10px;font-size:13px;max-width:220px;white-space:normal;box-shadow:0 3px 14px rgba(48,67,48,.18)}
+
+#social{position:fixed;right:18px;bottom:calc(var(--safe-b,0px) + 24px);display:flex;gap:8px;z-index:14}
+#social button{min-width:48px;min-height:48px;border-radius:999px;border:1px solid #c9cdbb;background:#fffdf2ed;font-size:19px;cursor:pointer}
+#social button:focus-visible{outline:3px solid #b8860b;outline-offset:2px}
+body:not(.walk) #social,body:not(.walk) #chatlog,body:not(.walk) #chatbar{display:none}
+@media (max-width:1000px){
+  /* 미니맵(오른쪽 아래 132px) 위에 둔다. 겹치면 둘 다 못 누른다. */
+  #social{bottom:calc(var(--safe-b,0px) + 252px);right:16px;flex-direction:column;gap:10px}
+  #chatbar{bottom:auto;top:max(118px,calc(env(safe-area-inset-top,0px) + 106px))}
+  #chatlog{bottom:auto;top:max(176px,calc(env(safe-area-inset-top,0px) + 164px));max-height:120px;width:calc(100vw - 32px)}
+  /* 이야기를 적는 동안에는 장소 버튼 줄을 감춘다. 입력칸과 겹친다. */
+  body:has(#chatbar.show) #viewControls,body:has(#chatbar.show) #viewNote{visibility:hidden}
+}
+@media (max-height:500px){#social{bottom:calc(var(--safe-b,0px) + 10px);right:136px;flex-direction:row}}
+@media (prefers-reduced-motion:reduce){#chatbar{transition:none}}
