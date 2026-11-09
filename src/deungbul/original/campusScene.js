@@ -844,5 +844,7 @@ fontsReady.then(()=>{try{init3D();sharing.start();
     if(from==='beopdang'){state.hallDone=true;changed()}
   }
   startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
+/* 개발 빌드 전용. 걸어가는 대신 자리를 옮겨 확인할 때 쓴다. 배포 빌드에는 들어가지 않는다. */
+if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.moving=false;onlineAt=0;lastOnlinePose='';};
 startb.onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');openCreator(true);};
 })();
