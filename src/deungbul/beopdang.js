@@ -274,7 +274,7 @@ const follower = createFollower(cv, world.camera, { dist: 9, pitch: .32, min: 6,
 // 낮은 시점에서 앞을 보되, 시야를 잃으면 한 번에 불단 방향으로 되돌린다.
 const viewReset=el('button','iconbtn','🧭')
 viewReset.type='button';viewReset.title='법당 시점 초기화';viewReset.setAttribute('aria-label','법당 시점을 불단 방향으로 초기화')
-viewReset.onclick=()=>{follower.reset({yaw:0,dist:9,pitch:.32});try{cv.focus({preventScroll:true})}catch{}}
+viewReset.onclick=()=>{follower.reset({yaw:Math.atan2(player.x-W/2,player.y-3),dist:9,pitch:.32});try{cv.focus({preventScroll:true})}catch{}}
 byId('helpb').parentElement.append(viewReset)
 const labels = createLabelLayer(world.camera)
 const meBody = makePerson(world, myLook)

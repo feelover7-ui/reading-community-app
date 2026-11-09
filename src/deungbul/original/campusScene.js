@@ -187,8 +187,9 @@ const fadeEl=document.getElementById('fade');
 function fadeTo(fn){fadeEl.classList.add('on');setTimeout(()=>{fn();snapCam=true;setTimeout(()=>fadeEl.classList.remove('on'),120);},460);}
 
 const hud=document.getElementById('hud'),questEl=document.getElementById('quest'),quest2El=document.getElementById('quest2'),hudfoot=document.getElementById('hudfoot');
-document.getElementById('hudh').onclick=()=>{hud.classList.toggle('collapsed');document.querySelector('#hudh small').textContent=hud.classList.contains('collapsed')?'펼치기':'접기';};
-if(window.innerWidth<640){hud.classList.add('collapsed');document.querySelector('#hudh small').textContent='펼치기';}
+document.getElementById('hudh').onclick=()=>{hud.classList.toggle('collapsed');document.getElementById('hudh').setAttribute('aria-expanded',String(!hud.classList.contains('collapsed')));document.querySelector('#hudh small').textContent=hud.classList.contains('collapsed')?'펼치기':'접기';};
+document.getElementById('hudh').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();e.currentTarget.click();}});
+if(window.innerWidth<640){document.getElementById('hudh').setAttribute('aria-expanded','false');hud.classList.add('collapsed');document.querySelector('#hudh small').textContent='펼치기';}
 function questItems(){const s=state.stage,h=state.hasHung;return[['반장 법우에게 인사하기',state.talked],['골조 작업대 · 철사 뼈대 엮기',s>=1||h],['한지 작업대 · 한지 바르기',s>=2||h],['채색 작업대 · 무늬 넣기',s>=3||h],['전기 작업대 · 불 넣고 소원 적기',s>=4||h],['마당 걸이대에 소원등 걸기',h],['장엄등 점등하기',state.litOnce]];}
 function questItems2(){return[['구정탑 탑돌이 세 바퀴',state.tapdoriDone],['대행선사 동상 앞 서서 삼배',state.statueDone],['5층 대법당 참배',state.hallDone]];}
 function fillList(elm,items,active){const cur=active?items.findIndex(i=>!i[1]):-1;elm.innerHTML='';items.forEach(([t,d],i)=>{const li=el('li',d?'done':(i===cur?'cur':''));li.append(el('b',null,d?'✓':(i===cur?'▸':'·')),el('span',null,t));elm.append(li);});}
@@ -393,7 +394,8 @@ function init3D(){
   const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
   const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,isTouch?1.25:2));
-  renderer.shadowMap.enabled=!isTouch;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.shadowMap.enabled=!isTouch;
+  cv.addEventListener('webglcontextlost',e=>{e.preventDefault();const m=modalShell('3D 화면 연결이 끊겼어요','저장된 소원등은 유지됩니다. 새로고침해서 다시 연결해 주세요.');const retry=el('button','btn','다시 연결');retry.onclick=()=>location.reload();m.append(retry);});renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   const scene=new THREE.Scene();
   const DAY_BG=new THREE.Color('#c6dde8'),NIGHT_BG=new THREE.Color('#0a0f26');
   scene.background=DAY_BG.clone();scene.fog=new THREE.Fog(DAY_BG.clone(),38,95);
@@ -663,7 +665,7 @@ function init3D(){
   setNight=(n)=>{state.night=n;
     scene.background.copy(n?NIGHT_BG:DAY_BG);scene.fog.color.copy(n?NIGHT_BG:DAY_BG);scene.fog.near=n?20:38;scene.fog.far=n?70:95;
     hemi.intensity=(n?.32:.62)*LIGHT;hemi.color.set(n?'#7080b0':'#fff6e6');sun.intensity=(n?.12:.62)*LIGHT;sun.color.set(n?'#8aa0ff':'#fff1d6');
-    bigLight.intensity=n?2.4:0;bigGlow.visible=n;pts.visible=n;stoneLight.intensity=n?1.3:0;pagodaLight.intensity=n?1.4:0;
+    bigLight.intensity=n?2.4*LIGHT:0;bigGlow.visible=n;pts.visible=n;stoneLight.intensity=n?1.3*LIGHT:0;pagodaLight.intensity=n?1.4*LIGHT:0;
     diskM.emissive.set(n?'#ffb24a':'#000000');diskM.emissiveIntensity=n?.36:0;goldM.emissive.set(n?'#a8741a':'#000000');petalM.emissive.set(n?'#e8608a':'#000000');
     flameM.emissiveIntensity=n?1:.25;flameTipM.emissiveIntensity=n?1:.25;pagodaGoldM.emissive.set(n?'#8a5a10':'#000000');
     stoneFires.forEach(f=>{if(f.isSprite)f.visible=n;else{f.material.emissive.set(n?'#ffb050':'#000000');f.material.color.set(n?'#ffd36b':'#5a554e');}});
@@ -774,7 +776,7 @@ document.getElementById('dressb').onclick=()=>{if(!started||ritual||seq||creator
 /* 기존 공유 기능을 원본 외부 장면에 연결 */
 const onlinePeers=new Map(),onlineLabels=new Map();
 let campusYard=null,identityKey='',onlineAt=0,lastOnlinePose='',onlineLast=null;
-const sharing=createCampusSharing({onLanterns:(rows,total)=>{sharedLanterns=rows;sharedTotal=total;updateHUD();onChanged()},status:setConnection});
+const sharing=createCampusSharing({onLanterns:(rows,total)=>{sharedLanterns=rows;sharedTotal=total;state.hasHung=state.hasHung||rows.some(L=>L.owner===OWNER);updateHUD();onChanged()},status:setConnection});
 const community=createCampusCommunity({shell:modalShell,el,getNick:()=>nick||'법우',say:text=>campusYard?.sendSay(text,nick)});
 document.getElementById('communityb').onclick=()=>{if(started&&!creatorOpen&&!ritual)community.open()};
 function connectOnline(force=false){
@@ -801,6 +803,7 @@ function applyOnline(id,meta){
 }
 function updateOnline(dt,canStand){
   connectOnline();const now=Date.now();
+  const here=document.getElementById('here'),countText=campusYard?.joined?'함께 '+(onlinePeers.size+1)+'명':'혼자 둘러보는 중';if(here&&here.textContent!==countText)here.textContent=countText;
   for(const p of onlinePeers.values()){
     const age=Math.min(.75,Math.max(0,(now-p.poseAt)/1000)),x=p.tx+p.vx*age,y=p.ty+p.vy*age,valid=canStand(x,y);
     const nx=valid?x:p.tx,ny=valid?y:p.ty,k=Math.min(1,dt*10);p.moving=Math.hypot(nx-p.x,ny-p.y)>.03;
@@ -841,6 +844,6 @@ fontsReady.then(()=>{try{init3D();sharing.start();
     state.ap=state.ap||{...DEFAULT_AP[readStore('hanmaum-deungbul-sex')==='f'?'f':'m']};rebuildPlayer();
     if(from==='beopdang'){state.hallDone=true;changed()}
   }
-  startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';}});
+  startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
 startb.onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');openCreator(true);};
 })();

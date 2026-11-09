@@ -65,6 +65,7 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
       const v = validatePose(msg, bounds)
       if (!v.ok) return v
       if(s.sceneId!==msg.sceneId)return{ok:false,reason:'bad_scene'}
+      if(msg.clientSeq<=s.gate.state.last)return{ok:false,reason:'stale_seq'}
       if (!s.poseBucket.take()) return {ok:false,reason:'rate_limited'}
       if (!s.gate.accept(epoch,msg.clientSeq)) return {ok:false,reason:'stale_seq'}
       Object.assign(s, {

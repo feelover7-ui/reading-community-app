@@ -139,9 +139,9 @@ button:focus-visible,#game:focus-visible{outline:3px solid #c8402f;outline-offse
 <body>
 <canvas id="game" tabindex="0" aria-label="등불사장과 본원 탐방 맵"></canvas>
 <div id="vignette"></div>
-<div id="hud" class="panel"><h3 id="hudh">오늘의 소임 <small>접기</small></h3><div class="body"><ol id="quest"></ol><h4>본원 순례</h4><ol id="quest2"></ol><div class="foot" id="hudfoot"></div></div></div>
+<div id="hud" class="panel"><h3 id="hudh" role="button" tabindex="0" aria-expanded="true" aria-controls="quest-body">오늘의 소임 <small>접기</small></h3><div class="body" id="quest-body"><ol id="quest"></ol><h4>본원 순례</h4><ol id="quest2"></ol><div class="foot" id="hudfoot"></div><div class="foot" id="here" role="status"></div></div></div>
 <div id="topbtns"><button class="iconbtn" id="mapb" title="지도">🗺</button><button class="iconbtn" id="communityb" title="방명록과 대화" aria-label="방명록과 대화">💬</button><button class="iconbtn" id="dressb" title="옷 갈아입기">👕</button><button class="iconbtn" id="snd" title="소리">🔊</button><button class="iconbtn" id="helpb" title="도움말">?</button></div>
-<canvas id="minimap" width="240" height="336"></canvas>
+<canvas aria-label="현재 위치 미니맵" id="minimap" width="240" height="336"></canvas>
 <div id="connection" role="status">공유 연결을 준비하고 있어요.</div><div id="prompt" role="status"></div>
 <div id="wish"></div>
 <div id="ritual" class="panel"><div class="rt" id="rtitle"></div><div id="breath">들숨</div><div class="rc" id="rcount"></div><div class="rcap" id="rcap"></div><div class="bar" id="rbarw"><i id="rbar"></i></div><div class="row"><button id="rspeed">빠르게 ×2.5</button><button class="stop" id="rstop">그만하기</button></div></div>
@@ -161,7 +161,7 @@ button:focus-visible,#game:focus-visible{outline:3px solid #c8402f;outline-offse
     <p>등불사장에서 나만의 소원등을 만들어 걸고,<br>본원으로 나가 탑돌이와 삼배, 대법당 참배까지 해 봐요.</p>
     <button id="startb" disabled>준비 중…</button>
     <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업·대화 Space<br>시점 돌리기 마우스 드래그 · Q/R &nbsp;|&nbsp; 확대·축소 휠</div>
-    <div id="err">3D 화면을 불러오지 못했어요. 새로고침해 보세요.</div>
+    <div id="err" role="alert">3D 화면을 불러오지 못했어요. 새로고침해 보세요.</div>
   </div>
 </div>
 <script type="module" src="/src/deungbul/original/campusScene.js"></script>
