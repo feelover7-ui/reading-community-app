@@ -5,10 +5,12 @@ import {buildSatelliteHall} from './satelliteHall.js'
 import {buildSevenTreasure} from './sevenTreasure.js'
 import {courtyardMaterials} from './siteAtmosphere.js'
 import {THREE,createWorld,createFollower,makePerson,stepPerson,bowPose} from './three3d.js'
-import {createModal,readStore,writeStore} from './sceneKit.js'
+import {createModal,readStore,writeStore,createPeers,createChat,readIdentity,SAY_MS,releaseFocus} from './sceneKit.js'
+import {createBgm} from './bgm.js'
+import {createPeerLayer} from './three3d.js'
 import {createCraft,craftQuest,riteQuest,fillList,makePreview,drawLantern,el} from './lanternCraft.js'
 import {buildWorkshopYard,buildBigLantern,lanternSprite,STATIONS,RACK,BIG_LANTERN,WS_NPCS,WS,PROP} from './workshopYard.js'
-import {normalizeLantern} from './original/campusServices.js'
+import {createCampusSharing,normalizeLantern} from './original/campusServices.js'
 import {advanceGuidedOrbit,PAGODA_CENTER} from './tapdori.js'
 import {createOrbitProgress} from './orbitProgress.js'
 import {bindJoystick} from './touchControls.js'
@@ -47,7 +49,7 @@ function updatePlanCamera(){
 export const PERSON=PROP
 let rite=null
 const person=makePerson(world,{body:'#c99845',pants:'#4d5c5a',hair:'#302a23'});person.scale.setScalar(PERSON)
-const peers=WS_NPCS.map(n=>{const pp=makePerson(world,{body:n.id==='monk'?'#8a6a3a':'#3f7a5c',pants:'#4a4a52',hair:n.id==='monk'?'#6b5a48':'#241c15'})
+const npcs=WS_NPCS.map(n=>{const pp=makePerson(world,{body:n.id==='monk'?'#8a6a3a':'#3f7a5c',pants:'#4a4a52',hair:n.id==='monk'?'#6b5a48':'#241c15'})
  pp.scale.setScalar(PERSON);stepPerson(pp,n.x,n.z,n.face,false,0,true);pp.position.y=YARD_Y;return pp})
 /* 탑돌이 돌던 법우들. 클로드 맵의 WALKERS 를 그대로 옮긴다. */
 const WALKERS=[{r:2.2,sp:.34,a:0,body:'#b8623a'},{r:2.9,sp:.27,a:2.6,body:'#2b5fa5'}]
@@ -69,7 +71,7 @@ const reset=()=>{keys.clear();joy.reset()}
 installMobileViewport({onInterrupt:reset})
 function setOverview(mode='plan'){
  viewMode=mode==='site'?'site':'plan'
- reset();focusSeven=false;overview=true;person.visible=false;for(const w of walkers)w.visible=false;for(const q of peers)q.visible=false;document.body.classList.remove('walk')
+ reset();focusSeven=false;overview=true;person.visible=false;for(const w of walkers)w.visible=false;for(const q of npcs)q.visible=false;peerRoot.visible=false;clearPeerTags();document.body.classList.remove('walk')
  document.body.dataset.view=viewMode
  $('overview').setAttribute('aria-pressed',String(viewMode==='plan'));$('planview').setAttribute('aria-pressed',String(viewMode==='site'))
  $('sevenview').setAttribute('aria-pressed','false');$('act').hidden=true;$('compass').hidden=false
@@ -80,8 +82,8 @@ function setOverview(mode='plan'){
 function visit(id){
   const stop=STOPS.find(s=>s.id===id);if(!stop)return
   if(rite)stopRite('자리를 옮겨서 멈췄어요.')
-  reset();focusSeven=false;world.camera.up.set(0,1,0);world.camera.fov=48;world.camera.updateProjectionMatrix();$('compass').hidden=true;$('viewNote').textContent='직접 둘러보기';$('planview').setAttribute('aria-pressed','false');$('sevenview').setAttribute('aria-pressed','false');player.x=stop.x;player.z=stop.z;overview=false;person.visible=true;for(const w of walkers)w.visible=true;for(const q of peers)q.visible=true
-  document.body.classList.add('walk');$('overview').setAttribute('aria-pressed','false')
+  reset();focusSeven=false;world.camera.up.set(0,1,0);world.camera.fov=48;world.camera.updateProjectionMatrix();$('compass').hidden=true;$('viewNote').textContent='직접 둘러보기';$('planview').setAttribute('aria-pressed','false');$('sevenview').setAttribute('aria-pressed','false');player.x=stop.x;player.z=stop.z;overview=false;person.visible=true;for(const w of walkers)w.visible=true;for(const q of npcs)q.visible=true;peerRoot.visible=true
+  document.body.classList.add('walk');$('overview').setAttribute('aria-pressed','false');ensurePeers()
   follower.reset(id==='hall3'?{yaw:Math.atan2(HALL_DOOR.normal.x,HALL_DOOR.normal.z),dist:2.2,pitch:.14,min:1.6}:{yaw:0,dist:5,pitch:.42,min:2.6})
   if(id==='hall3'&&world.camera.aspect<.8){world.camera.fov=74;world.camera.updateProjectionMatrix()}
   status.textContent=stop.name+' · '+(touch?'조이스틱 이동 · 화면 끌기·두 손가락 확대':'방향키/WASD 이동 · 끌기 회전 · Q/R · 휠 확대')
@@ -201,15 +203,27 @@ soimh.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventD
 if(touch||innerWidth<640){soim.classList.add('collapsed');soimh.setAttribute('aria-expanded','false');soimh.querySelector('small').textContent='펼치기'}
 function updateSoim(){
  const a=craftQuest(state);fillList($('quest'),a,true);fillList($('quest2'),riteQuest(state),a.every(i=>i[1]))
- $('soimfoot').textContent='내 소원등 '+state.lanterns.length+'개'+(state.night?' · 점등 중':'')
+ const all=Math.max(sharedTotal,visibleLanterns().length)
+ $('soimfoot').textContent='마당에 걸린 소원등 '+all+'개'+(state.lanterns.length?' · 내 등 '+state.lanterns.length+'개':'')+(state.night?' · 점등 중':'')
 }
-/* 이 화면은 공유 저장(Supabase)에 쓰지 않습니다. 만든 등은 이 브라우저에만 보관합니다. */
-const localSharing={publish:async L=>({local:true,row:L})}
+/* 소원등은 클로드 맵과 같은 공유 저장(Supabase)에 올립니다.
+   설정이 없으면 lanternsApi 가 로컬 모드로 떨어지고, 만든 등은 이 기기에만 남습니다. */
+let sharedLanterns=[],sharedTotal=0
+const sharing=createCampusSharing({
+ onLanterns:(rows,total)=>{sharedLanterns=rows;sharedTotal=total
+  state.hasHung=state.hasHung||rows.some(L=>L.owner===OWNER)
+  updateSoim();redrawHung()},
+ status:t=>{const n=$('connection');if(n&&n.textContent!==t)n.textContent=t}
+})
+sharing.start()
+/* 내 등과 남의 등을 함께 본다. 같은 id 는 공유본을 쓴다. */
+function visibleLanterns(){const ids=new Set(sharedLanterns.map(L=>L.id).filter(Boolean))
+ return sharedLanterns.concat(state.lanterns.filter(L=>!L.id||!ids.has(L.id)))}
 let hungSprites=[]
 function redrawHung(){
  for(const s of hungSprites){s.parent?.remove(s);s.material.map?.dispose();s.material.dispose()}
  hungSprites=[]
- const list=state.lanterns.slice(-14)
+ const list=visibleLanterns().slice(-16)
  list.forEach((L,i)=>{
   const t=list.length===1?.5:i/(list.length-1)
   const x=RACK.x0+1+(RACK.x1-RACK.x0-2)*t
@@ -225,12 +239,147 @@ function setNight(on){
 }
 function changed(){updateSoim();saveState();redrawHung()}
 const craft=createCraft({state,say,modalShell,closeModal:closeCraft,toast,tok,chime,bell,changed,
- sharing:localSharing,owner:OWNER,normalizeLantern,setNight,
+ sharing,owner:OWNER,normalizeLantern,setNight,
  outsideLine:'작업장 문으로 나가면 도량이에요. 마당에도 연등이 켜졌어요.',
  lines:{intro:'끝나고 문 밖 도량에서 구정탑 탑돌이랑 대법당 참배도 해 봐요.',
   hang:'마당 남쪽 걸이대에 걸어요.',
   done:'문 밖 도량에서 구정탑 탑돌이도 하고, 대행선사 동상 앞에서 삼배도 올리고, 5층 대법당에도 올라가 봐요.'}})
 updateSoim();redrawHung()
+
+
+/* ================= 같이 들어와 있는 법우들 · 한 줄 이야기 · 배경음악 =================
+   도량·대법당과 같은 sceneKit 의 createPeers 를 씁니다(추측 항법·전송 간격·presence 판단).
+   좌표가 다르므로 채널은 따로 씁니다. 한 줄 이야기는 broadcast 로만 주고받고 DB 에 남기지 않습니다. */
+const me=readIdentity()
+let myNick=me.nick,mySex=me.sex,hasIdentity=me.has
+
+/* 사람은 0.4배로 그리므로 접속자도 같은 크기여야 한다.
+   무리를 통째로 줄이면 자리까지 줄어드니, 자리는 나눠 넣고 무리를 키워 되돌린다. */
+const peerRoot=new THREE.Group()
+peerRoot.position.set(0,YARD_Y,0);peerRoot.scale.setScalar(PERSON)
+scene.add(peerRoot)
+/* 무리를 줄여 놓았으므로 화면 안 판정도 그 안쪽 좌표로 해야 한다.
+   진짜 카메라를 무리 안쪽 좌표로 옮겨 놓은 그림자 카메라를 쓴다. */
+const peerCam=new THREE.PerspectiveCamera(),peerM=new THREE.Matrix4()
+function updatePeerCam(){
+ world.camera.updateMatrixWorld();peerRoot.updateMatrixWorld()
+ peerM.copy(peerRoot.matrixWorld).invert().multiply(world.camera.matrixWorld)
+ peerM.decompose(peerCam.position,peerCam.quaternion,peerCam.scale)
+ peerCam.projectionMatrix.copy(world.camera.projectionMatrix)
+ peerCam.updateMatrixWorld(true)
+}
+const peerLayer=createPeerLayer({...world,scene:peerRoot,camera:peerCam},{bowing:true})
+const peerTags=new Map()
+const peerView=new Map()
+function syncPeers(quiet){
+ peerView.clear()
+ for(const [id,p] of peers.peers)peerView.set(id,{...p,x:p.x/PERSON,y:p.y/PERSON})
+ updatePeerCam()
+ peerLayer.sync(peerView,quiet,{x:player.x/PERSON,y:player.z/PERSON})
+}
+
+function makePeers(){return createPeers({
+ ownerId:me.id,channel:'deungbul-codex-yard',bounds:{w:YARD.x1,h:YARD.z1},
+ nick:myNick,sex:mySex,canStand:(x,y)=>canWalk(x,y),
+ getSelf:()=>({x:player.x,y:player.z,vx:player.vx||0,vy:player.vz||0,dir:player.dir||'down',
+  moving:!!player.moving,bow:!!(rite&&rite.kind==='bow')}),
+ onChange:()=>updateHere(),
+ isPaused:()=>!hasIdentity,
+ onSay:(id,nick,text)=>chat.push(nick,text,false)
+})}
+let peers=makePeers()
+/* 배치도를 보는 동안에도 채널에는 남아 있는다. 보내는 것만 걷는 동안 한다. */
+function ensurePeers(){if(hasIdentity&&!peers.joined)peers.start()}
+ensurePeers()
+/* 이름표와 말풍선은 3D 판이 아니라 화면 위 DOM 글자다. 건물에 가려 잘리지 않는다. */
+function paintPeerTags(){
+ // 카메라를 이 프레임 자리로 갱신한다. 안 하면 지난 프레임 자리로 재서 글자가 화면 밖으로 밀린다.
+ world.camera.updateMatrixWorld()
+ const now=Date.now(),want=new Set()
+ const put=(key,cls,text,x,y,z)=>{
+  const v=new THREE.Vector3(x,y,z).project(world.camera)
+  const ok=v.z>-1&&v.z<1&&Math.abs(v.x)<1.1&&Math.abs(v.y)<1.1
+  let n=peerTags.get(key)
+  if(!n){n=document.createElement('div');document.body.append(n);peerTags.set(key,n)}
+  n.className=cls;n.textContent=text
+  n.style.display=ok?'block':'none'
+  if(ok){n.style.left=((v.x+1)*innerWidth/2)+'px';n.style.top=((1-v.y)*innerHeight/2)+'px'}
+  want.add(key)
+ }
+ const H=PERSON*1.55,B=PERSON*2.15
+ for(const p of peers.peers.values()){
+  if(!peerLayer.bodies.has(p.id))continue
+  const gy=groundHeight(p.x,p.y)
+  put('n:'+p.id,'tag3d',(p.nick||'법우').slice(0,12),p.x,gy+H,p.y)
+  if(p.say&&p.sayUntil>now)put('b:'+p.id,'bubble3d',p.say,p.x,gy+B,p.y)
+ }
+ if(hasIdentity&&!overview){
+  const gy=groundHeight(player.x,player.z)
+  put('me','tag3d mine',myNick,player.x,gy+H,player.z)
+  if(myLine&&myLineUntil>now)put('myline','bubble3d',myLine,player.x,gy+B,player.z)
+ }
+ for(const [k,n] of peerTags)if(!want.has(k)){n.remove();peerTags.delete(k)}
+}
+function clearPeerTags(){for(const [,n] of peerTags)n.remove();peerTags.clear()}
+
+function updateHere(){
+ const n=$('here');if(!n)return
+ const t=!hasIdentity?'이름을 정하면 법우들과 같이 다닐 수 있어요.'
+  :peers.joined?'도량에 '+(peers.peers.size+1)+'명':'혼자 둘러보는 중'
+ if(n.textContent!==t)n.textContent=t
+}
+
+let myLine='',myLineUntil=0
+const chat=createChat({
+ bar:$('chatbar'),log:$('chatlog'),input:$('chatmsg'),sendBtn:$('chatsend'),toggleBtn:$('chatb'),
+ send:text=>{
+  if(!hasIdentity){askName();return}
+  if(!peers.say(text)){status.textContent='지금은 혼자 둘러보는 중이라 이야기를 나눌 수 없어요.';return}
+  chat.push(myNick,text,true);myLine=text;myLineUntil=Date.now()+SAY_MS
+ },
+ onOpenChange:open=>{if(!open){reset();try{cv.focus({preventScroll:true})}catch(e){}}}
+})
+
+const bgm=createBgm()
+function paintBgm(){
+ const b=$('bgmb');b.textContent=bgm.on?'🎵':'🔈'
+ b.setAttribute('aria-pressed',String(bgm.on))
+ b.setAttribute('aria-label',bgm.on?'배경음악 끄기':'배경음악 켜기')
+}
+$('bgmb').onclick=()=>{bgm.toggle();paintBgm()}
+paintBgm()
+releaseFocus($('bgmb'),$('chatb'))
+
+/* 이름과 남/여가 있어야 마당 채널에 합류합니다(기존 규칙). */
+function askName(){
+ const m=modalShell('이름 정하기','법우들과 같이 다니려면 이름과 모습이 필요해요. 이 브라우저에만 저장돼요.')
+ const lab=el('label',null,'이름 또는 별명 (12자까지)'),inp=document.createElement('input')
+ inp.maxLength=12;inp.value=myNick==='손님'?'':myNick;inp.id='yardNick';lab.htmlFor=inp.id
+ const opts=el('div','opts'),btns=[]
+ let sex=mySex
+ for(const [v,n] of [['m','남'],['f','여']]){
+  const b=el('button','opt'+(v===sex?' sel':''),n)
+  b.onclick=()=>{sex=v;btns.forEach(x=>x.classList.toggle('sel',x===b))}
+  btns.push(b);opts.append(b)
+ }
+ const go=el('button','btn','이 이름으로 들어가기')
+ go.onclick=()=>{
+  const v=inp.value.trim().slice(0,12)
+  if(!v){inp.focus();return}
+  myNick=v;mySex=sex;hasIdentity=true
+  writeStore('hanmaum-deungbul-nick',myNick);writeStore('hanmaum-deungbul-sex',mySex)
+  closeCraft();joinYardChannel();toast('법우들과 연결하고 있어요')
+ }
+ m.append(lab,inp,opts,go)
+ setTimeout(()=>{try{inp.focus()}catch(e){}},60)
+}
+/* 이름이 바뀌면 createPeers 가 이름을 닫힌 변수로 들고 있어 새로 만든다. */
+function joinYardChannel(){
+ if(!hasIdentity)return
+ peers.stop();peerLayer.clear?.()
+ peers=makePeers();peers.start();updateHere()
+}
+updateHere()
 
 function nearby(){
   if(inHallLobby(player.x,player.z))return 'hall3'
@@ -294,6 +443,8 @@ function stepRite(dt){
     const next=advanceGuidedOrbit({x:player.x,z:player.z,angle:rite.angle,dt,
       canStand:(x,z)=>canWalk(x,z),center:LANDMARKS.pagoda,radius:ORBIT_RADIUS})
     if(next.blocked){stopRite('앞이 막혀 탑돌이를 멈췄어요.');return false}
+    player.vx=(next.x-player.x)/Math.max(dt,.001);player.vz=(next.z-player.z)/Math.max(dt,.001)
+    player.moving=true
     player.x=next.x;player.z=next.z;rite.angle=next.angle
     if(next.face!=null)player.face=next.face
     player.walk+=dt
@@ -306,6 +457,7 @@ function stepRite(dt){
     return true
   }
   // 삼배
+  player.moving=false;player.vx=player.vz=0
   rite.u+=dt/(quiet?1.1:2.2)
   if(rite.u>=1){rite.u=0;rite.done++
     if(rite.done>=rite.goal){stopRite('삼배를 올렸어요.');state.statueDone=true;changed();chime();return true}}
@@ -391,6 +543,10 @@ addEventListener('keydown',e=>{
   if((e.code==='Space'||e.code==='KeyE')&&document.activeElement===cv){e.preventDefault();action()}
 })
 addEventListener('keyup',e=>keys.delete(key(e)));addEventListener('blur',reset)
+addEventListener('pagehide',()=>{peers.stop();sharing.stop();clearPeerTags()})
+addEventListener('pageshow',e=>{if(e.persisted){sharing.start();if(hasIdentity){peers.stop();peers=makePeers();peers.start()}}})
+addEventListener('online',()=>{sharing.refresh();if(hasIdentity&&!peers.joined){peers.stop();peers=makePeers();peers.start()}})
+document.addEventListener('visibilitychange',()=>{if(document.hidden)reset();else sharing.refresh()})
 function tick(t){
   raf=0;if(stopped||document.hidden||frameError)return
   const dt=Math.min(.05,(t-last)/1000||.016);last=t
@@ -421,16 +577,22 @@ function tick(t){
         if(canWalk(player.x+dx*speed,player.z))player.x+=dx*speed
         if(canWalk(player.x,player.z+dz*speed))player.z+=dz*speed
         if(n>.05){player.face=Math.atan2(dx,dz);player.walk+=dt}
+        // 접속자에게 보낼 속도와 보는 쪽. 받는 쪽이 이어서 그린다.
+        player.moving=n>.05
+        player.vx=player.moving?dx*2.4:0;player.vz=player.moving?dz*2.4:0
+        if(player.moving)player.dir=Math.abs(dx)>Math.abs(dz)?(dx<0?'left':'right'):(dz<0?'up':'down')
         stepPerson(person,player.x,player.z,player.face,n>.05,player.walk,quiet)
         person.position.y=groundHeight(player.x,player.z)
         stepWalkers(dt,quiet)
       }
+      peers.update(dt);peers.send();syncPeers(quiet)
       follower.follow(player.x,player.z,dt)
       world.camera.position.y+=groundHeight(player.x,player.z)
       drawMinimap()
       const near=nearby();$('act').hidden=!near
       $('act').textContent=actLabel(near)
     }
+    if(!overview)paintPeerTags()
     for(const l of labels){
       const p=new THREE.Vector3(l.x,l.y,l.z).project(overview&&!focusSeven?planCamera:world.camera),visible=p.z>-1&&p.z<1&&Math.abs(p.x)<1.05&&Math.abs(p.y)<1.05
       l.n.hidden=focusSeven||!visible
@@ -445,7 +607,7 @@ document.addEventListener('visibilitychange',()=>{reset();if(document.hidden){ca
 addEventListener('pagehide',()=>{stopped=true;reset();cancelAnimationFrame(raf);raf=0})
 addEventListener('pageshow',()=>{stopped=false;start()})
 cv.addEventListener('webglcontextlost',e=>{e.preventDefault();frameError=true;cancelAnimationFrame(raf);raf=0;status.textContent='3D 연결이 중단됐습니다. 새로고침해 주세요.'})
-if(import.meta.env.DEV)window.__sitePreview={visit,overview:setOverview,view:()=>({mode:viewMode,camera:(overview&&!focusSeven?planCamera:world.camera).position.toArray(),landmarks:JSON.parse(JSON.stringify(LANDMARKS))}),warp:(x,z)=>{if(canWalk(x,z)){visit('hall3');player.x=x;player.z=z}},door:()=>({door:HALL_DOOR,lobby:HALL_LOBBY,point:doorPoint,inside:inHallLobby(player.x,player.z),local:doorLocal(player.x,player.z)}),position:()=>({...player,height:groundHeight(player.x,player.z)}),canWalk,metres:SEPARATION_METRES,landmarks:()=>({seven:{x:seven.position.x,z:seven.position.z,orbs:seven.userData.orbCount},pagoda:{x:pg.group.position.x,z:pg.group.position.z},statue:{x:st.position.x,z:st.position.z,yaw:st.rotation.y}})}
+if(import.meta.env.DEV)window.__sitePreview={peerDebug:()=>({joined:peers.joined,n:peers.peers.size,bodies:peerLayer.bodies.size,stats:{...peerLayer.stats},tags:peerTags.size,hasIdentity}),visit,overview:setOverview,view:()=>({mode:viewMode,camera:(overview&&!focusSeven?planCamera:world.camera).position.toArray(),landmarks:JSON.parse(JSON.stringify(LANDMARKS))}),warp:(x,z)=>{if(canWalk(x,z)){visit('hall3');player.x=x;player.z=z}},door:()=>({door:HALL_DOOR,lobby:HALL_LOBBY,point:doorPoint,inside:inHallLobby(player.x,player.z),local:doorLocal(player.x,player.z)}),position:()=>({...player,height:groundHeight(player.x,player.z)}),canWalk,metres:SEPARATION_METRES,landmarks:()=>({seven:{x:seven.position.x,z:seven.position.z,orbs:seven.userData.orbCount},pagoda:{x:pg.group.position.x,z:pg.group.position.z},statue:{x:st.position.x,z:st.position.z,yaw:st.rotation.y}})}
 /* 클로드 맵처럼 바로 걷는 상태로 연다. 배치도는 `본원 확대`·`전체 위치` 버튼으로 본다. */
 /* 도량을 반듯하게 돌렸으므로 북쪽은 화면 위가 아니다. 나침반 바늘을 같이 돌린다. */
 {const c=$('compass');if(c){c.textContent='N';c.style.setProperty('--north',(-SITE_YAW*180/Math.PI).toFixed(1)+'deg')

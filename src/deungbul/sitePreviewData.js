@@ -237,6 +237,8 @@ function farFromPaths(x,z,m){
   if(Math.hypot(x-(a.x+dx*t),z-(a.z+dz*t))<m)return false}
  return true
 }
+const STOP_POINTS=[{x:WORKSHOP_INSIDE.x,z:WORKSHOP_INSIDE.z},HALL_ENTRY,
+ {x:LANDMARKS.pagoda.x,z:LANDMARKS.pagoda.z-2.9},PATH_NORTH,{x:HALL_DOOR.x,z:HALL_DOOR.z-1.5}]
 export const GARDEN_TREES=Object.freeze((()=>{
  const out=[],rnd=(i,j)=>{const v=Math.sin(i*127.1+j*311.7)*43758.5453;return v-Math.floor(v)}
  let i=0
@@ -249,13 +251,14 @@ export const GARDEN_TREES=Object.freeze((()=>{
   if(Math.hypot(px-LANDMARKS.statue.x,pz-LANDMARKS.statue.z)<4)continue
   if(Math.hypot(px-WORKSHOP_DOOR.x,pz-WORKSHOP_DOOR.z)<3)continue
   if(Math.hypot(px-HALL_DOOR.x,pz-HALL_DOOR.z)<5)continue
-  if(!farFromPaths(px,pz,2.6))continue
+  if(!farFromPaths(px,pz,3.4))continue
+  if(STOP_POINTS.some(q=>Math.hypot(px-q.x,pz-q.z)<2.6))continue
   if(BUILDINGS.some(b=>b.polygons.some(pl=>pointInPolygon(px,pz,pl)||closeToEdge(px,pz,pl))))continue
   // 담에서 조금 떨어뜨리고, 안쪽은 드문드문 둔다.
   const edge=Math.min(px-YARD.x0,YARD.x1-px,pz-YARD.z0,YARD.z1-pz)
   if(edge<1.6)continue
-  if(edge>7&&rnd(i,3)>.3)continue
-  out.push({x:+px.toFixed(2),z:+pz.toFixed(2),r:.9+rnd(i,4)*.5})
+  if(edge>7&&rnd(i,3)>.22)continue
+  out.push({x:+px.toFixed(2),z:+pz.toFixed(2),r:.72+rnd(i,4)*.38})
  }
  return out
 })().map(Object.freeze))
