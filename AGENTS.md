@@ -284,3 +284,14 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
   지붕 위로 넘어가서 그렇습니다. 안으로 한두 걸음 들어가면 사라집니다. 안내창이 그 자리를 가립니다.
 - `src/deungbul/original/campusScene.js` 에도 개발 빌드 전용 `window.__warp(x, y)` 가 있습니다.
   캠퍼스가 126×70 이라 걸어서 확인하면 오래 걸립니다. 배포 빌드에는 들어가지 않습니다.
+
+## 캔버스 크기와 화면 배율
+
+- `three3d.js` 의 `resize()` 는 `renderer.setSize(w, h)` 를 씁니다. 세 번째 인자에 `false` 를 주면
+  three 가 캔버스의 CSS 크기를 건드리지 않아, 캔버스가 **화면 배율만큼 커진 채로 자리를 잡습니다.**
+  배율 2 인 화면에서는 캔버스가 창의 두 배가 되어 왼쪽 위 4 분의 1 만 보입니다.
+- `deungbul.html` 은 `canvas#game{width:100vw;height:100vh}` 가 있어 가려졌고,
+  `anyangMap.css` 만 쓰는 `beopdang.html` 에서 드러났습니다. CSS 에 기대지 말고 `resize()` 에서 맞춥니다.
+- 배율이 1 이 아닌 화면을 확인할 때는 Playwright 의 `deviceScaleFactor` 를 2 나 3 으로 둡니다.
+  배율 1 로만 보면 이 문제가 보이지 않습니다. 캔버스의 `getBoundingClientRect()` 가
+  `innerWidth`·`innerHeight` 와 같은지 봅니다.
