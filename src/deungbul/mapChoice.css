@@ -1,0 +1,30 @@
+html:has(body.map-select){height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto;touch-action:pan-y pinch-zoom}
+body.map-select{height:auto;min-height:100dvh;overflow-y:auto;overflow-x:hidden;touch-action:pan-y pinch-zoom;user-select:auto;-webkit-user-select:auto;background:#eee9dc;color:#243d34}
+body.map-select> :not(#mapChoice){display:none!important}
+#mapChoice[hidden],#mapChoiceError[hidden]{display:none!important}
+#mapChoice{min-height:100dvh;width:100%;padding:max(32px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) max(32px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));background:radial-gradient(ellipse at 8% 5%,#d8e3d4 0,transparent 45%),radial-gradient(ellipse at 95% 100%,#e9d9b7 0,transparent 40%),#f4f0e6;display:grid;align-content:center;gap:28px;touch-action:pan-y}
+#mapChoice .choice-heading,#mapChoice .choice-grid,#mapChoice .choice-foot,#mapChoiceError{width:min(1040px,100%);margin:0 auto}
+#mapChoice .choice-kicker{font-size:12px;letter-spacing:.16em;font-weight:700;color:#597166;margin:0 0 10px}
+#mapChoice h1{font:700 clamp(27px,4vw,42px)/1.3 'Gowun Batang',serif;letter-spacing:-.04em;margin:0 0 12px}
+#mapChoice .choice-intro{font-size:15px;line-height:1.7;color:#5d6d62;margin:0}
+#mapChoice .choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+#mapChoice .choice-card{display:flex;flex-direction:column;border:1px solid #cbd3c4;border-radius:22px;overflow:hidden;background:#fffdf6;box-shadow:0 12px 34px #344e3d12;color:inherit;text-decoration:none;transition:transform .16s,box-shadow .16s;touch-action:manipulation}
+#mapChoice .choice-card:focus-visible{outline:4px solid #a76c26;outline-offset:5px}
+#mapChoice .choice-card:hover{transform:translateY(-3px);box-shadow:0 16px 38px #344e3d22}
+#mapChoice .choice-image{position:relative;background:#cbd5c4;aspect-ratio:16/9;overflow:hidden}
+#mapChoice img{width:100%;height:100%;display:block;object-fit:cover}
+#mapChoice .choice-number{position:absolute;left:16px;top:16px;border-radius:50%;width:36px;height:36px;display:grid;place-items:center;background:#fffdf4eb;color:#294d3b;font-size:13px;font-weight:700;border:1px solid #fff}
+#mapChoice .choice-copy{padding:22px 24px 24px;display:flex;flex-direction:column;flex:1}
+#mapChoice .choice-tag{color:#667966;font-size:12px;font-weight:700;letter-spacing:.02em}
+#mapChoice h2{font:700 27px/1.3 'Gowun Batang',serif;margin:6px 0 12px;letter-spacing:-.03em}
+#mapChoice .choice-description{color:#58685e;font-size:14px;line-height:1.75;margin:0 0 22px;flex:1}
+#mapChoice .choice-enter{display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:50px;padding:12px 16px;border-radius:12px;color:#fffdf5;background:#355744;font-size:14px;font-weight:700}
+#mapChoice .choice-card:last-child .choice-enter{background:#77603d}
+#mapChoice .choice-foot{font-size:12px;line-height:1.7;color:#67766b}
+#mapChoiceError{padding:14px 16px;border:1px solid #b45b40;background:#fff4e7;border-radius:12px;line-height:1.6}
+#mapChoiceReturn{position:fixed;right:126px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:7;min-height:44px;display:grid;place-items:center;padding:10px 14px;border:1px solid #d8c6a3;border-radius:12px;background:#fbf4e4ed;color:#2b1d14;text-decoration:none;font-size:13px;touch-action:manipulation}
+#mapChoiceReturn:focus-visible,.title-map-return:focus-visible{outline:3px solid #b57b35;outline-offset:3px}
+body.creating #mapChoiceReturn{display:none}
+.title-map-return{display:inline-block;color:#f2dfb4;text-underline-offset:4px;padding:10px;min-height:44px;font-size:13px}
+@media(max-width:640px){#mapChoice{padding:28px 18px;align-content:start;gap:22px}#mapChoice .choice-grid{grid-template-columns:1fr;gap:18px}#mapChoice h1{font-size:29px}#mapChoice .choice-copy{padding:18px 20px}#mapChoice h2{font-size:24px}#mapChoice .choice-description{margin-bottom:16px}#mapChoice .choice-image{aspect-ratio:16/8}}
+@media(prefers-reduced-motion:reduce){#mapChoice .choice-card{transition:none}#mapChoice .choice-card:hover{transform:none}}

@@ -1,3 +1,4 @@
+import {hallReturnUrl} from './mapChoiceRoutes.js'
 import {installMobileViewport} from './mobileUi.js'
 import { fitHallView } from './hallCamera.js'
 /* 대법당 안.
@@ -138,7 +139,7 @@ function nearSpot () {
   return best
 }
 function promptNow () {
-  if (atDoor(player.x, player.y)) return { label: '도량으로 나가기', run: () => travel('/deungbul.html?from=beopdang') }
+  if (atDoor(player.x, player.y)) return { label: '도량으로 나가기', run: () => travel(hallReturnUrl(location.search)) }
   const c = cushionAt(player.x, player.y)
   if (c) return { label: '절하기', run: () => openBowPicker(c) }
   const s = nearSpot()
@@ -228,7 +229,7 @@ byId('helpb').onclick = () => {
   const b = el('button', 'btn', '닫기'); b.onclick = modal.close
   m.append(h, b)
 }
-byId('backb').addEventListener('click', e => { e.preventDefault(); travel('/deungbul.html?from=beopdang') })
+byId('backb').addEventListener('click', e => { e.preventDefault(); travel(hallReturnUrl(location.search)) })
 
 /* ---------- 한 줄 이야기 ---------- */
 let myLine = '', myLineUntil = 0
