@@ -207,3 +207,38 @@ Cloudflare 계정 토큰을 받아 **staging Worker 를 실제로 배포했습�
 
 실제 80명 연결과 실기기 측정 전까지 **"80명 끊김 없이 가능"** 이라고 적지 않습니다.
 이 문서의 fps 는 소프트웨어 렌더 상대 비교이고, 표시 상한 80은 성능 보장이 아닙니다.
+
+## 2026-11-09 PR #20 검증 (Claude, 이 컨테이너)
+
+PR #20 `codex/pr17-followup-after-18` 을 main(3c00a53) 위에서 받아 확인했습니다.
+
+| 항목 | 결과 |
+| --- | --- |
+| `npm run build` | PASS |
+| 루트 시험 22개 (campus-v2 8 · free-budget 6 · relay-client 4 · tapdori-camera 4) | PASS |
+| worker `npm test` 32개 | PASS |
+| 프로덕션 빌드 5쪽 (`/`, deungbul, beopdang, doryang, original) | 콘솔 오류 0 |
+| 대법당 🧭 자동 구도 ↔ 자유 시점(Q/끌기/휠) 전환 | PASS, `aria-pressed` 같이 바뀜 |
+| 대법당 삼배 | PASS |
+| 자동 탑돌이 시작 → 진행 고리 `0.7 / 3바퀴` | PASS |
+| 자동 탑돌이 방향키 중단 → `직접 이동해 자동 탑돌이를 멈췄어요.` | PASS |
+| 대행선사 동상 앞 삼배 | PASS |
+| 법당 문 `살펴보기` 두 번 → `/beopdang.html?from=campus` | PASS |
+| 로컬 workerd relay 20명 / 80명 | PASS (각자 79명, transit p95 41ms, RTT p95 54ms) |
+| 엣지 relay 20명 / 80명 (재배포 뒤) | PASS (각자 79명, transit p95 92ms, RTT p95 111ms) |
+
+- 엣지 Worker 를 이 코드로 다시 배포했습니다. 버전 `eb858498-bb4a-4f21-b9b7-a74334dccd68`.
+  `/health` 가 `mapVersion:"campus-v2"` 를 돌려주는 것으로 새 코드임을 확인했습니다.
+- 통신 기본값은 그대로 Supabase 입니다. relay 는 깃발이 있을 때만 씁니다.
+
+### NOT RUN
+
+- 실기기(휴대폰·태블릿) fps·배터리. 이 컨테이너는 소프트웨어 렌더(3fps 수준)라 숫자를 쓰지 않습니다.
+- 한국 기기에서의 지연. 위 p95 는 미국 쪽 컨테이너에서 잰 값입니다.
+- Cloudflare 실제 사용량 집계. 시험 직후라 아직 0 으로 나옵니다.
+- 브라우저 80대를 실제로 띄운 시험. 위 80명은 WS 봇입니다.
+
+### 남은 제약
+
+- `src/deungbul/original/campusScene.js` 에는 `window.__warp` 가 없습니다(#18 때부터). 이번 확인은
+  임시로 넣어 보고 되돌렸습니다. 커밋에는 들어 있지 않습니다. 걸어서 확인하려면 캠퍼스가 126×70 이라 오래 걸립니다.
