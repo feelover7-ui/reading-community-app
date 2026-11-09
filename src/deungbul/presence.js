@@ -1,3 +1,4 @@
+import { relayUrl, createRelayAdapter } from './realtime/adapter.js'
 import { supabase } from './supabaseClient.js'
 
 const DEFAULT_CHANNEL = 'deungbul-yard'
@@ -7,6 +8,7 @@ const text = (value, max) => typeof value === 'string' ? value.slice(0, max) : '
 function cleanMeta(meta = {}, bounds = DEFAULT_BOUNDS) {
   if (!meta || typeof meta !== 'object') meta = {}
   const out = { nick: text(meta.nick, 12), sx: meta.sx === 'f' ? 'f' : 'm' }
+  if (/^#[0-9a-f]{6}$/i.test(meta.color || '')) out.color = meta.color
   if (Number.isFinite(meta.x) && meta.x >= 0 && meta.x <= bounds.w &&
       Number.isFinite(meta.y) && meta.y >= 0 && meta.y <= bounds.h) {
     out.x = meta.x; out.y = meta.y
@@ -24,9 +26,9 @@ function cleanMeta(meta = {}, bounds = DEFAULT_BOUNDS) {
 // - broadcast 'pos': 걸어다니는 위치 (DB에 저장하지 않는다)
 // - broadcast 'say': 말풍선에 띄울 한 줄 (기록은 messages 테이블이 따로 맡는다)
 export function joinYard({ ownerId, channel: channelName = DEFAULT_CHANNEL, bounds = DEFAULT_BOUNDS, onJoin, onLeave, onSync, onPose, onSay, onLit, onReady }) {
-  if (!supabase) {
-    return null
-  }
+  const relay = relayUrl()
+  if (relay) return joinRelay({ url: relay, ownerId, channelName, bounds, onJoin, onLeave, onSync, onPose, onSay, onLit, onReady })
+  if (!supabase) return null
 
   const channel = supabase.channel(channelName, {
     config: { presence: { key: ownerId }, broadcast: { self: false } },
@@ -168,5 +170,53 @@ export function joinYard({ ownerId, channel: channelName = DEFAULT_CHANNEL, boun
         // 무시
       }
     },
+  }
+}
+
+/* 기존 joinYard 계약에 relay를 연결한다. 세 화면 모두 이 함수 하나를 쓴다. */
+function joinRelay ({ url, channelName, onSync, onPose, onSay, onLit, onReady }) {
+  const scene = channelName === 'deungbul-campus-v2' ? 'campus' : channelName === 'deungbul-beopdang' ? 'hall' : channelName === 'deungbul-grounds' ? 'grounds' : 'yard'
+  let meta = {}, started = false, stopped = false
+  const adapter = createRelayAdapter({ url, hello: () => ({
+    mapVersion: 'campus-v2', sceneId: scene, nickname: meta.nick || '법우',
+    appearance: { sex: meta.sx === 'f' ? 'f' : 'm', color: /^#[0-9a-f]{6}$/i.test(meta.color || '') ? meta.color : '#e3a83f' }
+  }) })
+  const toMeta = r => ({
+    nick: r.nick, sx: r.sex, color: r.color, x: r.x, y: r.z,
+    vx: r.vx, vy: r.vz, dir: Math.abs(Math.sin(r.yaw)) > Math.abs(Math.cos(r.yaw)) ? (Math.sin(r.yaw) < 0 ? 'left' : 'right') : (Math.cos(r.yaw) < 0 ? 'up' : 'down'),
+    bw: ['hap', 'bow', 'kneel', 'prost', 'sit'].includes(r.motion)
+  })
+  adapter.on('snapshot', records => {
+    const list = [...records.values()].filter(r => r.id !== adapter.id && r.scene === scene).map(r => ({ id: r.id, meta: toMeta(r) }))
+    onSync?.(list)
+    for (const p of list) onPose?.(p.id, p.meta)
+  })
+  adapter.on('state', state => {
+    if (state === 'live') onReady?.()
+    if (state === 'offline' || state === 'full' || state === 'protocol_error') {
+      globalThis.dispatchEvent?.(new CustomEvent('lantern-connection', { detail: state }))
+    }
+  })
+  adapter.on('event', event => {
+    if (event.from === adapter.id || event.scene !== scene) return
+    if (event.type === 'say') onSay?.(event.from, { nick: event.nick, text: event.payload.text })
+    if (event.type === 'lit') onLit?.({ nick: event.nick })
+  })
+  return {
+    get joined () { return adapter.live }, get transport () { return 'relay' },
+    track (next) {
+      meta = { ...meta, ...next }
+      if (!started && !stopped) { started = true; adapter.connect() }
+    },
+    sendPose (pose) {
+      meta = { ...meta, ...pose }
+      const dirs = { down: 0, up: Math.PI, left: -Math.PI / 2, right: Math.PI / 2 }
+      adapter.sendPose({ sceneId: scene, x: pose.x, z: pose.y, vx: pose.vx || 0, vz: pose.vy || 0,
+        yaw: Number.isFinite(pose.yaw) ? Math.atan2(Math.sin(pose.yaw), Math.cos(pose.yaw)) : (dirs[pose.dir] || 0),
+        motion: pose.bw ? 'bow' : Math.hypot(pose.vx || 0, pose.vy || 0) > .01 ? 'walk' : 'stand' })
+    },
+    sendSay (text) { return adapter.sendEvent('say', { text }) },
+    sendLit () { return adapter.sendEvent('lit', {}) },
+    leave () { stopped = true; adapter.disconnect() }
   }
 }

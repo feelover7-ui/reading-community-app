@@ -1,92 +1,76 @@
-/* 실제 WebSocket 세션으로 방을 시험합니다. 가짜 채널이나 브라우저 안 NPC 가 아닙니다.
-   쓰기: node scripts/ws-load.mjs --n 80 --seconds 30 [--url ws://127.0.0.1:8787/room] */
+/* 전용 load-test 방에서 실제 WS 연결을 시험한다. 운영 행사 방에 봇을 넣지 않는다. */
 import WebSocket from 'ws'
 import { PROTOCOL_VERSION } from '../../../src/deungbul/realtime/protocol.js'
-
-const arg = (k, d) => {
-  const i = process.argv.indexOf('--' + k)
-  return i > 0 ? process.argv[i + 1] : d
-}
-const N = +arg('n', 80)
-const SECONDS = +arg('seconds', 30)
-const URL_ = arg('url', 'ws://127.0.0.1:8787/room')
-const ORIGIN = arg('origin', 'http://localhost:5173')
-const COLORS = ['#e3a83f', '#5d7fb8', '#3f7a5c', '#c8402f', '#9b7ad1', '#6fb6e8']
-
-const pct = (xs, p) => {
-  if (!xs.length) return null
-  const s = [...xs].sort((a, b) => a - b)
-  return +s[Math.min(s.length - 1, Math.floor(s.length * p))].toFixed(1)
-}
-
-const clients = []
-let connected = 0, failed = 0, rejected = 0
-const snapAges = [], rtts = []
-
-function makeClient (i) {
-  return new Promise(resolve => {
-    const ws = new WebSocket(URL_, { headers: { Origin: ORIGIN } })
-    const c = { i, ws, id: null, seq: 0, remotes: 0, maxRemotes: 0, closed: false, welcomed: false }
-    const t = setTimeout(() => { if (!c.welcomed) { failed++; resolve(c) } }, 15000)
-    ws.on('open', () => ws.send(JSON.stringify({
-      t: 'hello', protocolVersion: PROTOCOL_VERSION, nickname: '봇' + i,
-      appearance: { sex: i % 2 ? 'f' : 'm', color: COLORS[i % COLORS.length] },
-      sceneId: 'yard', mapVersion: 'v1'
-    })))
-    ws.on('message', raw => {
-      let m; try { m = JSON.parse(raw.toString()) } catch { return }
-      if (m.t === 'welcome') {
-        c.id = m.participantId; c.welcomed = true; connected++; clearTimeout(t)
-        c.remotes = (m.roster || []).filter(r => r.id !== c.id).length
-        c.maxRemotes = Math.max(c.maxRemotes, c.remotes)
-        resolve(c)
-      } else if (m.t === 'snapshot') {
-        if (m.serverTime) snapAges.push(Date.now() - m.serverTime)
-        const seen = new Set((m.records || []).map(r => r.id)); seen.delete(c.id)
-        c.remotes = Math.max(c.remotes, seen.size)
-        c.maxRemotes = Math.max(c.maxRemotes, c.remotes)
-      } else if (m.t === 'pong') {
-        rtts.push(Date.now() - m.clientTime)
-      } else if (m.t === 'full') { rejected++; c.welcomed = true; clearTimeout(t); resolve(c) }
+const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d }
+const N = Number(arg('n', 80)), seconds = Number(arg('seconds', 30))
+if (!Number.isInteger(N) || N < 1 || N > 81 || !Number.isFinite(seconds) || seconds < 1) throw new Error('n=1..81, seconds>=1 필요')
+const endpoint = new URL(arg('url', 'ws://127.0.0.1:8787/room?room=load-test'))
+if (endpoint.searchParams.get('room') !== 'load-test') throw new Error('별도 room=load-test 주소만 시험합니다')
+const origin = arg('origin', 'http://localhost:5173')
+const clients = [], transit = [], stateAge = [], rtts = []
+let failed = 0, rejected = 0, errors = 0, unexpectedClose = 0, stopping = false, incomingBytes = 0, outgoingBytes = 0
+const percentile = (xs, p) => xs.length ? [...xs].sort((a,b)=>a-b)[Math.min(xs.length-1,Math.floor(xs.length*p))] : null
+const send = (c, obj) => { const raw = JSON.stringify(obj); outgoingBytes += Buffer.byteLength(raw); c.ws.send(raw) }
+async function create (i) {
+  const c = { i, id: null, seq: 0, records: new Map(), welcomed: false, settled: false }
+  clients.push(c)
+  await new Promise(resolve => {
+    const done = () => { if (!c.settled) { c.settled = true; clearTimeout(timeout); resolve() } }
+    const timeout = setTimeout(() => { failed++; c.ws.terminate(); done() }, 15000)
+    c.ws = new WebSocket(endpoint, { headers: { Origin: origin } })
+    c.ws.on('open', () => send(c, { t:'hello', protocolVersion:PROTOCOL_VERSION,
+      nickname:'부하'+i, appearance:{ sex:i%2?'f':'m', color:'#e3a83f' }, sceneId:'campus', mapVersion:'campus-v2' }))
+    c.ws.on('unexpected-response', (req,res) => {
+      if (res.statusCode === 503) rejected++; else failed++
+      res.resume(); req.destroy(); done()
     })
-    ws.on('error', () => { if (!c.welcomed) { failed++; clearTimeout(t); resolve(c) } })
-    ws.on('close', () => { c.closed = true })
-    clients.push(c)
+    c.ws.on('error', () => { if (!c.settled) { failed++; done() } })
+    c.ws.on('message', raw => {
+      incomingBytes += raw.length
+      let m; try { m=JSON.parse(raw.toString()) } catch { errors++; return }
+      if (m.t==='error') { errors++; console.error('서버 거절',m.reason); return }
+      if (m.t==='full') { rejected++; done(); return }
+      if (m.t==='welcome') { c.id=m.participantId; c.welcomed=true; c.records.clear(); apply(c,m.snapshot); done() }
+      if (m.t==='snapshot') {
+        apply(c,m)
+        transit.push(Date.now()-m.serverTime)
+        for(const r of m.records||[]) if(r.motion==='walk') stateAge.push(Date.now()-r.at)
+      }
+      if (m.t==='pong') rtts.push(Date.now()-m.clientTime)
+    })
+    c.ws.on('close', () => { if (!stopping&&c.welcomed) unexpectedClose++ })
   })
 }
-
-console.log(`접속 ${N}개 여는 중 → ${URL_}`)
-const t0 = Date.now()
-for (let i = 0; i < N; i++) await makeClient(i)
-console.log(`붙은 세션 ${connected} / 실패 ${failed} / 방 꽉 참 ${rejected} (${Date.now() - t0}ms)`)
-
-// 2Hz 로 움직입니다. 이동 중에만 보냅니다.
-let tick = 0
-const timer = setInterval(() => {
+function apply(c,snap){
+  if(!snap)return
+  if(snap.full)c.records.clear()
+  for(const r of snap.records||[])c.records.set(r.id,r)
+  for(const id of snap.removed||[])c.records.delete(id)
+}
+for(let i=0;i<N;i++)await create(i)
+let tick=0
+const timer=setInterval(()=>{
   tick++
-  for (const c of clients) {
-    if (!c.id || c.ws.readyState !== 1) continue
-    const a = (c.i / N) * Math.PI * 2 + tick * .05
-    c.ws.send(JSON.stringify({
-      t: 'pose', clientSeq: ++c.seq, sceneId: 'yard',
-      x: 18 + Math.cos(a) * 6, z: 13 + Math.sin(a) * 6,
-      vx: -Math.sin(a) * 2, vz: Math.cos(a) * 2, yaw: a,
-      motion: 'walk', motionStartedAt: Date.now()
-    }))
-    if (tick % 6 === 0) c.ws.send(JSON.stringify({ t: 'ping', clientTime: Date.now() }))
+  for(const c of clients){
+    if(!c.id||c.ws.readyState!==1)continue
+    const a=c.i/N*Math.PI*2+tick*.05
+    send(c,{t:'pose',clientSeq:++c.seq,sceneId:'campus',x:18+Math.cos(a)*6,z:18+Math.sin(a)*6,
+      vx:-Math.sin(a)*.6,vz:Math.cos(a)*.6,yaw:Math.atan2(Math.sin(a),Math.cos(a)),motion:'walk',motionStartedAt:0})
+    if(tick%6===0)send(c,{t:'ping',clientTime:Date.now()})
   }
-}, 500)
-
-await new Promise(r => setTimeout(r, SECONDS * 1000))
+},500)
+await new Promise(resolve=>setTimeout(resolve,seconds*1000))
 clearInterval(timer)
-
-const alive = clients.filter(c => c.ws.readyState === 1).length
-const maxRemote = Math.max(...clients.map(c => c.maxRemotes), 0)
-const minRemote = Math.min(...clients.filter(c => c.id).map(c => c.maxRemotes))
-console.log(`유지된 세션 ${alive} / ${connected}`)
-console.log(`observer 가 본 상대 수: 최소 ${minRemote}, 최대 ${maxRemote}`)
-console.log(`snapshot 도착 지연 p50 ${pct(snapAges, .5)}ms, p95 ${pct(snapAges, .95)}ms (표본 ${snapAges.length})`)
-console.log(`RTT p50 ${pct(rtts, .5)}ms, p95 ${pct(rtts, .95)}ms (표본 ${rtts.length})`)
-for (const c of clients) try { c.ws.close() } catch {}
-await new Promise(r => setTimeout(r, 300))
-process.exit(0)
+const accepted=clients.filter(c=>c.welcomed), expected=Math.min(N,80)
+const counts=accepted.map(c=>[...c.records.keys()].filter(id=>id!==c.id).length)
+const alive=accepted.filter(c=>c.ws.readyState===1).length
+const pass=accepted.length===expected&&alive===expected&&counts.every(n=>n===expected-1)&&
+  failed===0&&errors===0&&unexpectedClose===0&&(N<=80||rejected===1)
+console.log(JSON.stringify({status:pass?'PASS':'FAIL',durationSeconds:seconds,accepted:accepted.length,alive,rejected,failed,errors,
+  unexpectedClose,currentRemotes:counts,transitP95Ms:percentile(transit,.95),movingRecordAgeP95Ms:percentile(stateAge,.95),
+  rttP95Ms:percentile(rtts,.95),snapshotSamples:transit.length,incomingBytes,outgoingBytes,
+  note:'server/client 시계차 미보정. 브라우저 렌더와 실기기 성능은 별도 시험.'},null,2))
+stopping=true
+for(const c of clients)if(c.ws.readyState===1){send(c,{t:'bye'});c.ws.close()}
+await new Promise(resolve=>setTimeout(resolve,300))
+process.exit(pass?0:1)

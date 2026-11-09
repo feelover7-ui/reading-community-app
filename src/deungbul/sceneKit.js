@@ -185,6 +185,7 @@ export function createPeers ({ ownerId, channel, bounds, nick, sex, canStand, ge
     const p = peerOf(id, pose && pose.nick)
     if (!p || !pose) return
     if (pose.sx) p.sex = pose.sx
+    if (/^#[0-9a-f]{6}$/i.test(pose.color || '')) p.color = pose.color
     if (!fromPresence || !p.placed) p.bow = pose.bw === true
     if (pose.dir && (!fromPresence || !p.placed)) p.dir = pose.dir
     // Presence 에 남은 최초 위치가 최신 broadcast 위치를 덮지 않게 한다.

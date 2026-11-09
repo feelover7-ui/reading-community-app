@@ -5,7 +5,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://covers.openlibrary.org; connect-src 'self' https://vsnbzwofscqeeewscozp.supabase.co wss://vsnbzwofscqeeewscozp.supabase.co https://openlibrary.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://covers.openlibrary.org; connect-src 'self' https://vsnbzwofscqeeewscozp.supabase.co wss://vsnbzwofscqeeewscozp.supabase.co https://openlibrary.org https://lantern-room-staging.feelover7.workers.dev wss://lantern-room-staging.feelover7.workers.dev; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         },
         {
           "key": "X-Content-Type-Options",

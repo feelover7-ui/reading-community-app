@@ -5,6 +5,7 @@
 export const PROTOCOL_VERSION = 1
 export const LIMITS = {
   maxMessageBytes: 4096,
+  maxServerMessageBytes: 131072,
   maxTextChars: 200,
   maxNickChars: 12,
   maxSessions: 80,
@@ -48,14 +49,14 @@ export function validateHello (msg) {
   if (!a || typeof a !== 'object') return { ok: false, reason: 'bad_appearance' }
   if (!SEXES.includes(a.sex)) return { ok: false, reason: 'bad_sex' }
   if (typeof a.color !== 'string' || !COLOR_RE.test(a.color)) return { ok: false, reason: 'bad_color' }
-  if (typeof msg.sceneId !== 'string' || !SCENE_RE.test(msg.sceneId)) return { ok: false, reason: 'bad_scene' }
+  if (!['yard', 'grounds', 'hall', 'campus'].includes(msg.sceneId)) return { ok: false, reason: 'bad_scene' }
   if (typeof msg.mapVersion !== 'string' || msg.mapVersion.length > 40) return { ok: false, reason: 'bad_map' }
   return { ok: true, value: { nickname, appearance: { sex: a.sex, color: a.color }, sceneId: msg.sceneId, mapVersion: msg.mapVersion, resumeToken: typeof msg.resumeToken === 'string' ? msg.resumeToken.slice(0, 80) : null } }
 }
 
 /* 좌표·속도는 장면 경계와 최대 속도로 자릅니다. 서버가 받은 값을 그대로 믿지 않습니다. */
 export function validatePose (msg, bounds) {
-  if (!finite(msg.clientSeq) || msg.clientSeq < 0) return { ok: false, reason: 'bad_seq' }
+  if (!Number.isSafeInteger(msg.clientSeq) || msg.clientSeq < 0) return { ok: false, reason: 'bad_seq' }
   if (typeof msg.sceneId !== 'string' || !SCENE_RE.test(msg.sceneId)) return { ok: false, reason: 'bad_scene' }
   if (!inRange(msg.x, 0, bounds.w) || !inRange(msg.z, 0, bounds.h)) return { ok: false, reason: 'out_of_bounds' }
   if (!inRange(msg.vx, -bounds.maxSpeed, bounds.maxSpeed) || !inRange(msg.vz, -bounds.maxSpeed, bounds.maxSpeed)) return { ok: false, reason: 'bad_speed' }
@@ -73,10 +74,11 @@ export function validatePose (msg, bounds) {
 }
 
 export function validateEvent (msg) {
-  if (typeof msg.type !== 'string' || msg.type.length > 24) return { ok: false, reason: 'bad_event' }
+  if (!['say', 'lit'].includes(msg.type)) return { ok: false, reason: 'bad_event' }
   const payload = msg.payload && typeof msg.payload === 'object' ? msg.payload : {}
   if (typeof payload.text === 'string' && [...payload.text].length > LIMITS.maxTextChars) return { ok: false, reason: 'text_too_long' }
-  return { ok: true, value: { type: msg.type, payload } }
+  if (msg.type === 'say' && (typeof payload.text !== 'string' || !payload.text.trim())) return { ok: false, reason: 'bad_text' }
+  return { ok: true, value: { type: msg.type, payload: msg.type === 'say' ? { text: payload.text.trim() } : {} } }
 }
 
 /* 같은 epoch 안에서 역순·중복 seq 는 버립니다. epoch 이 바뀌면 기준을 초기화합니다. */
@@ -85,6 +87,7 @@ export function createSeqGate () {
   return {
     get state () { return { epoch, last } },
     accept (msgEpoch, seq) {
+      if (!Number.isSafeInteger(seq) || seq < 0) return false
       if (msgEpoch !== epoch) { epoch = msgEpoch; last = seq; return true }
       if (seq <= last) return false
       last = seq
@@ -119,4 +122,15 @@ export function reconnectDelay (attempt, rand = Math.random) {
 export function extrapolate (rec, nowMs, limitMs = LIMITS.extrapolationMaxMs) {
   const dt = Math.max(0, Math.min(limitMs, nowMs - rec.at)) / 1000
   return { x: rec.x + (rec.vx || 0) * dt, z: rec.z + (rec.vz || 0) * dt }
+}
+
+/* 클라이언트 입력과 달리 서버의 80인 명단은 4KiB를 넘습니다. */
+export function parseServerMessage (raw) {
+  const result = parseMessage(raw, { maxMessageBytes: LIMITS.maxServerMessageBytes })
+  if (!result.ok) return result
+  const m = result.msg
+  if (m.roster && (!Array.isArray(m.roster) || m.roster.length > LIMITS.maxSessions)) return { ok: false, reason: 'bad_roster' }
+  const snap = m.t === 'welcome' ? m.snapshot : m.t === 'snapshot' ? m : null
+  if (snap && (!Array.isArray(snap.records) || snap.records.length > LIMITS.maxSessions || !Array.isArray(snap.removed) || snap.removed.length > LIMITS.maxSessions || !Number.isSafeInteger(snap.serverSeq))) return { ok: false, reason: 'bad_snapshot' }
+  return result
 }
