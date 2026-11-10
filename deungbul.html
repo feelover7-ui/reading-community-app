@@ -13,9 +13,9 @@ html,body{margin:0;height:100%;overflow:hidden;background:#1b140f;font-family:'N
 canvas#game{display:block;width:100vw;height:100vh;cursor:grab}
 .panel{background:rgba(251,244,228,.95);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.25)}
 #hud{position:fixed;left:12px;top:12px;width:268px;padding:12px 14px;font-size:13px;z-index:5;max-height:calc(100vh - 24px);overflow:auto}
-#hud h3{margin:0 0 6px;font-family:'Gowun Batang',serif;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
-#hud h3 small{font-family:'Noto Sans KR';font-size:11px;color:#9a8a76;font-weight:400}
-#hud h4{margin:10px 0 4px;font-family:'Gowun Batang',serif;font-size:14px;color:#6b4a2f;border-top:1px dashed var(--line);padding-top:8px}
+#hudh{margin:0 0 6px;font-family:'Gowun Batang',serif;font-size:16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+#hudh small{font-family:'Noto Sans KR';font-size:11px;color:#9a8a76;font-weight:400}
+#hud h2{margin:10px 0 4px;font-family:'Gowun Batang',serif;font-size:14px;color:#6b4a2f;border-top:1px dashed var(--line);padding-top:8px}
 #hud ol{margin:0;padding:0;list-style:none}
 #hud li{padding:2px 0;color:#8a7a66;display:flex;gap:7px;line-height:1.4}
 #hud li b{width:16px;flex:none;text-align:center}
@@ -23,9 +23,9 @@ canvas#game{display:block;width:100vw;height:100vh;cursor:grab}
 #hud li.cur{color:var(--ink);font-weight:700}
 #hud .foot{margin-top:8px;padding-top:7px;border-top:1px dashed var(--line);color:#6b5a48;font-size:12px;line-height:1.5}
 #hud.collapsed .body{display:none}
-#hud.collapsed h3{margin:0}
+#hud.collapsed #hudh{margin:0}
 #hud.collapsed{width:auto}
-#hud.collapsed h3 small{margin-left:10px}
+#hud.collapsed #hudh small{margin-left:10px}
 #topbtns{position:fixed;right:12px;top:12px;display:flex;gap:8px;z-index:6}
 .iconbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:rgba(251,244,228,.95);font-size:17px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.2)}
 #minimap{position:fixed;right:12px;top:62px;z-index:5;border-radius:10px;border:2px solid rgba(251,244,228,.9);box-shadow:0 4px 14px rgba(0,0,0,.3);background:#55613f}
@@ -96,7 +96,7 @@ body.creating #joy,body.creating #act,body.creating #hud,body.creating #topbtns,
 #creator{position:fixed;right:0;top:0;bottom:0;width:370px;background:rgba(251,244,228,.97);border-left:2px solid #6b4a2f;padding:22px 20px 18px;overflow:auto;z-index:35;display:none;touch-action:auto}
 #creator h2{font-family:'Gowun Batang',serif;margin:0 0 2px;font-size:24px}
 #creator .sub{margin:0 0 10px;color:#6b5a48;font-size:13px}
-#creator h4{margin:14px 0 7px;font-size:13px;color:#6b4a2f}
+#creator h3{margin:14px 0 7px;font-size:13px;color:#6b4a2f}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{border:2px solid #e2d3b4;background:#fffaf0;border-radius:999px;padding:7px 13px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
 .chip.sel{border-color:var(--accent);background:#fff0e6;font-weight:700}
@@ -117,7 +117,7 @@ body.creating #joy,body.creating #act,body.creating #hud,body.creating #topbtns,
 #title button:disabled{background:#7a5a45;box-shadow:none;cursor:wait}
 #title .ctl{margin-top:16px;font-size:12px;color:#b8a78c;line-height:1.7}
 #err{display:none;margin-top:14px;color:#ffb3a3;font-size:13px}
-@media (max-width:640px){#hud{width:210px;font-size:12px;padding:10px 12px}#hud h3{font-size:14px}}
+@media (max-width:640px){#hud{width:210px;font-size:12px;padding:10px 12px}#hudh{font-size:14px}}
 
 html,body{overscroll-behavior:none;touch-action:auto}
 #game,#joy,#joy i,#act{touch-action:none}
@@ -132,25 +132,30 @@ html,body{overscroll-behavior:none;touch-action:auto}
 .community-row{border-bottom:1px solid var(--line);padding:10px 0}
 .community-row p{white-space:pre-wrap;overflow-wrap:anywhere}
 #creator{user-select:text;touch-action:pan-y}
-#hud h3:focus-visible,button:focus-visible,#game:focus-visible{outline:3px solid #c8402f;outline-offset:3px}
+#hudh:focus-visible,button:focus-visible,#game:focus-visible{outline:3px solid #c8402f;outline-offset:3px}
 @media(max-width:640px){#topbtns{left:12px;right:12px;justify-content:flex-end}#minimap{width:144px;height:202px}#connection{font-size:11px}#prompt{max-width:calc(100vw - 24px);white-space:normal;text-align:center}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+#hudh{width:100%;min-height:44px;border:0;padding:0;background:transparent;color:inherit;text-align:left}
+#dialog .next{display:block;margin-left:auto;border:0;background:transparent;color:inherit;font:inherit;min-height:44px;padding:6px 12px;cursor:pointer}
+#creator h3{font-size:14px;margin:16px 0 8px}
 </style>
 <link rel="stylesheet" href="/src/deungbul/mobileUi.css">
 </head>
 <body class="prestart">
+<main id="campus-app">
+<h1 class="sr-only">등불사장과 본원 탐방</h1>
 <canvas id="game" tabindex="0" aria-label="등불사장과 본원 탐방 맵"></canvas>
 <div id="vignette"></div>
-<div id="hud" class="panel"><h3 id="hudh" role="button" tabindex="0" aria-expanded="true" aria-controls="quest-body">오늘의 소임 <small>접기</small></h3><div class="body" id="quest-body"><ol id="quest"></ol><h4>본원 순례</h4><ol id="quest2"></ol><div class="foot" id="hudfoot"></div><div class="foot" id="here" role="status"></div></div></div>
-<div id="topbtns"><button class="iconbtn" id="mapb" title="지도">🗺</button><button class="iconbtn" id="communityb" title="방명록과 대화" aria-label="방명록과 대화">💬</button><button class="iconbtn" id="dressb" title="옷 갈아입기">👕</button><button class="iconbtn" id="snd" title="소리">🔊</button><button class="iconbtn" id="helpb" title="도움말">?</button></div>
+<div id="hud" class="panel"><button type="button" id="hudh" aria-expanded="true" aria-controls="quest-body">오늘의 소임 <small>접기</small></button><div class="body" id="quest-body"><ol id="quest"></ol><h2>본원 순례</h2><ol id="quest2"></ol><div class="foot" id="hudfoot"></div><div class="foot" id="here" role="status"></div></div></div>
+<div id="topbtns"><button class="iconbtn" id="mapb" title="지도" aria-label="지도" aria-pressed="true">🗺</button><button class="iconbtn" id="communityb" title="방명록과 대화" aria-label="방명록과 대화">💬</button><button class="iconbtn" id="dressb" title="옷 갈아입기" aria-label="옷 갈아입기">👕</button><button class="iconbtn" id="snd" title="소리" aria-label="소리 끄기" aria-pressed="true">🔊</button><button class="iconbtn" id="helpb" title="도움말" aria-label="도움말">?</button></div>
 <canvas aria-label="현재 위치 미니맵" id="minimap" width="240" height="336"></canvas>
 <div id="connection" role="status">공유 연결을 준비하고 있어요.</div><div id="prompt" role="status"></div>
 <div id="wish"></div>
 <div id="ritual" class="panel"><div class="rt" id="rtitle"></div><div id="breath">들숨</div><div class="rc" id="rcount"></div><div class="rcap" id="rcap"></div><div class="bar" id="rbarw"><i id="rbar"></i></div><div class="row"><button id="rspeed">빠르게 ×2.5</button><button class="stop" id="rstop">그만하기</button></div></div>
-<div id="tapdori" class="panel"><svg width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="21" fill="none" stroke="#eadcc0" stroke-width="6"/><circle id="tapring" cx="26" cy="26" r="21" fill="none" stroke="#c8402f" stroke-width="6" stroke-linecap="round" stroke-dasharray="131.9" stroke-dashoffset="131.9" transform="rotate(-90 26 26)"/></svg><div><div class="tt" id="taptxt">탑돌이 0 / 3바퀴</div><div class="ts">탑을 오른쪽에 두고 시계 방향으로</div></div><button id="tapstop">멈추기</button></div>
-<div id="dialog" role="status" aria-live="polite"><div class="name" id="dname"></div><div class="text" id="dtext"></div><div class="next">▼ 계속</div></div>
-<div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" tabindex="-1"></div></div>
-<div id="creator"></div>
+<div id="tapdori" class="panel"><svg aria-hidden="true" width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="21" fill="none" stroke="#eadcc0" stroke-width="6"/><circle id="tapring" cx="26" cy="26" r="21" fill="none" stroke="#c8402f" stroke-width="6" stroke-linecap="round" stroke-dasharray="131.9" stroke-dashoffset="131.9" transform="rotate(-90 26 26)"/></svg><div><div class="tt" id="taptxt">탑돌이 0 / 3바퀴</div><div class="ts">탑을 오른쪽에 두고 시계 방향으로</div></div><button id="tapstop">멈추기</button></div>
+<div id="dialog" role="status" aria-live="polite"><div class="name" id="dname"></div><div class="text" id="dtext"></div><button type="button" class="next" aria-label="대화 계속">▼ 계속</button></div>
+<div id="creator" role="dialog" aria-modal="true" aria-labelledby="creator-title" tabindex="-1"></div>
 <div id="toast"></div>
 <div id="joy" role="group" aria-label="이동 조이스틱"><i aria-hidden="true"></i></div>
 <button id="act">작업</button>
@@ -166,6 +171,8 @@ html,body{overscroll-behavior:none;touch-action:auto}
     <div id="err" role="alert">3D 화면을 불러오지 못했어요. 새로고침해 보세요.</div>
   </div>
 </div>
+</main>
+<div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" tabindex="-1"></div></div>
 <script type="module" src="/src/deungbul/original/campusScene.js"></script>
 
 </body>

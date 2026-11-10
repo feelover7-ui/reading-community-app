@@ -17,7 +17,7 @@ export function createCampusSharing({onLanterns,status}){
   }
   function schedule(){clearTimeout(timer);if(!closed)timer=setTimeout(async()=>{await refresh();schedule()},45000+Math.random()*10000)}
   return{
-    start(){closed=false;refresh();schedule()},stop(){closed=true;clearTimeout(timer)},refresh,
+    start(){closed=false;if(!isSupabaseConfigured)status('지금은 만든 등을 이 기기에 보관해요.');refresh();schedule()},stop(){closed=true;clearTimeout(timer)},refresh,
     async publish(L){
       if(!isSupabaseConfigured)return{row:null,local:true};
       try{const row=await insertLantern(L);if(!row)return{row:null,local:true};
@@ -28,6 +28,8 @@ export function createCampusSharing({onLanterns,status}){
 }
 export function createCampusCommunity({shell,el,getNick,say}){
   let generation=0;
+  // 입력 초안과 전송 중 상태는 탭을 바꿔도 유지한다. 비밀번호는 메모리에만 둔다.
+  const drafts={posts:{text:'',password:'',busy:false},messages:{text:'',password:'',busy:false}};
   function open(kind='posts'){
     const gen=++generation,panel=shell(kind==='posts'?'방명록':'법우들과 이야기','기존 등불사장과 같은 글 저장소를 사용합니다.');
     const nav=el('div','community-tabs');
@@ -42,22 +44,25 @@ export function createCampusCommunity({shell,el,getNick,say}){
     }).catch(()=>{if(valid())note.textContent='글을 불러오지 못했어요.'});
     const form=el('form','community-form'),body=el('textarea'),result=el('p','sub'),go=el('button','btn','남기기');
     result.setAttribute('role','status');body.maxLength=kind==='posts'?500:200;body.setAttribute('aria-label',kind==='posts'?'방명록 내용':'대화 내용');
+    const draft=drafts[kind];body.value=draft.text;body.oninput=()=>{draft.text=body.value};
     let pw;form.append(body);
-    if(kind==='posts'){pw=el('input');pw.type='password';pw.minLength=4;pw.maxLength=20;pw.required=true;pw.placeholder='삭제용 비밀번호 4~20자';pw.setAttribute('aria-label',pw.placeholder);form.append(pw)}
-    go.type='submit';form.append(go,result);panel.append(form);let busy=false;
+    if(kind==='posts'){pw=el('input');pw.type='password';pw.minLength=4;pw.maxLength=20;pw.required=true;pw.placeholder='삭제용 비밀번호 4~20자';pw.setAttribute('aria-label',pw.placeholder);pw.value=draft.password;pw.oninput=()=>{draft.password=pw.value};form.append(pw)}
+    go.type='submit';form.append(go,result);panel.append(form);go.disabled=draft.busy;
+    draft.view={valid,add,body,pw,result,note,go};
     form.onsubmit=async event=>{
       event.preventDefault();const text=body.value.trim(),nick=getNick(),password=pw?.value;
-      if(!text||busy)return;
+      if(!text||draft.busy)return;
       if(!isSupabaseConfigured){result.textContent='공유 연결 설정이 없어 저장할 수 없어요.';return}
       if(pw&&(!canHash||password.length<4)){result.textContent='삭제용 비밀번호를 확인해 주세요.';return}
-      busy=true;go.disabled=true;
+      draft.busy=true;go.disabled=true;
       try{
         const row=kind==='posts'?await insertPost({nick,body:text,pwHash:await hashPassword(password,nick)}):await insertMessage({nick,body:text});
         if(!row)throw new Error('not_saved');
-        if(valid()){add(row);if(body.value.trim()===text)body.value='';if(pw&&pw.value===password)pw.value='';result.textContent='저장했어요.';note.textContent=''}
+        if(draft.text.trim()===text)draft.text='';if(pw&&draft.password===password)draft.password='';
+        const view=draft.view;if(view?.valid()){view.add(row);if(view.body.value.trim()===text)view.body.value='';if(view.pw&&view.pw.value===password)view.pw.value='';view.result.textContent='저장했어요.';view.note.textContent=''}
         if(kind==='messages')say(text);
-      }catch{if(valid())result.textContent='저장을 확인하지 못했어요. 입력을 보관했으니 중복 여부를 먼저 확인해 주세요.'}
-      finally{busy=false;go.disabled=false}
+      }catch{const view=draft.view;if(view?.valid())view.result.textContent='저장을 확인하지 못했어요. 입력을 보관했으니 중복 여부를 먼저 확인해 주세요.'}
+      finally{draft.busy=false;if(draft.view)draft.view.go.disabled=false}
     };
     function add(row){
       if([...list.children].some(n=>n.dataset.id===String(row.id)))return;

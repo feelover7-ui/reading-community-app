@@ -9,12 +9,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/src/deungbul/anyangMap.css">
 <link rel="stylesheet" href="/src/deungbul/mobileUi.css">
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.hud-title{margin:0 0 10px;font:700 17px 'Gowun Batang',serif}
+#hudh{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:left}
+#hudh small{font:400 11px 'Noto Sans KR',sans-serif}
+#hud.collapsed .hud-title{margin:0}
+</style>
 </head>
 <body>
+<main id="scene-main">
+<h1 class="sr-only">한마음선원 대법당 탐방</h1>
 <canvas id="game" tabindex="0" aria-label="대법당 안. 방향키 또는 WASD로 이동하고 Space로 살펴보거나 좌복 위에서 절을 합니다.">대법당은 캔버스를 지원하는 브라우저에서 이용할 수 있습니다.</canvas>
 
 <div id="hud">
-  <h3 id="hudh" role="button" tabindex="0" aria-expanded="true" aria-controls="hudbody">대법당 <small>접기</small></h3>
+  <h2 class="hud-title"><button type="button" id="hudh" aria-expanded="true" aria-controls="hudbody">대법당 <small>접기</small></button></h2>
   <div id="hudbody">
     <p class="lead">공식 안내와 내부 사진을 보고 자리 관계만 옮긴 게임용 축척입니다. 실측 치수가 아닙니다.</p>
     <p class="count" id="count">좌복 위에서 절을 할 수 있어요</p>
@@ -38,10 +47,11 @@
   <input id="chatmsg" aria-label="한 줄 이야기" type="text" maxlength="200" placeholder="한 줄 쓰고 엔터" autocomplete="off">
   <button id="chatsend">보내기</button>
 </div>
-<div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" aria-label="안내" tabindex="-1"></div></div>
 <div id="fade" aria-hidden="true"></div>
-<div id="joy"><i></i></div>
+<div id="joy" role="group" aria-label="이동 조이스틱"><i aria-hidden="true"></i></div>
 <button id="act">살펴보기</button>
+</main>
+<div id="modal"><div class="card" id="card" role="dialog" aria-modal="true" aria-label="안내" tabindex="-1"></div></div>
 <script type="module" src="/src/deungbul/beopdang.js"></script>
 </body>
 </html>
