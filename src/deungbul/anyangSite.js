@@ -1,48 +1,5 @@
-/* 한마음선원 안양본원 도량 배치.
-
-   근거 두 가지를 나눠 씁니다.
-
-   (1) 카카오 스카이뷰(2026-11-09, 국토지리정보원 항공영상)에서 직접 읽은 것
-       기준점: 카카오 장소검색 `한마음선원 안양본원` 중심 37.4216180, 126.9085209
-       (도로명 경기 안양시 만안구 경수대로 1282 · 지번 석수동 101-60)
-       레벨 1 에서 20m 격자를 띄워 읽었고 그때 배율이 1m = 7.93px 였습니다.
-       본관의 기와지붕 네 귀퉁이를 읽어 약 27m × 39m, 정북에서 시계방향 49도 돌아
-       앉은 것을 확인했습니다. 도량 전체가 경수대로를 따라 같은 각도로 앉아 있습니다.
-
-   (2) 공식 `선원 안내도`(조감도) 범례에서 가져온 것
-       건물 이름과 층별 용도, 그리고 서로의 앞뒤·좌우 관계입니다.
-
-   그래서 **본관의 크기·방향과 도량의 전체 크기는 위성에서 잰 값**이고,
-   **나머지 건물의 자리는 조감도의 배치를 그 축에 맞춰 옮긴 것**입니다.
-   사선 조감도는 거리가 왜곡돼 있어 두 자료를 그대로 겹칠 수 없습니다.
-   실측 지도가 아니고 걸어 다니기 위한 게임용 배치입니다.
-
-   타일 한 칸은 약 2m 로 잡았습니다. 도량 영역은 x 1~43, z 26~68 입니다.
-   자리 관계는 코덱스 배치(sitePreviewData.js)의 위성 판독을 옮긴 것입니다.
-   본관(7,54) 17×9 · 구정탑(21,48) · 동상(12,32) 이 그 결과이고,
-   탑돌이와 법당 문이 이 값에 걸려 있습니다. */
-
-export const SITE_SOURCE = Object.freeze({
-  satellite: '카카오 스카이뷰 (국토지리정보원 항공영상) 2026-11-09 판독',
-  anchor: { lat: 37.4216180, lon: 126.9085209 },
-  scale: '레벨 1 에서 1m = 7.93px, 20m 격자',
-  hallMeasured: { widthM: 27, depthM: 39, bearingDeg: 49 },
-  guide: '공식 선원 안내도(조감도) 범례',
-  caution: '실측 좌표가 아닙니다. 본관 외 건물 자리는 조감도 배치를 옮긴 것입니다.'
-})
-
-/* 조감도 범례 번호를 그대로 답니다. 들어갈 수 있는 곳은 법당 하나뿐입니다. */
-/* 사용자 요청(2026-11-09): 도량에 세우는 건물은 **본관 한 동**뿐입니다.
-   등불사 작업장은 북쪽의 별도 마당이고, 조감도의 나머지 건물(별관·원당·심주관·
-   어린이법당·자료관·요사채·종무소·연구원)과 연못·주차장 표시는 뺐습니다.
-   다시 넣으라는 말이 없으면 되살리지 않습니다.
-
-   자리는 코덱스 배치(위성사진 판독)를 옮긴 것입니다. 본관은 마당 남쪽에 긴 변이
-   가로로 눕고, 그 북쪽 마당에 구정탑, 북서쪽에 대행선사 동상이 섭니다. */
-export const SITE_BUILDINGS = Object.freeze([
-  { id: 'hall', no: 1, name: '법당', full: '본관', x: 7, z: 54, w: 17, d: 9,
-    kind: 'hanok', floors: 5, enter: true,
-    desc: '5층 대법당과 방송실, 2·3·4층 강당, 1층 종무소와 무진향, 지하 1층 후원, 지하 2~4층 주차장입니다. 공식 안내도의 이름은 본관이고 화면 이름은 법당입니다.' }
-])
-
-export const ENTERABLE = Object.freeze(SITE_BUILDINGS.filter(b => b.enter).map(b => b.id))
+import {HALL_POLYGONS} from './classicPlacement.js'
+export const SITE_SOURCE=Object.freeze({reference:'PR #22 · 6f63b89',caution:'기존 클로드 표현에 코덱스 배치의 상대 위치를 옮긴 체험용 도량입니다. 실측 지도가 아닙니다.'})
+const p=HALL_POLYGONS.flat(),x=Math.min(...p.map(p=>p.x)),z=Math.min(...p.map(p=>p.z))
+export const SITE_BUILDINGS=Object.freeze([{id:'hall',no:1,name:'법당',full:'본관',x,z,w:Math.max(...p.map(p=>p.x))-x,d:Math.max(...p.map(p=>p.z))-z,polygons:HALL_POLYGONS,kind:'hanok',floors:5,enter:true,desc:'마당과 이어지는 본관 출입구에서 기존 5층 대법당으로 들어갑니다.'}])
+export const ENTERABLE=Object.freeze(['hall'])
