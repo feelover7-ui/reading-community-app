@@ -726,7 +726,10 @@ function init3D(){
     [pc,V3(player.x,1.6,player.y)].forEach(p=>{const dir=p.clone().sub(camera.position);const dd=dir.length();ray.set(camera.position,dir.normalize());ray.far=dd-.3;ray.intersectObjects(fadeables,false).forEach(h=>hits.add(h.object));if(ray.intersectObjects(bigMeshes,false).length)hits.add('big');});
     fadeables.forEach(m=>{const tg=hits.has(m)?.18:1;const mat=m.material;mat.opacity+=(tg-mat.opacity)*Math.min(1,dt*10);mat.depthWrite=mat.opacity>.9;m.userData.attach.forEach(a=>{a.material.transparent=true;a.material.opacity=mat.opacity;a.material.depthWrite=mat.opacity>.9;});});
     {const gh=new Set();[pc,V3(player.x,1.6,player.y)].forEach(p=>{const dir=p.clone().sub(camera.position);const dd=dir.length();ray.set(camera.position,dir.normalize());ray.far=dd-.3;ray.intersectObjects(groupMeshes,false).forEach(h=>gh.add(h.object.userData.fg));});
-      fadeGroups.forEach(g=>{const blocked=gh.has(g)||g.box.containsPoint(camera.position);g.roots.forEach(o=>o.visible=!(lowView&&!overview&&blocked));const tg=blocked?.15:1;if(Math.abs(tg-g.op)<.002)return;g.op+=(tg-g.op)*Math.min(1,dt*9);g.mats.forEach(m=>{m.opacity=g.op;m.depthWrite=g.op>.9;});});}
+      /* 눈높이 시점(◉)에서는 가리는 건물을 걷어낸다. 다만 카메라가 그 건물 안에 들어간
+         자리까지 끄면 건물이 통째로 사라져 문과 차양만 허공에 뜨고 뒤로 하늘이 보인다.
+         법당 문 앞이 그 자리다. 안에 들어갔을 때는 예전처럼 옅게만 한다. */
+      fadeGroups.forEach(g=>{const inBox=g.box.containsPoint(camera.position),blocked=gh.has(g)||inBox;g.roots.forEach(o=>o.visible=!(lowView&&!overview&&blocked&&!inBox));const tg=blocked?.15:1;if(Math.abs(tg-g.op)<.002)return;g.op+=(tg-g.op)*Math.min(1,dt*9);g.mats.forEach(m=>{m.opacity=g.op;m.depthWrite=g.op>.9;});});}
     {const near=camera.position.distanceTo(V3(18+WORKSHOP_OFFSET.x,3.2,18.5))<6.2&&player.y<18;const tg=(hits.has('big')||near)?.2:1;bigFade+=(tg-bigFade)*Math.min(1,dt*8);bigMats.forEach(m=>{m.opacity=bigFade;m.depthWrite=bigFade>.9;});}
     // animation
     if(!reducedMotion&&scene.userData.bulbs)scene.userData.bulbs.forEach((b,i)=>{b.material.emissiveIntensity=((Math.floor(t*3)+i)%3===0)?1.2:.3;});

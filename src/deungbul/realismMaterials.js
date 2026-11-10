@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import {chooseSceneQuality,createQualityMonitor} from './sceneQuality.js'
 
-/* 独自生成の小さな材質。公式写真そのものは配信しない。 */
+/* 직접 만든 작은 재질이다. 공식 사진 자체를 배포하지 않는다. */
 export function createSurfaceLibrary(){
   const cache=new Map(),textures=[]
   function surface(kind,color){
@@ -23,7 +23,9 @@ export function createSurfaceLibrary(){
   return {surface,dispose(){for(const m of cache.values())m.dispose();for(const t of textures)t.dispose();cache.clear()}}
 }
 export function addInstances(parent,geometry,material,poses){
-  if(!poses.length){geometry.dispose();return null}
+  /* geometry 는 부르는 쪽 것이다. 여기서 dispose 하면 같은 geometry 를 함께 쓰는
+     다른 인스턴스까지 깨진다(hallExteriorDetails 가 unit 하나를 네 번 넘긴다). */
+  if(!poses.length)return null
   const batch=new THREE.InstancedMesh(geometry,material,poses.length),dummy=new THREE.Object3D()
   for(let i=0;i<poses.length;i++){const p=poses[i];dummy.position.set(...p.p);dummy.scale.set(...(p.s||[1,1,1]));dummy.rotation.set(...(p.r||[0,0,0]));dummy.updateMatrix();batch.setMatrixAt(i,dummy.matrix)}
   batch.castShadow=false;batch.receiveShadow=true;batch.computeBoundingSphere();parent.add(batch);return batch
