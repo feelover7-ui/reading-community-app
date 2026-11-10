@@ -12,7 +12,9 @@ export const HALL_POLYGONS=Object.freeze(S.hall.map(poly=>poly.map(hallPlace)))
 export const PAGODA_POSITION=Object.freeze(place(S.pagoda))
 export const STATUE_POSITION=Object.freeze(place(S.statue))
 export const SEVEN_POSITION=Object.freeze(hallPlace(S.seven))
-export const CAMPUS_POLYGON=Object.freeze(S.precinct.map(place))
+// 승인 스케치: 왼쪽 외곽은 유지하고 오른쪽은 같은 사선 흐름으로 원형 마당을 감싼다.
+const precinct=S.precinct.map(place)
+export const CAMPUS_POLYGON=Object.freeze([...precinct.slice(0,5),{x:22.5,z:31.1},{x:30.5,z:37.8},{x:35.2,z:46.3},...precinct.slice(6)])
 export const TERRACE_POLYGON=Object.freeze(S.terrace.map(place))
 export const FORECOURT_POLYGON=Object.freeze(S.forecourt.map(place))
 export const LOWER_GARDEN=Object.freeze(S.lowerGarden.map(place))
@@ -43,19 +45,21 @@ export function roundedRoute(points){
  for(let n=0;n<=4;n++){const t=n/4,u=1-t;out.push({x:u*u*p.x+2*u*t*b.x+t*t*q.x,z:u*u*p.z+2*u*t*b.z+t*t*q.z})}}
  out.push(points.at(-1));return Object.freeze(out)
 }
-export const CONNECTOR=Object.freeze([workshopPlace({x:18,z:26.8}),{x:PAGODA_POSITION.x,z:PAGODA_POSITION.z-PAGODA_APRON.r+.35}])
-export const HALL_PATH=roundedRoute([{x:PAGODA_POSITION.x+1.8,z:PAGODA_POSITION.z+5},{x:30,z:48.2},HALL_ENTRY])
-// 짧은 직선길에서도 장식은 비율로 배치해 꼭짓점 번호에 의존하지 않는다.
-export const PATH_DECOR=Object.freeze([.3,.7].map(t=>{
- const a=CONNECTOR[0],b=CONNECTOR.at(-1),dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz)
- const p={x:a.x+dx*t,z:a.z+dz*t},nx=-dz/len,nz=dx/len
- return{left:{x:p.x+nx*2.1,z:p.z+nz*2.1},right:{x:p.x-nx*2.1,z:p.z-nz*2.1}}
+// 문과 원형 마당은 고정한 채 완만한 S 곡선으로 연결한다.
+const connectorStart=workshopPlace({x:18,z:26.8}),connectorEnd={x:PAGODA_POSITION.x,z:PAGODA_POSITION.z-PAGODA_APRON.r+.35}
+export const CONNECTOR=Object.freeze(Array.from({length:33},(_,i)=>{
+ const t=i/32,u=1-t,a=connectorStart,b=connectorEnd
+ return{x:a.x+3*u*u*t*2.5-3*u*t*t*2.5,z:a.z+(b.z-a.z)*t}
 }))
+// 법당에는 별도 길/기둥/바닥 안내 표시를 두지 않는다.
+export const HALL_PATH=Object.freeze([])
+export const PATH_DECOR=Object.freeze([])
 export const HALL_LANDING=Object.freeze({...HALL_ENTRY,r:2.5})
 export function routePolygon(points,width=3.2){
  const side=sign=>points.map((p,i)=>{const a=points[Math.max(0,i-1)],b=points[Math.min(points.length-1,i+1)],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz);return{x:p.x-sign*dz/len*width/2,z:p.z+sign*dx/len*width/2}})
  return side(1).concat(side(-1).reverse())
 }
+const connectorFootprint=routePolygon(CONNECTOR,3.55)
 export function pointInPolygon(x,z,poly){let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a.z>z)!==(b.z>z)&&x<(b.x-a.x)*(z-a.z)/(b.z-a.z)+a.x)inside=!inside}return inside}
 export function distanceToSegment(x,z,a,b){const dx=b.x-a.x,dz=b.z-a.z,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz)));return Math.hypot(x-a.x-t*dx,z-a.z-t*dz)}
 export const distanceToPolygon=(x,z,p)=>Math.min(...p.map((a,i)=>distanceToSegment(x,z,a,p[(i+1)%p.length])))
@@ -63,9 +67,16 @@ export const onRoute=(x,z,points,margin=1.6)=>points.slice(1).some((b,i)=>distan
 export const onConnector=(x,z,margin=1.6)=>onRoute(x,z,CONNECTOR,margin)
 export const CAMPUS_TREES=Object.freeze(S.trees.map(place).filter(p=>!inWorkshop(p.x,p.z)&&distanceToPolygon(p.x,p.z,WORKSHOP_POLYGON)>.75&&Math.hypot(p.x-PAGODA_POSITION.x,p.z-PAGODA_POSITION.z)>6.2&&Math.hypot(p.x-HALL_ENTRY.x,p.z-HALL_ENTRY.z)>3&&!onConnector(p.x,p.z,3)&&!onRoute(p.x,p.z,HALL_PATH,3)))
 
+export function inHallLobby(x,z){
+ const dx=x-HALL_ENTRY.x,dz=z-HALL_ENTRY.z,n=HALL_ENTRY_NORMAL
+ const inward=-(dx*n.x+dz*n.z),across=dx*n.z-dz*n.x
+ return inward>=-.3&&inward<=4.1&&Math.abs(across)<1.05
+}
 export function canStandCampus(x,z){
  if(!Number.isFinite(x)||!Number.isFinite(z)||x<.4||z<.4||x>125.6||z>69.6)return false
- const ground=pointInPolygon(x,z,CAMPUS_POLYGON)||distanceToPolygon(x,z,CAMPUS_POLYGON)<1.1||Math.hypot(x-PAGODA_POSITION.x,z-PAGODA_POSITION.z)<PAGODA_APRON.r||onConnector(x,z)||onRoute(x,z,HALL_PATH)||Math.hypot(x-HALL_ENTRY.x,z-HALL_ENTRY.z)<HALL_LANDING.r||distanceToPolygon(x,z,WORKSHOP_POLYGON)<2.5
+ if(inHallLobby(x,z))return true
+ // 보행면과 옹벽 외곽을 일치시킨다. 예전의 1.1/2.5칸 잔디 여유는 낭떠러지 밖이었다.
+ const ground=pointInPolygon(x,z,CAMPUS_POLYGON)||pointInPolygon(x,z,connectorFootprint)
  if(!ground||HALL_POLYGONS.some(p=>pointInPolygon(x,z,p)||distanceToPolygon(x,z,p)<.32)||inWorkshop(x,z))return false
  if(Math.hypot(x-PAGODA_POSITION.x,z-PAGODA_POSITION.z)<1.35||Math.hypot(x-STATUE_POSITION.x,z-STATUE_POSITION.z)<2)return false
  if(PATH_DECOR.some(g=>[g.left,g.right].some(p=>Math.hypot(x-p.x,z-p.z)<.25)))return false
