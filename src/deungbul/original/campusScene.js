@@ -51,7 +51,7 @@ if(isTouch){document.body.classList.add('touch');document.getElementById('ctlhin
 const W=126,H=70;
 const solid=[];for(let y=0;y<H;y++)solid.push(new Array(W).fill(true));
 const setRect=(x,y,w,h,v)=>{for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)if(yy>=0&&yy<H&&xx>=0&&xx<W)solid[yy][xx]=v;};
-setRect(2,2,32,10,false);setRect(16,12,4,1,false);setRect(1,13,34,12,false);setRect(16,25,4,1,false);setRect(105,5,18,15,false);
+setRect(2,2,32,10,false);setRect(16,12,4,1,false);setRect(1,13,34,12,false);setRect(16,25,4,2,false);setRect(105,5,18,15,false);
 const block=(x,y,w,h)=>setRect(x,y,w,h,true);
 const STATIONS=[
   {id:'frame',name:'골조 작업대',x:4,y:3,w:3,h:2},{id:'paper',name:'한지 작업대',x:11,y:3,w:3,h:2},
@@ -244,10 +244,7 @@ function siteInfo(b){
   m.append(el('p','note','공식 선원 안내도의 범례를 옮긴 설명입니다. 안은 만들지 않았고 들어가 볼 수 있는 곳은 법당 하나입니다.'));
   const ok=el('button','btn','닫기');ok.onclick=closeModal;sharedModal.primary=closeModal;m.append(ok);
 }
-let movingRooms=false;
-function changeRoom(point,face,cameraYaw){if(movingRooms||ritual||seq||creatorOpen)return;if(tap)stopTap();movingRooms=true;keys.clear();joy.reset();fadeTo(()=>{player.x=point.x;player.y=point.z;player.face=face;yaw=cameraYaw;onlineAt=0;onlineLast=null;lastOnlinePose='';movingRooms=false;});}
-function enterCampus(){changeRoom(WORKSHOP_EXIT,Math.atan2(WORKSHOP_NORMAL.x,WORKSHOP_NORMAL.z),Math.PI/2)}
-function enterWorkshop(){changeRoom(WORKSHOP_INTERIOR_ENTRY,Math.PI,0)}
+/* 사용자 요청으로 작업장과 마당은 한 세계로 이어져 있습니다. 공간 전환은 없습니다. */
 function exitHall(){if(ritual)return;fadeTo(()=>{player.x=HALL_DOOR.x;player.y=HALL_DOOR.z;player.face=Math.atan2(HALL_ENTRY_NORMAL.x,HALL_ENTRY_NORMAL.z);yaw=Math.atan2(HALL_ENTRY_NORMAL.x,HALL_ENTRY_NORMAL.z);});}
 function hallMenu(){if(ritual||seq)return;const m=modalShell('5층 대법당','가운데 방석에서 무엇을 할까요?');const list=el('div','menu');
   [['예불','칠정례로 부처님께 예를 올려요',doYebul],['법회','대법당 스님의 짧은 법문을 들어요',doBeophoe],['좌선','앉아서 호흡을 바라봐요',pickJwaseon],['삼배','부처님께 큰절 세 번',doSambae],['108배','108번 절하며 마음을 모아요',do108]].forEach(([t,s,fn])=>{const b=el('button');b.append(el('b',null,t),el('span',null,s));b.onclick=()=>{closeModal();fn();};list.append(b);});
@@ -280,15 +277,13 @@ const INTERACT=[
   {x:8.5,y:18.45,name:'소원등 걸이대',fn:hangSign,mark:[8.5,2.35,17.5],key:'sign'},
   {x:18,y:20.45,name:'장엄등',fn:bigLantern,mark:[18,6.0,18.5],key:'big'},
   {x:PAGODA.x,y:PAGODA.z+GUIDED_RADIUS+.3,name:'구정탑 · 탑돌이',fn:startTapdori,mark:[PAGODA.x,7.6,PAGODA.z],key:'tower'},
-  {x:18,y:24.8,name:'본원 마당으로 나가기',fn:enterCampus,mark:[18,3,25.5],key:'yardGate'},
-  {x:WORKSHOP_EXIT.x,y:WORKSHOP_EXIT.z,name:'등불사장으로 들어가기',fn:enterWorkshop,mark:[WORKSHOP_GATE.x,3.3,WORKSHOP_GATE.z],key:'workshopDoor'},
   {x:STATUE_STAND.x,y:STATUE_STAND.z,name:'대행선사 동상 · 서서 삼배',fn:statueBow,mark:[STATUE_CENTER.x,3.9,STATUE_CENTER.z],key:'statue'},
   {x:HALL_DOOR.x,y:HALL_DOOR.z,name:'법당 · 5층 대법당 들어가기',fn:enterHall,mark:[HALL_DOOR.x,3.4,HALL_DOOR.z],key:'hallDoor'},
   ...SITE_BUILDINGS.filter(b=>!b.enter).map(b=>({x:b.x+b.w/2,y:b.z+b.d+.6,name:b.name+' · 살펴보기',
     fn:()=>siteInfo(b),mark:[b.x+b.w/2,Math.max(3,b.floors*2.5+1.3),b.z+b.d-.4],key:'site-'+b.id})),
   {x:114,y:9.9,name:'가운데 방석 · 참배하기',fn:hallMenu,mark:[114,1.6,9.9],key:'cushion'},
   {x:114,y:19.35,name:'나가기 · 본관 앞마당',fn:exitHall,mark:[114,3,19.9],key:'hallExit'}];
-function nearest(){let best=null,bd=1;for(const it of INTERACT){if(inWorkshop(it.x,it.y)!==inWorkshop(player.x,player.y))continue;const r=it.key==='hallDoor'||it.key==='workshopDoor'?1.9:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
+function nearest(){let best=null,bd=1;for(const it of INTERACT){const r=it.key==='hallDoor'?1.9:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
 function targetKey(){if(state.stage>0)return['frame','paper','paint','light','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';
   if(!state.tapdoriDone)return tap?null:'tower';if(!state.statueDone)return'statue';if(!state.hallDone)return inHall()?'cushion':'hallDoor';return null;}
 function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}if(modalOpen||ritual||seq)return;const it=nearest();if(it){it.fn();updateHUD();}}
@@ -524,13 +519,8 @@ function init3D(){
   box(2.8,2.7,.16,'#765034',0,1.35,.04);box(2.3,2.25,.18,'#7d9aa8',0,1.13,.15);box(3.4,.18,1.3,'#8a7a66',0,2.85,.45);
   textPlane('본관 · 대법당',3.8,.6).position.set(0,3.25,.2);staticRoot=campusRoot;
   const seven=buildSevenTreasure({scene:campusRoot,M,mesh,box},{...SEVEN_POSITION,y:9.3});
-  // 작업장 바깥은 작은 열린 담장 마당이며, 들어가면 기존 작업장을 그대로 이용한다.
-  polyGround(WORKSHOP_POLYGON,M('#ffffff',{map:repTex(woodTex,1.2,1.2)}),.008);
-  for(let i=0;i<WORKSHOP_POLYGON.length;i++){if(i===3)continue;const a=WORKSHOP_POLYGON[i],b=WORKSHOP_POLYGON[(i+1)%4],len=Math.hypot(b.x-a.x,b.z-a.z),m=box(len,2.1,.22,MAT.wall,(a.x+b.x)/2,1.05,(a.z+b.z)/2);m.rotation.y=-Math.atan2(b.z-a.z,b.x-a.x);}
-  const gateGroup=new THREE.Group();gateGroup.position.set(WORKSHOP_GATE.x,0,WORKSHOP_GATE.z);gateGroup.rotation.y=Math.atan2(WORKSHOP_NORMAL.x,WORKSHOP_NORMAL.z);campusRoot.add(gateGroup);staticRoot=gateGroup;
-  for(const x of[-1.7,1.7])box(.24,2.8,.24,MAT.woodDark,x,1.4,0);
-  box(4.2,.22,.5,'#2f7d5b',0,2.7,0);mesh(hipRoofGeo(5.1,1.8,.8,.7),M(MAT.roof,{side:THREE.DoubleSide}),0,2.85,0);
-  textPlane('등불사장',3,.6).position.set(0,2.1,.28);addFadeGroup([gateGroup]);staticRoot=campusRoot;
+  /* 작업장은 북쪽의 실제 등불사장 그 자체입니다. 바깥에 같은 건물을 또 세우지 않습니다.
+     남쪽 울타리의 트인 칸이 마당으로 나가는 문이고, 문·간판은 실내 쪽에서 이미 세웁니다. */
   for(const [x,z]of CTREES)tree(x+.5,z+.5,.85+hash(x,z)*.3);
   const pagodaModel=buildPagoda({scene:campusRoot,M,mesh}),pagodaGoldM=pagodaModel.accentMaterial;
   const pagodaLight=new THREE.PointLight('#ffb560',0*LIGHT,14,1.6);pagodaLight.position.set(PAGODA.x,3.4,PAGODA.z+1.5);campusRoot.add(pagodaLight);
@@ -609,54 +599,66 @@ function init3D(){
   rebuildHung();updateCarry();
 
   /* One map per connected room; both use the same north-up world coordinates. */
-  const mm=mmEl.getContext('2d'),mmBg={workshop:document.createElement('canvas'),campus:document.createElement('canvas')};
-  const mapTf=(inside,x,z)=>inside?[12+x*6,80+z*6]:[12+(x-40)*3,75+(z-22)*3];
-  for(const [kind,c] of Object.entries(mmBg)){
-    const indoor=kind==='workshop';c.width=240;c.height=336;const g=c.getContext('2d');
-    g.fillStyle='#f3ead8';g.fillRect(0,0,240,336);g.fillStyle='#584c3e';g.font='bold 18px sans-serif';g.textAlign='center';g.fillText(indoor?'등불사장':'본원 탐방',120,35);
-    const poly=(points,color)=>{g.fillStyle=color;g.beginPath();points.forEach((p,i)=>{const[x,z]=mapTf(indoor,p.x,p.z);i?g.lineTo(x,z):g.moveTo(x,z)});g.closePath();g.fill()};
+  const mm=mmEl.getContext('2d'),mmBg=document.createElement('canvas');
+  /* 작업장과 마당이 한 세계로 이어져 있으므로 지도도 한 장입니다. */
+  const mapTf=(x,z)=>[16+x*4.6,46+z*4.1];
+  {
+    const c=mmBg;c.width=240;c.height=336;const g=c.getContext('2d');
+    g.fillStyle='#f3ead8';g.fillRect(0,0,240,336);g.fillStyle='#584c3e';g.font='bold 18px sans-serif';g.textAlign='center';g.fillText('등불사장과 본원',120,28);
+    const poly=(points,color)=>{g.fillStyle=color;g.beginPath();points.forEach((p,i)=>{const[x,z]=mapTf(p.x,p.z);i?g.lineTo(x,z):g.moveTo(x,z)});g.closePath();g.fill()};
     const rect=(x,z,w,d,col)=>poly([{x,z},{x:x+w,z},{x:x+w,z:z+d},{x,z:z+d}],col);
-    const dot=(p,r,col)=>{const[x,z]=mapTf(indoor,p.x,p.z);g.fillStyle=col;g.beginPath();g.arc(x,z,r,0,Math.PI*2);g.fill()};
-    const text=(name,p)=>{const[x,z]=mapTf(indoor,p.x,p.z);g.fillStyle='#493e31';g.font='bold 12px sans-serif';g.fillText(name,x,z)};
-    if(indoor){rect(0,0,36,26,'#d6c5a7');rect(1,1,34,12,'#b8854a');Object.entries(BLD).forEach(([k,r])=>{if(k!=='pit')rect(...r,'#79604b')});rect(15,17,6,3,'#c8402f');text('출입문',{x:18,z:28});}
-    else{poly(CAMPUS_POLYGON,'#d3c6ab');poly(FORECOURT_POLYGON,'#daceb8');GREEN_AREAS.forEach(p=>poly(p.polygon,'#9bab80'));poly(LOWER_GARDEN,'#9bab80');
-      HALL_POLYGONS.forEach(p=>poly(p,'#6b655a'));poly(WORKSHOP_POLYGON,'#a97b51');
-      g.strokeStyle='#c5b28e';g.lineWidth=8;g.lineJoin='round';g.beginPath();CONNECTOR.forEach((p,i)=>{const[x,z]=mapTf(false,p.x,p.z);i?g.lineTo(x,z):g.moveTo(x,z)});g.stroke();
-      dot(PAGODA,15,'#e0d3b7');dot(PAGODA,4,'#6b6963');dot(STATUE_CENTER,4,'#9c814d');dot(HALL_DOOR,3,'#d69e32');
-      text('구정탑',{x:PAGODA.x,z:PAGODA.z-6});text('동상',{x:STATUE_CENTER.x,z:STATUE_CENTER.z-3});text('법당',{x:CAMPUS_HALL.x+CAMPUS_HALL.w/2,z:CAMPUS_HALL.z+CAMPUS_HALL.d/2});text('등불사장',{x:WORKSHOP_GATE.x+5,z:WORKSHOP_GATE.z});
-      g.fillStyle='#584c3e';g.font='12px sans-serif';g.fillText('↑ 북',211,58);
-    }
+    const dot=(p,r,col)=>{const[x,z]=mapTf(p.x,p.z);g.fillStyle=col;g.beginPath();g.arc(x,z,r,0,Math.PI*2);g.fill()};
+    const text=(name,p)=>{const[x,z]=mapTf(p.x,p.z);g.fillStyle='#493e31';g.font='bold 11px sans-serif';g.fillText(name,x,z)};
+    // 도량
+    poly(CAMPUS_POLYGON,'#d3c6ab');poly(FORECOURT_POLYGON,'#daceb8');
+    GREEN_AREAS.forEach(p=>poly(p.polygon,'#9bab80'));poly(LOWER_GARDEN,'#9bab80');
+    g.strokeStyle='#c5b28e';g.lineWidth=5;g.lineJoin='round';g.beginPath();CONNECTOR.forEach((p,i)=>{const[x,z]=mapTf(p.x,p.z);i?g.lineTo(x,z):g.moveTo(x,z)});g.stroke();
+    HALL_POLYGONS.forEach(p=>poly(p,'#6b655a'));
+    // 등불사장
+    rect(0,0,36,26.6,'#d6c5a7');rect(1,1,34,12,'#b8854a');
+    for(const s2 of STATIONS)rect(s2.x,s2.y,s2.w,s2.h,'#79604b');
+    rect(15,17,6,3,'#c8402f');rect(16,25.6,4,1,'#f2c037');
+    dot(PAGODA,11,'#e0d3b7');dot(PAGODA,3,'#6b6963');dot(STATUE_CENTER,3,'#9c814d');dot(HALL_DOOR,2.5,'#d69e32');
+    text('등불사장',{x:18,z:7});text('구정탑',{x:PAGODA.x,z:PAGODA.z-4});
+    text('동상',{x:STATUE_CENTER.x,z:STATUE_CENTER.z-2.5});text('법당',{x:HALL_DOOR.x,z:HALL_DOOR.z+4});
+    g.fillStyle='#584c3e';g.font='12px sans-serif';g.fillText('↑ 북',214,52);
   }
-  function drawMinimap(){if(mmEl.classList.contains('hide'))return;const indoor=inWorkshop(player.x,player.y);mm.drawImage(indoor?mmBg.workshop:mmBg.campus,0,0);
-    const tk=targetKey();let it=tk&&INTERACT.find(i=>i.key===tk);if(it&&inWorkshop(it.x,it.y)!==indoor)it=INTERACT.find(i=>i.key===(indoor?'yardGate':'workshopDoor'));
-    if(it){const[a,b]=mapTf(indoor,it.x,it.y);mm.fillStyle='#f2c037';mm.strokeStyle='#5a3b26';mm.lineWidth=2;mm.beginPath();mm.arc(a,b,6,0,Math.PI*2);mm.fill();mm.stroke();}
-    const[px,pz]=mapTf(indoor,player.x,player.y);mm.save();mm.translate(px,pz);mm.rotate(-player.face+Math.PI);mm.fillStyle='#c8402f';mm.strokeStyle='#fff';mm.lineWidth=2;mm.beginPath();mm.moveTo(0,-9);mm.lineTo(6,6);mm.lineTo(-6,6);mm.closePath();mm.fill();mm.stroke();mm.restore();
-  }
+  function drawMinimap(){if(mmEl.classList.contains('hide'))return;mm.drawImage(mmBg,0,0);
+    const tk=targetKey();const it=tk&&INTERACT.find(i=>i.key===tk);
+    if(it){const[a2,b2]=mapTf(it.x,it.y);mm.fillStyle='#f2c037';mm.strokeStyle='#5a3b26';mm.lineWidth=2;mm.beginPath();mm.arc(a2,b2,6,0,Math.PI*2);mm.fill();mm.stroke();}
+    const[px,pz]=mapTf(player.x,player.y);mm.save();mm.translate(px,pz);mm.rotate(-player.face+Math.PI);
+    mm.fillStyle='#c8402f';mm.strokeStyle='#fff';mm.lineWidth=1.6;mm.beginPath();mm.moveTo(0,-7);mm.lineTo(5,5);mm.lineTo(-5,5);mm.closePath();mm.fill();mm.stroke();mm.restore();}
 
   /* loop */
   const wishEl=document.getElementById('wish'),promptEl=document.getElementById('prompt');
   const ray=new THREE.Raycaster();const camPos=V3(14,3,8);const camLook=V3(14,1,11);let camYaw=0,camDist=9.5,camPitch=.72,camLookY=.9;
   if(import.meta.env.DEV)window.__overview=()=>{player.x=71;player.y=46;yaw=Math.PI;dist=47;snapCam=true;};
-  const canStand=(x,y)=>{if(!inWorkshop(x,y))return canStandCampus(x,y)&&!NPCS.some(n=>!inWorkshop(n.x,n.y)&&Math.hypot(x-n.x,y-n.y)<.45);const hw=.24;const s=(a,b)=>{const tx=Math.floor(a),ty=Math.floor(b);if(tx<0||ty<0||tx>=W||ty>=H)return true;return solid[ty][tx];};return!(s(x-hw,y-.14)||s(x+hw,y-.14)||s(x-hw,y+.18)||s(x+hw,y+.18));};
+  /* 작업장과 마당이 한 세계라서 둘 중 하나만 통과하면 걸을 수 있다.
+     한쪽만 보면 문턱(z 26 근처)에 어느 쪽도 아닌 칸이 생겨 못 빠져나간다. */
+  const tileFree=(x,y)=>{const hw=.24;const s=(a,b)=>{const tx=Math.floor(a),ty=Math.floor(b);if(tx<0||ty<0||tx>=W||ty>=H)return true;return solid[ty][tx];};
+    return !(s(x-hw,y-.14)||s(x+hw,y-.14)||s(x-hw,y+.14)||s(x+hw,y+.14));};
+  const canStand=(x,y)=>{
+    if(NPCS.some(n=>Math.hypot(x-n.x,y-n.y)<.45))return false
+    return (inWorkshop(x,y)&&tileFree(x,y))||canStandCampus(x,y)
+  };
   const toScreen=(v)=>{const p=v.clone().project(camera);return{x:(p.x+1)/2*window.innerWidth,y:(1-p.y)/2*window.innerHeight,ok:p.z<1&&p.z>-1&&p.x>-1.1&&p.x<1.1&&p.y>-1.1&&p.y<1.1};};
   const angLerp=(a,b,k)=>{let d=b-a;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;return a+d*k;};
   let last=performance.now(),t=0;
   function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(document.hidden||!started){requestAnimationFrame(loop);return}t+=dt;
     if(keys.has('q'))yaw+=dt*1.6;if(keys.has('r'))yaw-=dt*1.6;
-    let mx=0,my=0;const busy=dialog||modalOpen||ritual||seq||creatorOpen||movingRooms;
+    let mx=0,my=0;const busy=dialog||modalOpen||ritual||seq||creatorOpen;
     if(started&&!busy){if(keys.has('arrowleft')||keys.has('a'))mx-=1;if(keys.has('arrowright')||keys.has('d'))mx+=1;if(keys.has('arrowup')||keys.has('w'))my-=1;if(keys.has('arrowdown')||keys.has('s'))my+=1;mx+=joy.x;my+=joy.y;}
     const l=Math.hypot(mx,my);if(tap?.guided&&l>.15){stopTap('직접 이동해 자동 탑돌이를 멈췄어요.');}if(l>1){mx/=l;my/=l;}player.moving=l>.05;
     if(player.moving){const dx=mx*Math.cos(yaw)+my*Math.sin(yaw),dz=-mx*Math.sin(yaw)+my*Math.cos(yaw);const sp=(tap?2.8:4.3)*dt;const nx=player.x+dx*sp,ny=player.y+dz*sp;if(canStand(nx,player.y))player.x=nx;if(canStand(player.x,ny))player.y=ny;player.walk+=dt;player.face=angLerp(player.face,Math.atan2(dx,dz),Math.min(1,dt*12));}
-    if(inWorkshop(player.x,player.y)&&player.y>25.55&&player.x>16&&player.x<20)enterCampus();
     guideTap(dt,canStand);
     if(seq)stepSeq(dt);else{const tg=tap?POSE.hap:POSE.stand;player.pose=lerpPose(player.pose,tg,Math.min(1,dt*8));}
     if(ritual&&ritual.update)ritual.update(dt);
     updateTap();
     if(creatorOpen)player.face=creatorYaw+Math.sin(t*.7)*.5;
     pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?POSE.stand:player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
-    const inside=inWorkshop(player.x,player.y);workshopRoot.visible=inside;campusRoot.visible=!inside;
-    npcMeshes.forEach((m,i)=>m.visible=inWorkshop(NPCS[i].x,NPCS[i].y)===inside);walkerMeshes.forEach(m=>m.visible=!inside);pts.visible=state.night&&inside;
-    updateOnline(dt,canStand);visiblePeers.clear();for(const[id,p]of onlinePeers)if(inWorkshop(p.x,p.y)===inside)visiblePeers.set(id,p);remoteLayer.sync(visiblePeers,reducedMotion,player);orbitGuide.visible=!!tap;
+    const inside=inWorkshop(player.x,player.y);workshopRoot.visible=true;campusRoot.visible=true;
+    npcMeshes.forEach(m=>m.visible=true);walkerMeshes.forEach(m=>m.visible=true);pts.visible=state.night&&inside;
+    updateOnline(dt,canStand);visiblePeers.clear();for(const[id,p]of onlinePeers)visiblePeers.set(id,p);remoteLayer.sync(visiblePeers,reducedMotion,player);orbitGuide.visible=!!tap;
     if(carry){carry.visible=!ritual&&!creatorOpen;carry.position.set(player.x,1.85+Math.sin(t*3)*.03,player.y);}
     WALKERS.forEach((w,i)=>{if(!reducedMotion)w.a+=w.sp*dt;const m=walkerMeshes[i];m.position.set(PAGODA.x+Math.cos(w.a)*w.r,0,PAGODA.z+Math.sin(w.a)*w.r);m.rotation.y=Math.atan2(-Math.sin(w.a),Math.cos(w.a));applyPose(m,POSE.hap,t+i,true);});
     // camera
@@ -683,12 +685,12 @@ function init3D(){
       for(let i=0;i<PN;i++){const p=pData[i];p.age+=dt;if(p.age>p.life){const a=Math.random()*Math.PI*2;p.x=18+Math.cos(a)*2;p.y=3.25+Math.sin(a)*2;p.z=18.5+(Math.random()-.5)*.6;p.vx=(Math.random()-.5)*.3;p.vy=.4+Math.random()*.6;p.age=0;p.life=1.5+Math.random()*2.5;}p.x+=p.vx*dt;p.y+=p.vy*dt;pPos[i*3]=p.x;pPos[i*3+1]=p.y;pPos[i*3+2]=p.z;}pGeo.attributes.position.needsUpdate=true;}
     else flameList.forEach(f=>f.scale.set(1,1,1));
     if(flashT>0){flashT-=dt;pagodaGoldM.emissive.set('#ffb030');pagodaGoldM.emissiveIntensity=.4+.6*Math.abs(Math.sin(t*4));pagodaLight.intensity=1.6;if(flashT<=0){pagodaGoldM.emissive.set(state.night?'#8a5a10':'#000000');pagodaGoldM.emissiveIntensity=1;pagodaLight.intensity=state.night?1.4:0;}}
-    const tk=targetKey();let mt=tk&&started&&!creatorOpen?INTERACT.find(i=>i.key===tk):null;if(mt&&inWorkshop(mt.x,mt.y)!==inside)mt=INTERACT.find(i=>i.key===(inside?'yardGate':'workshopDoor'));marker.visible=!!mt;if(mt){marker.position.set(mt.mark[0],mt.mark[1]+Math.sin(t*4)*.12,mt.mark[2]);marker.rotation.y=t*2;}
+    const tk=targetKey();const mt=tk&&started&&!creatorOpen?INTERACT.find(i=>i.key===tk):null;marker.visible=!!mt;if(mt){marker.position.set(mt.mark[0],mt.mark[1]+Math.sin(t*4)*.12,mt.mark[2]);marker.rotation.y=t*2;}
     renderer.render(scene,camera);
     paintOnlineLabels(remoteLayer,toScreen);
     // overlays
     const showUI=started&&!creatorOpen;
-    NPCS.forEach((n,i)=>{const near=showUI&&!dialog&&!ritual&&inWorkshop(n.x,n.y)===inside&&Math.hypot(n.x-player.x,n.y-player.y)<3.4;const s=near&&toScreen(V3(n.x,1.55,n.y));if(!s||!s.ok){labels[i].style.display='none';return;}labels[i].style.display='block';labels[i].style.left=s.x+'px';labels[i].style.top=s.y+'px';});
+    NPCS.forEach((n,i)=>{const near=showUI&&!dialog&&!ritual&&Math.hypot(n.x-player.x,n.y-player.y)<3.4;const s=near&&toScreen(V3(n.x,1.55,n.y));if(!s||!s.ok){labels[i].style.display='none';return;}labels[i].style.display='block';labels[i].style.left=s.x+'px';labels[i].style.top=s.y+'px';});
     LANDMARKS.forEach(L=>{const near=showUI&&!inside&&!ritual&&!inHall()&&Math.hypot(L.x-player.x,L.z-player.y)<13&&Math.hypot(L.x-player.x,L.z-player.y)>2.2;const s=near&&toScreen(V3(L.x,L.y,L.z));if(!s||!s.ok){L.d.style.display='none';return;}L.d.style.display='block';L.d.style.left=s.x+'px';L.d.style.top=s.y+'px';});
     let shown=false;
     if(showUI&&!dialog&&!modalOpen&&!ritual){for(const o of hungObjs){if(Math.abs(o.x-player.x)<.55&&Math.abs(o.z-player.y)<1.0){const s=toScreen(V3(o.x,o.y+.55,o.z));if(s.ok){wishEl.textContent=o.h.L.wish||'';wishEl.className=state.night?'night':'';wishEl.style.left=s.x+'px';wishEl.style.top=s.y+'px';wishEl.style.display='block';shown=true;}break;}}}
@@ -797,6 +799,6 @@ fontsReady.then(()=>{try{init3D();sharing.start();
   }
   startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.moving=false;onlineAt=0;lastOnlinePose='';snapCam=true;};
-if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,inside:inWorkshop(player.x,player.y),canStand:(x,z)=>inWorkshop(x,z)?!solid[Math.floor(z)]?.[Math.floor(x)]:canStandCampus(x,z),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action,enterCampus,enterWorkshop});
+if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
 startb.onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');openCreator(true);};
 })();

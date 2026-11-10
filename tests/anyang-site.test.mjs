@@ -20,8 +20,10 @@ test('본관 한 동의 두 직사각 날개가 PR #22의 배치를 따른다',(
 
 test('PR #22의 방향·간격·작업장 위치에 개별 회전이나 이동이 섞이지 않는다',()=>{
  assert.equal(S.ref,'6f63b89b450e2c2ad92cfd9b0ff0469765912295')
- const originals=[S.pagoda,S.statue,S.seven,...S.hall.flat(),...S.workshop]
- const actual=[PAGODA_CENTER,STATUE_CENTER,L.SEVEN_POSITION,...L.HALL_POLYGONS.flat(),...L.WORKSHOP_POLYGON]
+ /* 작업장은 사용자 요청으로 바깥에 따로 세우지 않고 실제 등불사장 블록 자체를 쓴다.
+    그래서 PR #22 의 상대 자리를 지켜야 하는 것은 본관·구정탑·동상·칠보탑이다. */
+ const originals=[S.pagoda,S.statue,S.seven,...S.hall.flat()]
+ const actual=[PAGODA_CENTER,STATUE_CENTER,L.SEVEN_POSITION,...L.HALL_POLYGONS.flat()]
  for(let i=0;i<actual.length;i++)for(let j=i+1;j<actual.length;j++)for(const axis of['x','z']){
   assert.ok(Math.abs((actual[j][axis]-actual[i][axis])-(originals[j][axis]-originals[i][axis])*L.PLACEMENT_SCALE)<1e-8)
  }
@@ -53,6 +55,13 @@ test('작업장 출구에서 법당 문·동상 참배 자리·탑돌이 시작�
   assert.ok(L.canStandCampus(p.x,p.z),'도착 지점이 막혔다')
   const n=cell(p);assert.ok(seen.has(key(n.x,n.z)),'출입구에서 걸어갈 길이 없다 '+JSON.stringify(p))
  }
+})
+
+test('작업장과 마당이 한 세계로 이어져 있다',()=>{
+ // 사용자 요청: 공간 전환 없이 걸어서 오간다. 문턱 양쪽이 모두 열려 있어야 한다.
+ assert.ok(L.inWorkshop(18,25.8),'문 안쪽이 작업장이 아니다')
+ assert.ok(!L.inWorkshop(18,27.2),'문 바깥이 아직 작업장이다')
+ assert.ok(L.canStandCampus(18,27.2),'문 바로 바깥을 걸을 수 없다')
 })
 
 test('작업장 연결길의 중앙이 막히지 않고 포장이 탑 앞마당에 이어진다',()=>{
