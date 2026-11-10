@@ -409,7 +409,9 @@ function init3D(){
   [[11.2,'등불사장',wS1],[24.8,'한마음선원',wS2]].forEach(([x,t,w])=>{const p=textPlane(t,2.8,.62);p.position.set(x,1.65,13.02);w.userData.attach.push(p);});
   STATIONS.forEach(s=>{const p=textPlane(s.name,2.2,.48,{font:'"Noto Sans KR",sans-serif',fg:'#f3dc9a',border:'#b88a3c'});p.position.set(s.x+s.w/2,1.75,2.01);});
   function fence(x0,z0,x1,z1){box(x1-x0,1.3,z1-z0,MAT.fence,(x0+x1)/2,.65,(z0+z1)/2);box(x1-x0+.3,.18,z1-z0+.3,MAT.fenceCap,(x0+x1)/2,1.39,(z0+z1)/2);}
-  fence(0,25,16,26);fence(20,25,44,26);fence(0,12,1,25);fence(35,12,36,25);fence(0,0,36,1);fence(0,1,1,12);fence(35,1,36,12);
+  /* 남쪽 울타리는 동쪽 벽(x 35~36)에서 끝난다. 원본의 50 은 더 넓던 옛 캠퍼스 담이라
+     그 길이를 그대로 두면 담이 마당 밖 잔디 위로 떠서 이어진다. */
+  fence(0,25,16,26);fence(20,25,36,26);fence(0,12,1,25);fence(35,12,36,25);fence(0,0,36,1);fence(0,1,1,12);fence(35,1,36,12);
 
   // gate to the main temple
   [16.15,19.85].forEach(x=>{box(.28,3,.28,'#8a2e22',x,1.5,25.5);box(.5,.3,.5,'#9c9588',x,.15,25.5);});
