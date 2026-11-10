@@ -1,10 +1,12 @@
 /* 공식 설명에 따른 독자 제작 시안. 사진 복제/실측 복원이 아니다. */
 import {THREE} from './three3d.js'
+import {createSurfaceLibrary,addInstances} from './realismMaterials.js'
 
 export function buildSanctuary(world,{cx,front,width}){
   const {mesh,box}=world
-  const gold=new THREE.MeshStandardMaterial({color:'#c99a43',roughness:.76,metalness:.3})
-  const dark=new THREE.MeshStandardMaterial({color:'#624327',roughness:.95})
+  const {surface}=createSurfaceLibrary()
+  const gold=surface('metal','#d4a643')
+  const dark=new THREE.MeshStandardMaterial({color:'#77552a',roughness:.88})
   const light=new THREE.MeshStandardMaterial({color:'#e1bc70',roughness:.8,metalness:.18})
   const sphere=new THREE.SphereGeometry(1,20,14)
   const ellipsoid=(x,y,z,sx,sy,sz,mat=gold)=>{
@@ -12,7 +14,7 @@ export function buildSanctuary(world,{cx,front,width}){
   }
   // 三面 목각 구성: 좌 지옥계 / 중앙 성도 / 우 중생계. 유혈 묘사는 하지 않는다.
   const relief=world.canvasTex(1024,384,(g,w,h)=>{
-    g.fillStyle='#6e4828';g.fillRect(0,0,w,h)
+    g.fillStyle='#b98a35';g.fillRect(0,0,w,h)
     for(let x=0;x<w;x+=3){g.strokeStyle='rgba(235,192,105,'+(.04+(x%17)/170)+')';g.beginPath();g.moveTo(x,0);g.bezierCurveTo(x+5,100,x-4,260,x,384);g.stroke()}
     const line=(points,color='#d9ad62',size=2)=>{g.strokeStyle=color;g.lineWidth=size;g.beginPath();points.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.stroke()}
     const oval=(x,y,rx,ry,color)=>{g.fillStyle=color;g.beginPath();g.ellipse(x,y,rx,ry,0,0,Math.PI*2);g.fill()}
@@ -48,7 +50,7 @@ export function buildSanctuary(world,{cx,front,width}){
   })
   relief.colorSpace=THREE.SRGBColorSpace
   box(width,4.1,.35,dark,cx,2.15,front-.18)
-  const painting=mesh(new THREE.PlaneGeometry(width-.22,3.85),new THREE.MeshStandardMaterial({map:relief,bumpMap:relief,bumpScale:.035,roughness:.96}),cx,2.15,front+.01)
+  const painting=mesh(new THREE.PlaneGeometry(width-.22,3.85),new THREE.MeshStandardMaterial({map:relief,bumpMap:relief,bumpScale:.06,roughness:.68,metalness:.26}),cx,2.15,front+.01)
   painting.castShadow=false
   for(const x of[cx-width*.19,cx+width*.19])box(.09,3.9,.09,light,x,2.15,front+.07)
   // 一体の釈迦坐像。台座を含む全高を8:2の比率で構成。
@@ -76,7 +78,7 @@ export function buildSanctuary(world,{cx,front,width}){
   }
   ellipsoid(cx,base+1.94,z+.285,.045,.075,.045,light)
   box(.105,.014,.014,gold,cx,base+1.82,z+.275)
-  // 降魔触地の右手と膝上の左手はシルエットの仮案。写真との手印照合は未実施。
+  // 공식 정면 사진의 오른쪽으로 내려오는 손과 무릎 위 손의 큰 실루엣을 참고한다.
   for(const s of[-1,1]){
     const arm=ellipsoid(cx+s*.44,base+1.12,z+.03,.16,.45,.17);arm.rotation.z=s*.18
   }
@@ -88,13 +90,34 @@ export function buildSanctuary(world,{cx,front,width}){
     for(let i=0;i<128;i+=4){g.strokeStyle=i%8?'#b98b44':'#dfba78';g.beginPath();g.moveTo(0,i);g.lineTo(128,i+7);g.stroke()}
   })
   robe.material=new THREE.MeshStandardMaterial({color:'#d9b263',map:cloth,bumpMap:cloth,bumpScale:.025,roughness:.9,metalness:.15})
-  // 木製の重層 닫집。写真未照合につき簡略構成。
-  for(let r=0;r<3;r++){
-    const w=4.9-r*.45
-    box(w,.17,2.05-r*.22,dark,cx,4.08+r*.17,z-.12)
-    box(w,.055,2.1-r*.22,gold,cx,4.18+r*.17,z-.12)
+  // 정면·닫집 사진을 대조한 중층 처마와 늘어진 공포. 세부 용 조각은 추정 시안.
+  const detail=new THREE.Group();detail.name='pc-sanctuary-relief';world.scene.add(detail)
+  const miniHeads=[],miniRobes=[],curls=[]
+  // 사진의 배면 군상은 작은 입체 부조로 보강한다. 개별 인물의 초상 복원이 아니다.
+  for(const side of[-1,1])for(let row=0;row<4;row++)for(let i=0;i<7;i++){
+    const x=cx+side*(1.5+i*.52),y=1.25+row*.61,zp=front+.13
+    miniHeads.push({p:[x,y+.15,zp],s:[.09,.115,.07]})
+    miniRobes.push({p:[x,y-.05,zp],s:[.16,.19,.065]})
   }
-  for(let i=0;i<12;i++)box(.19,.22,.19,i%2?gold:dark,cx-2.17+i*.395,3.9,z+.82)
+  addInstances(detail,new THREE.SphereGeometry(1,12,8),light,miniHeads)
+  addInstances(detail,new THREE.SphereGeometry(1,12,8),gold,miniRobes)
+  for(let r=0;r<3;r++){
+    const w=4.9-r*.45,yy=4.0+r*.18,dd=2.05-r*.22
+    box(w,.12,dd,dark,cx,yy,z-.12)
+    box(w,.045,dd+.04,gold,cx,yy+.07,z-.12)
+    // 치켜오른 처마는 얇은 선과 공포로 표현해 시야를 과하게 가리지 않는다.
+    for(const sign of[-1,1]){
+      const ps=[[-w/2,.18],[-w*.36,0],[0,-.025],[w*.36,0],[w/2,.18]].map(([x,y])=>new THREE.Vector3(cx+x,yy+y,z-.12+sign*dd/2))
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(ps),28,.035,6,false),gold,0,0,0)
+    }
+    for(let i=0;i<16;i++)curls.push({p:[cx-w*.46+i*w*.92/15,yy-.14,z-.12+dd/2],s:[.07,.23,.1]})
+  }
+  addInstances(detail,new THREE.BoxGeometry(1,1,1),surface('wood','#49715d'),curls)
+  // 불단 전면의 반복 연화문. 기존 보행 경계 안쪽에만 붙인다.
+  const petals=[]
+  for(let i=0;i<12;i++){const a=i/12*Math.PI*2;petals.push({p:[cx+Math.sin(a)*.65,.64+Math.cos(a)*.25,front+1.96],s:[.17,.07,.035],r:[0,0,-a]})}
+  addInstances(detail,new THREE.SphereGeometry(1,12,8),light,petals)
+  world.quality?.add(detail)
   void hair
 }
 
@@ -114,6 +137,7 @@ export function ceilingDecoration(world,W,H){
     }
   })
   tex.colorSpace=THREE.SRGBColorSpace
+  tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(5,4)
   const top=world.mesh(new THREE.PlaneGeometry(W-2,H-2),world.M('#ffffff',{map:tex,side:THREE.DoubleSide,transparent:true}),W/2,4.6,H/2)
   top.rotation.x=Math.PI/2
   return top

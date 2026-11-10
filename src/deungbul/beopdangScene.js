@@ -32,6 +32,7 @@ export function buildHall (world) {
 
   /* 마루 */
   const wood = woodTexture(world)
+  wood.colorSpace=THREE.SRGBColorSpace
   wood.wrapS = wood.wrapT = THREE.RepeatWrapping; wood.repeat.set(7, 6)
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), M('#ffffff', { map: wood }))
   floor.rotation.x = -Math.PI / 2
@@ -41,6 +42,7 @@ export function buildHall (world) {
 
   /* 좌복이 깔린 깔개 */
   const matTex = matTexture(world)
+  matTex.colorSpace=THREE.SRGBColorSpace
   matTex.wrapS = matTex.wrapT = THREE.RepeatWrapping; matTex.repeat.set(3, 2)
   const mat = new THREE.Mesh(new THREE.PlaneGeometry(MAT.w, MAT.h), M('#ffffff', { map: matTex }))
   mat.rotation.x = -Math.PI / 2

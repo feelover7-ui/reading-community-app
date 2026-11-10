@@ -1,3 +1,5 @@
+import {mountSceneQuality,createSurfaceLibrary} from '../realismMaterials.js'
+import {addHallExteriorDetails} from '../hallExteriorDetails.js'
 import {restoreCraftProgress} from '../craftProgress.js'
 import {HALL_POLYGONS,CAMPUS_POLYGON,TERRACE_POLYGON,FORECOURT_POLYGON,LOWER_GARDEN,GREEN_AREAS,WORKSHOP_POLYGON,WORKSHOP_GATE,WORKSHOP_NORMAL,WORKSHOP_EXIT,WORKSHOP_INTERIOR_ENTRY,WORKSHOP_OFFSET,workshopPlace,workshopLocal,PATH_DECOR,GUIDE_POSITION,CONNECTOR,HALL_PATH,HALL_LANDING,routePolygon,CAMPUS_TREES,HALL_ENTRY_NORMAL,STATUE_FACING,PAGODA_APRON,SEVEN_POSITION,inWorkshop,canStandCampus,pointInPolygon} from '../classicPlacement.js'
 import {createBgm} from '../bgm.js'
@@ -291,7 +293,7 @@ function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}i
 
 /* ================= input ================= */
 const keys=new Set();
-let yaw=0,dist=9.5,overview=false,entryView=false;
+let yaw=0,dist=9.5,overview=false,entryView=false,lowView=false;
 function leaveOverview(){overview=false;document.getElementById('overviewb')?.setAttribute('aria-pressed','false');document.getElementById('overviewb')?.setAttribute('aria-label','전체 배치 보기');}
 addEventListener('keydown',e=>{
   if(e.isComposing||e.keyCode===229||e.ctrlKey||e.altKey||e.metaKey)return;
@@ -324,6 +326,8 @@ document.addEventListener('click',event=>{if(event.detail&&event.target.closest(
 installMobileViewport({onInterrupt:()=>{keys.clear();joy.reset();cameraInput.reset()}});
 const overviewButton=el('button','iconbtn','⌖');overviewButton.id='overviewb';overviewButton.type='button';overviewButton.title='전체 배치 보기';overviewButton.setAttribute('aria-label','전체 배치 보기');overviewButton.setAttribute('aria-pressed','false');document.getElementById('topbtns').append(overviewButton);
 overviewButton.onclick=()=>{if(!started||creatorOpen||ritual||modalOpen)return;if(tap)stopTap();entryView=false;overview=!overview;overviewButton.setAttribute('aria-pressed',String(overview));overviewButton.setAttribute('aria-label',overview?'걷는 시점으로 돌아가기':'전체 배치 보기');if(overview)toast('전체 배치예요. 이동하거나 다시 누르면 걷는 시점으로 돌아와요.');keys.clear();joy.reset();snapCam=true;};
+const eyeButton=el('button','iconbtn','◉');eyeButton.id='eyeb';eyeButton.type='button';eyeButton.title='눈높이 탐방 시점';eyeButton.setAttribute('aria-label','눈높이 탐방 시점');eyeButton.setAttribute('aria-pressed','false');cameraButtons.append(eyeButton);
+eyeButton.onclick=()=>{if(!started||creatorOpen||modalOpen||ritual)return;leaveOverview();entryView=false;lowView=!lowView;eyeButton.setAttribute('aria-pressed',String(lowView));eyeButton.setAttribute('aria-label',lowView?'기본 시점으로 돌아가기':'눈높이 탐방 시점');snapCam=true;};
 const hallGuide=document.getElementById('hallguide');
 hallGuide.onclick=()=>{if(!started||creatorOpen||modalOpen||ritual)return;leaveOverview();entryView=true;yaw=Math.atan2(player.x-HALL_DOOR.x,player.y-HALL_DOOR.z);toast('밝은 돌길을 따라 법당 입구로 가 보세요.');};
 const mmEl=document.getElementById('minimap');
@@ -366,6 +370,7 @@ function init3D(){
   const sun=new THREE.DirectionalLight('#fff1d6',.62*LIGHT);scene.add(sun,sun.target);
   sun.castShadow=!isTouch;const ssz=isTouch?1024:2048;sun.shadow.mapSize.set(ssz,ssz);Object.assign(sun.shadow.camera,{left:-22,right:22,top:22,bottom:-22,near:1,far:90});sun.shadow.bias=-.0008;
 
+  const quality=mountSceneQuality(renderer,{container:cameraButtons,shadows:sun});
   const workshopRoot=new THREE.Group(),campusRoot=new THREE.Group();scene.add(workshopRoot,campusRoot);workshopRoot.position.set(WORKSHOP_OFFSET.x,0,WORKSHOP_OFFSET.z);workshopRoot.updateMatrixWorld(true);let staticRoot=workshopRoot;
   const M=(color,o={})=>new THREE.MeshLambertMaterial({color,...o});
   const MAT={wall:'#5e3d27',wallTop:'#3e2818',wood:'#b07c45',woodDark:'#7a4f28',stone:'#a39d92',fence:'#77706a',fenceCap:'#3f3a36',red:'#c8402f',gold:'#d9a531',grey:'#8a8a92',roof:'#4a5560'};
@@ -401,7 +406,7 @@ function init3D(){
   /* walls that fade when they hide the player */
   const fadeables=[];const fadeGroups=[],groupMeshes=[];
   const captured=(fn)=>{const n=scene.children.length;fn();return scene.children.slice(n);};
-  function addFadeGroup(objs){const rec={mats:new Set(),op:1,box:new THREE.Box3()};objs.forEach(o=>{rec.box.expandByObject(o);o.traverse(c=>{if(c.isMesh||c.isLine){if(c.isMesh){groupMeshes.push(c);c.userData.fg=rec;}(Array.isArray(c.material)?c.material:[c.material]).forEach(m=>{m.transparent=true;rec.mats.add(m);});}});});fadeGroups.push(rec);}
+  function addFadeGroup(objs){const rec={roots:objs,mats:new Set(),op:1,box:new THREE.Box3()};objs.forEach(o=>{rec.box.expandByObject(o);o.traverse(c=>{if(c.isMesh||c.isLine){if(c.isMesh){groupMeshes.push(c);c.userData.fg=rec;}(Array.isArray(c.material)?c.material:[c.material]).forEach(m=>{m.transparent=true;rec.mats.add(m);});}});});fadeGroups.push(rec);}
   function wall(x0,z0,x1,z1,h=2.3,col=MAT.wall,cap=MAT.wallTop){const m=box(x1-x0,h,z1-z0,M(col,{transparent:true}),(x0+x1)/2,h/2,(z0+z1)/2);m.userData.attach=[];if(cap){const c=box(x1-x0+.06,.12,z1-z0+.06,M(cap,{transparent:true}),(x0+x1)/2,h+.06,(z0+z1)/2);m.userData.attach.push(c);}fadeables.push(m);return m;}
   wall(1,1,35,2);wall(1,2,2,13);wall(34,2,35,13);const wS1=wall(2,12,16,13),wS2=wall(20,12,34,13);
   const lintel=box(4,.5,1,M(MAT.wall,{transparent:true}),18,2.05,12.5);lintel.userData.attach=[];fadeables.push(lintel);
@@ -535,7 +540,9 @@ function init3D(){
     const center=poly.reduce((p,v)=>({x:p.x+v.x/4,z:p.z+v.z/4}),{x:0,z:0}),a=poly[0],b=poly[1],d=poly[3],w=Math.hypot(b.x-a.x,b.z-a.z),depth=Math.hypot(d.x-a.x,d.z-a.z),g=new THREE.Group();
     g.position.set(center.x,0,center.z);g.rotation.y=-Math.atan2(b.z-a.z,b.x-a.x);campusRoot.add(g);staticRoot=g;
     building(-(w-1.1)/2,-(depth-1.1)/2,(w-1.1)/2,(depth-1.1)/2,5.4,{base:'#e2c8a4',floors:4,roof:'#bfae96'});
-    hanok(0,0,w-1.4,depth-1.4,{y0:5.4,baseH:.25,wallH:1.9,roofH:1.8,wall:'#f3e6c8'});
+    const roof=hanok(0,0,w-1.4,depth-1.4,{y0:5.4,baseH:.25,wallH:1.9,roofH:1.8,wall:'#f3e6c8'});
+    roof.material=createSurfaceLibrary().surface('roof','#434d52');roof.material.side=THREE.DoubleSide;
+    const details=addHallExteriorDetails(g,{width:w-1.1,depth:depth-1.1});quality.add(details);
     addFadeGroup([g]);
   }
   staticRoot=campusRoot;
@@ -683,7 +690,7 @@ function init3D(){
   const toScreen=(v)=>{const p=v.clone().project(camera);return{x:(p.x+1)/2*window.innerWidth,y:(1-p.y)/2*window.innerHeight,ok:p.z<1&&p.z>-1&&p.x>-1.1&&p.x<1.1&&p.y>-1.1&&p.y<1.1};};
   const angLerp=(a,b,k)=>{let d=b-a;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;return a+d*k;};
   let last=performance.now(),t=0;
-  function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(document.hidden||!started){requestAnimationFrame(loop);return}t+=dt;
+  function loop(now){const frameMs=now-last;const dt=Math.min(.05,frameMs/1000);last=now;if(document.hidden||!started){requestAnimationFrame(loop);return}quality.sample(frameMs);t+=dt;
     if(keys.has('q')||keys.has('r')){entryView=false;leaveOverview();}if(keys.has('q'))yaw+=dt*1.6;if(keys.has('r'))yaw-=dt*1.6;
     let mx=0,my=0;const busy=dialog||modalOpen||ritual||seq||creatorOpen;
     if(started&&!busy){if(keys.has('arrowleft')||keys.has('a'))mx-=1;if(keys.has('arrowright')||keys.has('d'))mx+=1;if(keys.has('arrowup')||keys.has('w'))my-=1;if(keys.has('arrowdown')||keys.has('s'))my+=1;mx+=joy.x;my+=joy.y;}
@@ -701,8 +708,8 @@ function init3D(){
     if(carry){carry.visible=!ritual&&!creatorOpen;carry.position.set(player.x,1.85+Math.sin(t*3)*.03,player.y);}
     WALKERS.forEach((w,i)=>{if(!reducedMotion)w.a+=w.sp*dt;const m=walkerMeshes[i];m.position.set(PAGODA.x+Math.cos(w.a)*w.r,0,PAGODA.z+Math.sin(w.a)*w.r);m.rotation.y=Math.atan2(-Math.sin(w.a),Math.cos(w.a));applyPose(m,POSE.hap,t+i,!reducedMotion);});
     // camera
-    const shadows=!isTouch&&!overview;if(renderer.shadowMap.enabled!==shadows){renderer.shadowMap.enabled=shadows;renderer.shadowMap.needsUpdate=true;}
-    let yT=yaw,dT=dist,pT=.72,lyT=.9,side=0,focusX=player.x,focusZ=player.y;
+    const shadows=quality.shadows&&!overview;if(renderer.shadowMap.enabled!==shadows){renderer.shadowMap.enabled=shadows;renderer.shadowMap.needsUpdate=true;}
+    let yT=yaw,dT=dist,pT=lowView?Math.asin(Math.min(.6,1.15/dist)):.72,lyT=lowView?1.35:.9,side=0,focusX=player.x,focusZ=player.y;
     if(entryView&&!creatorOpen&&!ritual){const distance=Math.hypot(player.x-HALL_DOOR.x,player.y-HALL_DOOR.z);if(distance<3.2)entryView=false;else{focusX=player.x+(HALL_DOOR.x-player.x)*.35;focusZ=player.y+(HALL_DOOR.z-player.y)*.35;dT=Math.max(dist,Math.min(28,distance*1.1+7));pT=.62;lyT=1.1;}}
     if(overview){focusX=40;focusZ=35;yT=0;pT=1.48;const v=camera.fov*Math.PI/180,h=2*Math.atan(Math.tan(v/2)*camera.aspect);dT=Math.max(84/(2*Math.tan(h/2)),76/(2*Math.tan(v/2)))*1.1;}
     document.body.classList.toggle('overview-mode',overview);document.body.classList.toggle('entry-view',entryView);
@@ -719,7 +726,7 @@ function init3D(){
     [pc,V3(player.x,1.6,player.y)].forEach(p=>{const dir=p.clone().sub(camera.position);const dd=dir.length();ray.set(camera.position,dir.normalize());ray.far=dd-.3;ray.intersectObjects(fadeables,false).forEach(h=>hits.add(h.object));if(ray.intersectObjects(bigMeshes,false).length)hits.add('big');});
     fadeables.forEach(m=>{const tg=hits.has(m)?.18:1;const mat=m.material;mat.opacity+=(tg-mat.opacity)*Math.min(1,dt*10);mat.depthWrite=mat.opacity>.9;m.userData.attach.forEach(a=>{a.material.transparent=true;a.material.opacity=mat.opacity;a.material.depthWrite=mat.opacity>.9;});});
     {const gh=new Set();[pc,V3(player.x,1.6,player.y)].forEach(p=>{const dir=p.clone().sub(camera.position);const dd=dir.length();ray.set(camera.position,dir.normalize());ray.far=dd-.3;ray.intersectObjects(groupMeshes,false).forEach(h=>gh.add(h.object.userData.fg));});
-      fadeGroups.forEach(g=>{const tg=(gh.has(g)||g.box.containsPoint(camera.position))?.15:1;if(Math.abs(tg-g.op)<.002)return;g.op+=(tg-g.op)*Math.min(1,dt*9);g.mats.forEach(m=>{m.opacity=g.op;m.depthWrite=g.op>.9;});});}
+      fadeGroups.forEach(g=>{const blocked=gh.has(g)||g.box.containsPoint(camera.position);g.roots.forEach(o=>o.visible=!(lowView&&!overview&&blocked));const tg=blocked?.15:1;if(Math.abs(tg-g.op)<.002)return;g.op+=(tg-g.op)*Math.min(1,dt*9);g.mats.forEach(m=>{m.opacity=g.op;m.depthWrite=g.op>.9;});});}
     {const near=camera.position.distanceTo(V3(18+WORKSHOP_OFFSET.x,3.2,18.5))<6.2&&player.y<18;const tg=(hits.has('big')||near)?.2:1;bigFade+=(tg-bigFade)*Math.min(1,dt*8);bigMats.forEach(m=>{m.opacity=bigFade;m.depthWrite=bigFade>.9;});}
     // animation
     if(!reducedMotion&&scene.userData.bulbs)scene.userData.bulbs.forEach((b,i)=>{b.material.emissiveIntensity=((Math.floor(t*3)+i)%3===0)?1.2:.3;});
@@ -845,6 +852,6 @@ fontsReady.then(()=>{try{init3D();sharing.start();
   }
   startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.moving=false;onlineAt=0;lastOnlinePose='';snapCam=true;};
-if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,entryView,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
+if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,entryView,lowView,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
 startb.onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');openCreator(true);};
 })();

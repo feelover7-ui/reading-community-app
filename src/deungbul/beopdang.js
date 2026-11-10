@@ -1,3 +1,4 @@
+import {mountSceneQuality} from './realismMaterials.js'
 import {hallReturnUrl} from './mapChoiceRoutes.js'
 import {installMobileViewport} from './mobileUi.js'
 import { fitHallView } from './hallCamera.js'
@@ -273,24 +274,35 @@ if (isTouch || window.innerWidth < 640) {
 
 /* ---------- 3D 세계 ---------- */
 const world = createWorld(cv, { fov: 56, bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: !isTouch, light: .3, sunLight: .18, sky: '#ffe9c8', groundLight: '#6b4a32' })
+world.quality=mountSceneQuality(world.renderer,{container:byId('topbtns'),shadows:world.sun})
+releaseFocus(byId('qualityb'),cv)
 const hall = buildHall(world)
 const follower = createFollower(cv, world.camera, { dist: 9, pitch: .32, min: 6, max: 14, yaw: 0, lookHeight: 1.2 })
 // #17의 자동 구도. 자유 시점은 #18의 낮은 pitch/높은 시선/최소 거리를 유지한다.
-let altarView=true,firstView=true
+let altarView=true,firstView=true,altarDetail=false
 const viewButton=el('button','iconbtn','🧭')
 viewButton.type='button';viewButton.title='부처님과 내 캐릭터가 함께 보이는 시점'
 viewButton.setAttribute('aria-label',viewButton.title);viewButton.setAttribute('aria-pressed','true')
 byId('helpb').parentElement.append(viewButton)
 const freeView=()=>{
-  if(!altarView)return
-  altarView=false;viewButton.setAttribute('aria-pressed','false')
+  if(!altarView&&!altarDetail)return
+  altarDetail=false;detailButton.setAttribute('aria-pressed','false');altarView=false;viewButton.setAttribute('aria-pressed','false')
   follower.reset({yaw:follower.state.yaw,dist:9,pitch:.32})
 }
 cv.addEventListener('pointerdown',freeView)
 cv.addEventListener('camera-adjust',freeView)
 cv.addEventListener('wheel',event=>{if(!event.ctrlKey&&!event.metaKey)freeView()},{passive:true})
-viewButton.onclick=()=>{altarView=true;firstView=true;viewButton.setAttribute('aria-pressed','true');keys.clear();joy.reset()}
+viewButton.onclick=()=>{altarDetail=false;detailButton.setAttribute('aria-pressed','false');altarView=true;firstView=true;viewButton.setAttribute('aria-pressed','true');keys.clear();joy.reset()}
 releaseFocus(viewButton,cv)
+const detailButton=el('button','iconbtn','불단')
+detailButton.type='button';detailButton.style.fontSize='12px';detailButton.setAttribute('aria-label','불단 가까이 살펴보기');detailButton.setAttribute('aria-pressed','false')
+document.querySelector('.camera-tools')?.append(detailButton)
+detailButton.onclick=()=>{altarDetail=!altarDetail;firstView=true;keys.clear();joy.reset();detailButton.setAttribute('aria-pressed',String(altarDetail));viewButton.setAttribute('aria-pressed',String(!altarDetail&&altarView))}
+releaseFocus(detailButton,cv)
+const detailCaption=el('p','altar-caption','불단 살펴보기 · 이동하거나 🧭를 누르면 돌아갑니다.');detailCaption.hidden=true;byId('scene-main').append(detailCaption)
+const leaveDetail=()=>{altarDetail=false;detailButton.setAttribute('aria-pressed','false')}
+addEventListener('keydown',e=>{if(!e.isComposing&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&!e.target.isContentEditable&&!['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)&&/^(Arrow|Key[WASD])/.test(e.code))leaveDetail()})
+byId('joy')?.addEventListener('pointerdown',leaveDetail)
 const viewPosition=V3(),viewTarget=V3()
 document.querySelectorAll('.camera-tools').forEach(n=>byId('scene-main').append(n))
 const labels = createLabelLayer(world.camera,byId('scene-main'))
@@ -337,7 +349,9 @@ function update (dt) {
     bow.on ? bowPose(u, reducedMotion) : null)
   peers.update(dt)
   peers.send()
-  if(altarView){
+  if(altarDetail&&(player.moving||keys.size||Math.hypot(joy.x,joy.y)>.1)){altarDetail=false;detailButton.setAttribute('aria-pressed','false')}
+  if(altarDetail){world.camera.position.set(W/2,2.65,10.5);world.camera.lookAt(W/2,2.65,4.7);follower.state.yaw=0}
+  else if(altarView){
     const framing=fitHallView({playerX:player.x,playerZ:player.y,aspect:world.camera.aspect,fov:world.camera.fov})
     const k=firstView||reducedMotion?1:1-Math.exp(-dt*6)
     viewPosition.lerp(V3(framing.position.x,framing.position.y,framing.position.z),k)
@@ -352,6 +366,7 @@ function update (dt) {
 
 /* ---------- 그리기 ---------- */
 function render () {
+  document.body.classList.toggle('altar-detail',altarDetail);detailCaption.hidden=!altarDetail;detailButton.setAttribute('aria-pressed',String(altarDetail))
   hall.update(world.camera)
   world.render()
   const now = Date.now()
@@ -381,8 +396,9 @@ function render () {
 
 let last = performance.now(), tt = 0
 function loop (now) {
-  const dt = Math.min(.05, (now - last) / 1000); last = now; tt += dt
-  if (!document.hidden && !traveling) { update(dt); render() }
+  const frameMs=now-last
+  const dt = Math.min(.05, frameMs / 1000); last = now; tt += dt
+  if (!document.hidden && !traveling) { world.quality.sample(frameMs);update(dt); render() }
   requestAnimationFrame(loop)
 }
 
