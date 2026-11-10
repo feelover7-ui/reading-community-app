@@ -1,4 +1,4 @@
-import {HALL_POLYGONS,CAMPUS_POLYGON,TERRACE_POLYGON,FORECOURT_POLYGON,LOWER_GARDEN,GREEN_AREAS,WORKSHOP_POLYGON,WORKSHOP_GATE,WORKSHOP_NORMAL,WORKSHOP_EXIT,WORKSHOP_INTERIOR_ENTRY,CONNECTOR,CAMPUS_TREES,HALL_ENTRY_NORMAL,STATUE_FACING,PAGODA_APRON,SEVEN_POSITION,inWorkshop,canStandCampus,pointInPolygon} from '../classicPlacement.js'
+import {HALL_POLYGONS,CAMPUS_POLYGON,TERRACE_POLYGON,FORECOURT_POLYGON,LOWER_GARDEN,GREEN_AREAS,WORKSHOP_POLYGON,WORKSHOP_GATE,WORKSHOP_NORMAL,WORKSHOP_EXIT,WORKSHOP_INTERIOR_ENTRY,GUIDE_POSITION,CONNECTOR,HALL_PATH,HALL_LANDING,routePolygon,CAMPUS_TREES,HALL_ENTRY_NORMAL,STATUE_FACING,PAGODA_APRON,SEVEN_POSITION,inWorkshop,canStandCampus,pointInPolygon} from '../classicPlacement.js'
 import {buildSevenTreasure} from '../sevenTreasure.js'
 import {bindCameraGestures,mountCameraButtons,installMobileViewport} from '../mobileUi.js'
 import { CAMPUS_HALL,HALL_DOOR,STATUE_CENTER,STATUE_STAND,OUTDOOR_BUILDINGS,LANDMARK_SOURCES } from '../campusLayout.js'
@@ -108,7 +108,7 @@ const NPCS=[
   {id:'banjang',name:'등불사장 반장 법우',x:17.5,y:9.6,face:0,ap:{gender:'m',hair:'part',hairColor:'#1e1612',outfit:'vest',color:'#3f7a5c',apron:true}},
   {id:'worker',name:'용등 만드는 법우',x:21.5,y:8.6,face:Math.PI/2,ap:{gender:'f',hair:'bun',hairColor:'#3b2618',outfit:'hoodie',color:'#5d7fb8',apron:true}},
   {id:'monk',name:'스님',x:23.5,y:18.6,face:-Math.PI/2,ap:{gender:'m',hair:'bald',outfit:'robe'}},
-  {id:'guide',name:'안내하는 보살님',x:PAGODA.x-7,y:PAGODA.z+.5,face:Math.PI,ap:{gender:'f',hair:'bun',hairColor:'#3b2618',outfit:'hanbok',color:'#7a5a8f'}},
+  {id:'guide',name:'안내하는 보살님',x:GUIDE_POSITION.x,y:GUIDE_POSITION.z,face:Math.PI,ap:{gender:'f',hair:'bun',hairColor:'#3b2618',outfit:'hanbok',color:'#7a5a8f'}},
   /* 법당 내부 NPC는 기존 페이지에서 표시합니다. */];
 NPCS.forEach(n=>{solid[Math.floor(n.y-.1)][Math.floor(n.x)]=true;});
 const WALKERS=[{r:3.25,sp:.3,a:0,ap:{gender:'m',hair:'short',hairColor:'#1e1612',outfit:'practice'}},{r:3.9,sp:.25,a:2.6,ap:{gender:'f',hair:'long',hairColor:'#1e1612',outfit:'hanbok',color:'#2b5fa5'}}];
@@ -282,7 +282,7 @@ const INTERACT=[
     fn:()=>siteInfo(b),mark:[b.x+b.w/2,Math.max(3,b.floors*2.5+1.3),b.z+b.d-.4],key:'site-'+b.id})),
   {x:114,y:9.9,name:'가운데 방석 · 참배하기',fn:hallMenu,mark:[114,1.6,9.9],key:'cushion'},
   {x:114,y:19.35,name:'나가기 · 본관 앞마당',fn:exitHall,mark:[114,3,19.9],key:'hallExit'}];
-function nearest(){let best=null,bd=1;for(const it of INTERACT){const r=it.key==='hallDoor'?1.9:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
+function nearest(){let best=null,bd=1;for(const it of INTERACT){const r=it.key==='hallDoor'?2.8:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
 function targetKey(){if(state.stage>0)return['frame','paper','paint','light','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';
   if(!state.tapdoriDone)return tap?null:'tower';if(!state.statueDone)return'statue';if(!state.hallDone)return inHall()?'cushion':'hallDoor';return null;}
 function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}if(modalOpen||ritual||seq)return;const it=nearest();if(it){it.fn();updateHUD();}}
@@ -310,13 +310,15 @@ const cameraButtons=mountCameraButtons({getDistance:()=>dist,setDistance:v=>{dis
 document.getElementById('campus-app').append(cameraButtons);
 function syncEntryAccess(){
   const entry=!started||creatorOpen;
-  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,.camera-tools').forEach(n=>n.inert=entry);
+  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#hallguide,.camera-tools').forEach(n=>n.inert=entry);
   document.getElementById('title').inert=started;
   document.getElementById('creator').inert=!creatorOpen;
 }
 syncEntryAccess();
 document.addEventListener('click',event=>{if(event.detail&&event.target.closest('button')&&started&&!creatorOpen&&!modalOpen&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))cv.focus({preventScroll:true})});
 installMobileViewport({onInterrupt:()=>{keys.clear();joy.reset();cameraInput.reset()}});
+const hallGuide=document.getElementById('hallguide');
+hallGuide.onclick=()=>{if(!started||creatorOpen||modalOpen||ritual)return;yaw=Math.atan2(player.x-HALL_DOOR.x,player.y-HALL_DOOR.z);toast('밝은 돌길을 따라 법당 입구로 가 보세요.');};
 const mmEl=document.getElementById('minimap');
 function toggleMap(){mmEl.classList.toggle('hide');document.getElementById('mapb').setAttribute('aria-pressed',String(!mmEl.classList.contains('hide')));}
 if(window.innerWidth<700){mmEl.classList.add('hide');document.getElementById('mapb').setAttribute('aria-pressed','false');}
@@ -502,7 +504,7 @@ function init3D(){
       const g=glowSprite(h.L.color||'#ffcc66',2.4);g.position.set(x,ry-.62,z-.05);g.visible=state.night;g.material.opacity=.55;hungGroup.add(g);hungObjs.push({sp,h,x,y:ry-.62,z});});}
 
 
-  // PR #22의 상대 배치에 클로드의 재질·지붕·조형물을 사용한다.
+  // 본관 기준은 유지하고 최신 요청의 넓은 탑 앞마당과 돌길을 클로드 표현으로 그린다.
   staticRoot=campusRoot;
   ground(38,22,120,70,M('#6f7d52'),-.03);
   function polyGround(poly,mat,y=0){const shape=new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,-p.z))),m=new THREE.Mesh(new THREE.ShapeGeometry(shape),mat);m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;staticRoot.add(m);return m;}
@@ -513,8 +515,13 @@ function init3D(){
   for(const area of GREEN_AREAS)polyGround(area.polygon,green,.012);
   const apron=mesh(new THREE.CircleGeometry(PAGODA_APRON.r,64),paving,PAGODA.x,.016,PAGODA.z);apron.rotation.x=-Math.PI/2;
   const ringLine=mesh(new THREE.RingGeometry(GUIDED_RADIUS+.45,GUIDED_RADIUS+.52,64),M('#b3a588'),PAGODA.x,.022,PAGODA.z);ringLine.rotation.x=-Math.PI/2;
-  for(let i=1;i<CONNECTOR.length;i++){const a=CONNECTOR[i-1],b=CONNECTOR[i],len=Math.hypot(b.x-a.x,b.z-a.z),m=mesh(new THREE.PlaneGeometry(2.8,len),paving,(a.x+b.x)/2,.019,(a.z+b.z)/2);m.rotation.x=-Math.PI/2;m.rotation.z=-Math.atan2(b.x-a.x,a.z-b.z);}
-  for(const p of CONNECTOR){const c=mesh(new THREE.CircleGeometry(1.4,20),paving,p.x,.02,p.z);c.rotation.x=-Math.PI/2;}
+  const road=M('#f3e3c0',{map:repTex(paveTex,1.5,1.5)}),roadEdge=M('#ad9d80');
+  for(const path of[CONNECTOR,HALL_PATH]){
+    polyGround(routePolygon(path,3.55),roadEdge,.021);
+    polyGround(routePolygon(path),road,.024);
+    for(const p of[path[0],path.at(-1)]){const cap=mesh(new THREE.CircleGeometry(1.6,24),road,p.x,.025,p.z);cap.rotation.x=-Math.PI/2;}
+  }
+  const landing=mesh(new THREE.CircleGeometry(HALL_LANDING.r,48),paving,HALL_DOOR.x,.03,HALL_DOOR.z);landing.rotation.x=-Math.PI/2;
   for(const poly of HALL_POLYGONS){
     const center=poly.reduce((p,v)=>({x:p.x+v.x/4,z:p.z+v.z/4}),{x:0,z:0}),a=poly[0],b=poly[1],d=poly[3],w=Math.hypot(b.x-a.x,b.z-a.z),depth=Math.hypot(d.x-a.x,d.z-a.z),g=new THREE.Group();
     g.position.set(center.x,0,center.z);g.rotation.y=-Math.atan2(b.z-a.z,b.x-a.x);campusRoot.add(g);staticRoot=g;
@@ -524,8 +531,14 @@ function init3D(){
   }
   staticRoot=campusRoot;
   const dg=new THREE.Group();dg.position.set(HALL_DOOR.x-HALL_ENTRY_NORMAL.x*1.5,0,HALL_DOOR.z-HALL_ENTRY_NORMAL.z*1.5);dg.rotation.y=Math.atan2(HALL_ENTRY_NORMAL.x,HALL_ENTRY_NORMAL.z);campusRoot.add(dg);staticRoot=dg;
-  box(2.8,2.7,.16,'#765034',0,1.35,.04);box(2.3,2.25,.18,'#7d9aa8',0,1.13,.15);box(3.4,.18,1.3,'#8a7a66',0,2.85,.45);
-  textPlane('본관 · 대법당',3.8,.6).position.set(0,3.25,.2);staticRoot=campusRoot;
+  box(3.2,2.9,.24,'#633b22',0,1.45,.04);box(2.5,2.45,.25,'#a9c0b7',0,1.23,.23);box(.09,2.45,.3,'#633b22',0,1.23,.27);
+  box(4,.22,1.8,'#385e4d',0,3.05,.7);
+  for(const x of[-1.65,1.65]){box(.25,3,.28,'#744625',x,1.5,.48);mesh(new THREE.SphereGeometry(.15,12,8),M('#ffe2a0',{emissive:'#ffd27b',emissiveIntensity:.6}),x,2.35,.68);}
+  textPlane('법당 입구',3.8,.7).position.set(0,3.58,.32);staticRoot=campusRoot;
+  // 밝은 문턱 표식과 낮은 화살표는 지붕/나무 뒤에서도 입구 방향을 알려 준다.
+  const threshold=mesh(new THREE.RingGeometry(1.05,1.35,48),M('#d49d36'),HALL_DOOR.x,.04,HALL_DOOR.z);threshold.rotation.x=-Math.PI/2;
+  {const yaw=Math.atan2(HALL_ENTRY_NORMAL.x,HALL_ENTRY_NORMAL.z),cx=HALL_DOOR.x+HALL_ENTRY_NORMAL.x*2.2,cz=HALL_DOOR.z+HALL_ENTRY_NORMAL.z*2.2;
+  polyGround([[-.38,.4],[.38,.4],[.38,0],[.72,0],[0,-.8],[-.72,0],[-.38,0]].map(([x,z])=>({x:cx+x*Math.cos(yaw)+z*Math.sin(yaw),z:cz-x*Math.sin(yaw)+z*Math.cos(yaw)})),M('#b57a22'),.045);}
   const seven=buildSevenTreasure({scene:campusRoot,M,mesh,box},{...SEVEN_POSITION,y:9.3});
   /* 작업장은 북쪽의 실제 등불사장 그 자체입니다. 바깥에 같은 건물을 또 세우지 않습니다.
      남쪽 울타리의 트인 칸이 마당으로 나가는 문이고, 문·간판은 실내 쪽에서 이미 세웁니다. */
@@ -580,7 +593,7 @@ function init3D(){
   const npcMeshes=NPCS.map(n=>{const m=buildPerson(n.ap);m.position.set(n.x,0,n.y);m.rotation.y=n.face;applyPose(m,POSE.stand,0,false);return m;});
   const walkerMeshes=WALKERS.map(w=>buildPerson(w.ap));
   const labels=NPCS.map(n=>{const d=el('div','label3d',n.name);document.getElementById('campus-app').append(d);return d;});
-  const LANDMARKS=[['등불사장',WORKSHOP_GATE.x,3.4,WORKSHOP_GATE.z],['구정탑',PAGODA.x,6.8,PAGODA.z],['대행선사 동상',STATUE_CENTER.x,4,STATUE_CENTER.z],['법당 · 5층 대법당',CAMPUS_HALL.x+CAMPUS_HALL.w/2,10,CAMPUS_HALL.z+CAMPUS_HALL.d/2]].map(([n,x,y,z])=>{const d=el('div','label3d lm',n);document.getElementById('campus-app').append(d);return{n,x,y,z,d};});
+  const LANDMARKS=[['등불사장',WORKSHOP_GATE.x,3.4,WORKSHOP_GATE.z],['구정탑',PAGODA.x,6.8,PAGODA.z],['대행선사 동상',STATUE_CENTER.x,4,STATUE_CENTER.z],['법당 입구',HALL_DOOR.x,4,HALL_DOOR.z]].map(([n,x,y,z])=>{const d=el('div','label3d lm'+(n==='법당 입구'?' entrance':''),n);document.getElementById('campus-app').append(d);return{n,x,y,z,d};});
   const visiblePeers=new Map();
   const remoteLayer=createPeerLayer({scene,camera,M,mesh,box},{bowing:true,radius:Infinity});
   const orbitGuide=new THREE.Mesh(new THREE.RingGeometry(GUIDED_RADIUS-.04,GUIDED_RADIUS+.04,96),M('#d9a531',{transparent:true,opacity:.65,side:THREE.DoubleSide,depthWrite:false}));
@@ -620,15 +633,15 @@ function init3D(){
     // 도량
     poly(CAMPUS_POLYGON,'#d3c6ab');poly(FORECOURT_POLYGON,'#daceb8');
     GREEN_AREAS.forEach(p=>poly(p.polygon,'#9bab80'));poly(LOWER_GARDEN,'#9bab80');
-    g.strokeStyle='#c5b28e';g.lineWidth=5;g.lineJoin='round';g.beginPath();CONNECTOR.forEach((p,i)=>{const[x,z]=mapTf(p.x,p.z);i?g.lineTo(x,z):g.moveTo(x,z)});g.stroke();
+    g.strokeStyle='#c5b28e';g.lineWidth=5;g.lineJoin='round';for(const path of[CONNECTOR,HALL_PATH]){g.beginPath();path.forEach((p,i)=>{const[x,z]=mapTf(p.x,p.z);i?g.lineTo(x,z):g.moveTo(x,z)});g.stroke();}
     HALL_POLYGONS.forEach(p=>poly(p,'#6b655a'));
     // 등불사장
     rect(0,0,36,26.6,'#d6c5a7');rect(1,1,34,12,'#b8854a');
     for(const s2 of STATIONS)rect(s2.x,s2.y,s2.w,s2.h,'#79604b');
     rect(15,17,6,3,'#c8402f');rect(16,25.6,4,1,'#f2c037');
-    dot(PAGODA,11,'#e0d3b7');dot(PAGODA,3,'#6b6963');dot(STATUE_CENTER,3,'#9c814d');dot(HALL_DOOR,2.5,'#d69e32');
+    dot(PAGODA,11,'#e0d3b7');dot(PAGODA,3,'#6b6963');dot(STATUE_CENTER,3,'#9c814d');dot(HALL_DOOR,5,'#bd6d22');
     text('등불사장',{x:18,z:7});text('구정탑',{x:PAGODA.x,z:PAGODA.z-4});
-    text('동상',{x:STATUE_CENTER.x,z:STATUE_CENTER.z-2.5});text('법당',{x:HALL_DOOR.x,z:HALL_DOOR.z+4});
+    text('동상',{x:STATUE_CENTER.x,z:STATUE_CENTER.z-2.5});text('법당 입구',{x:HALL_DOOR.x,z:HALL_DOOR.z-2.5});
     g.fillStyle='#584c3e';g.font='12px sans-serif';g.fillText('↑ 북',214,52);
   }
   function drawMinimap(){if(mmEl.classList.contains('hide'))return;mm.drawImage(mmBg,0,0);
@@ -699,11 +712,12 @@ function init3D(){
     // overlays
     const showUI=started&&!creatorOpen;
     NPCS.forEach((n,i)=>{const near=showUI&&!dialog&&!ritual&&Math.hypot(n.x-player.x,n.y-player.y)<3.4;const s=near&&toScreen(V3(n.x,1.55,n.y));if(!s||!s.ok){labels[i].style.display='none';return;}labels[i].style.display='block';labels[i].style.left=s.x+'px';labels[i].style.top=s.y+'px';});
-    LANDMARKS.forEach(L=>{const near=showUI&&!inside&&!ritual&&!inHall()&&Math.hypot(L.x-player.x,L.z-player.y)<13&&Math.hypot(L.x-player.x,L.z-player.y)>2.2;const s=near&&toScreen(V3(L.x,L.y,L.z));if(!s||!s.ok){L.d.style.display='none';return;}L.d.style.display='block';L.d.style.left=s.x+'px';L.d.style.top=s.y+'px';});
+    LANDMARKS.forEach(L=>{const near=showUI&&!inside&&!ritual&&!inHall()&&Math.hypot(L.x-player.x,L.z-player.y)<(L.n==='법당 입구'?30:13)&&Math.hypot(L.x-player.x,L.z-player.y)>2.2;const s=near&&toScreen(V3(L.x,L.y,L.z));if(!s||!s.ok){L.d.style.display='none';return;}L.d.style.display='block';L.d.style.left=s.x+'px';L.d.style.top=s.y+'px';});
     let shown=false;
     if(showUI&&!dialog&&!modalOpen&&!ritual){for(const o of hungObjs){if(Math.abs(o.x-player.x)<.55&&Math.abs(o.z-player.y)<1.0){const s=toScreen(V3(o.x,o.y+.55,o.z));if(s.ok){wishEl.textContent=o.h.L.wish||'';wishEl.className=state.night?'night':'';wishEl.style.left=s.x+'px';wishEl.style.top=s.y+'px';wishEl.style.display='block';shown=true;}break;}}}
     if(!shown)wishEl.style.display='none';
     const it=showUI&&!busy?nearest():null;if(it){promptEl.textContent=(isTouch?'작업 버튼 · ':'Space · ')+it.name;promptEl.style.display='block';}else promptEl.style.display='none';
+    hallGuide.hidden=!showUI||!!it||!!dialog||!!modalOpen||!!ritual||!!tap||inside||Math.hypot(player.x-HALL_DOOR.x,player.y-HALL_DOOR.z)<3.5;
     drawMinimap();
     requestAnimationFrame(loop);}
   requestAnimationFrame(loop);
