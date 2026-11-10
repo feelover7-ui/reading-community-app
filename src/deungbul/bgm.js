@@ -1,123 +1,38 @@
-/* 배경음악. 음원 파일을 받지 않고 Web Audio 로 직접 만든다.
-   낮은 드론 위에 종소리를 띄엄띄엄 올린 조용한 소리다.
-   브라우저 정책상 사람이 한 번 누르기 전에는 소리가 나지 않으므로,
-   첫 눌림·키 입력에서 깨운다. 선택은 브라우저에 저장한다. */
-
-const KEY = 'hanmaum-deungbul-bgm'
-// 종소리 음정 (라 단조 오음계). 너무 높지 않게 고른다.
-const NOTES = [220, 261.63, 293.66, 329.63, 392, 440, 523.25]
-
-const readOn = () => {
-  try { return localStorage.getItem(KEY) !== 'off' } catch (e) { return true }
-}
-const writeOn = on => {
-  try { localStorage.setItem(KEY, on ? 'on' : 'off') } catch (e) {}
-}
-
-export function createBgm () {
-  let ctx = null, master = null, drone = null, timer = 0, woke = false
-  let on = readOn(), pageActive = true
-
-  function ensure () {
-    if (ctx) return ctx
-    const AC = window.AudioContext || window.webkitAudioContext
-    if (!AC) return null
-    try { ctx = new AC() } catch (e) { return null }
-    master = ctx.createGain()
-    master.gain.value = 0
-    master.connect(ctx.destination)
-    return ctx
-  }
-
-  function startDrone () {
-    if (!ctx || drone) return
-    const out = ctx.createGain(); out.gain.value = .12
-    const low = ctx.createBiquadFilter(); low.type = 'lowpass'; low.frequency.value = 420
-    out.connect(low); low.connect(master)
-    const oscs = []
-    for (const f of [110, 110.4, 164.8]) {
-      const o = ctx.createOscillator()
-      o.type = 'sine'; o.frequency.value = f
-      const g = ctx.createGain(); g.gain.value = f > 150 ? .25 : .5
-      o.connect(g); g.connect(out); o.start()
-      oscs.push(o)
-    }
-    // 아주 느린 떨림을 줘서 소리가 고여 있지 않게 한다.
-    const lfo = ctx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = .06
-    const lfoGain = ctx.createGain(); lfoGain.gain.value = .035
-    lfo.connect(lfoGain); lfoGain.connect(out.gain); lfo.start()
-    oscs.push(lfo)
-    drone = { oscs, out }
-  }
-
-  function bell (freq, when, level) {
-    if (!ctx) return
-    const g = ctx.createGain()
-    g.gain.setValueAtTime(0, when)
-    g.gain.linearRampToValueAtTime(level, when + .01)
-    g.gain.exponentialRampToValueAtTime(.0001, when + 4.5)
-    g.connect(master)
-    let voices = 3
-    for (const [mul, vol, type] of [[1, 1, 'sine'], [2.01, .3, 'sine'], [3.02, .12, 'triangle']]) {
-      const o = ctx.createOscillator()
-      o.type = type; o.frequency.value = freq * mul
-      const og = ctx.createGain(); og.gain.value = vol
-      o.connect(og); og.connect(g)
-      o.onended = () => { o.disconnect(); og.disconnect(); if (--voices === 0) g.disconnect() }
-      o.start(when); o.stop(when + 4.6)
-    }
-  }
-
-  function schedule () {
-    clearTimeout(timer); timer = 0
-    if (!on || !ctx || document.hidden || !pageActive) return
-    const now = ctx.currentTime
-    const root = NOTES[Math.floor(Math.random() * NOTES.length)]
-    bell(root, now + .05, .22)
-    if (Math.random() < .45) bell(NOTES[Math.floor(Math.random() * NOTES.length)], now + 1.1 + Math.random(), .13)
-    const gap = 6500 + Math.random() * 5000
-    timer = setTimeout(schedule, gap)
-  }
-
-  function fade (to, sec) {
-    if (!ctx || !master) return
-    const now = ctx.currentTime
-    master.gain.cancelScheduledValues(now)
-    master.gain.setValueAtTime(master.gain.value, now)
-    master.gain.linearRampToValueAtTime(to, now + sec)
-  }
-
-  const api = {
-    get on () { return on },
-    /* 사람이 처음 누르거나 키를 눌렀을 때 소리를 깨운다. */
-    wake () {
-      if (!on || document.hidden || !pageActive) return
-      if (woke && timer && ctx?.state === 'running') return
-      if (!ensure()) return
-      woke = true
-      if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-      startDrone(); fade(.5, 2.5)
-      if (!timer) schedule()
-    },
-    toggle () {
-      on = !on
-      writeOn(on)
-      if (on) { woke = false; api.wake() } else api.stop()
-      return on
-    },
-    stop () { clearTimeout(timer); timer = 0; woke = false; fade(0, .3) }
-  }
-
-  // 첫 눌림·키 입력에서 깨운다. 한 번이면 충분하다.
-  const kick = () => { api.wake() }
-  addEventListener('pointerdown', kick, { passive: true })
-  addEventListener('keydown', kick)
-  addEventListener('pagehide', () => { pageActive = false; api.stop() })
-  addEventListener('pageshow', e => { pageActive = true; if (e.persisted && ctx && on) api.wake() })
-  document.addEventListener('visibilitychange', () => {
-    if (!ctx) return
-    if (document.hidden) api.stop()
-    else if (on && pageActive) api.wake()
-  })
-  return api
+/* 자체 제작한 느린 오음계 선율과 부드러운 화음. 외부 음원/다운로드 없음. */
+const KEY='hanmaum-deungbul-bgm'
+export const MELODY=Object.freeze([196,0,220,261.63,0,293.66,261.63,220,0,196,164.81,0,196,220,0,164.81])
+export function createBgm(){
+ let ctx=null,master=null,timer=0,suspendTimer=0,step=0,pageActive=true,on=true,disposed=false
+ const voices=new Set(),listeners=[]
+ try{on=localStorage.getItem(KEY)!=='off'}catch{}
+ const listen=(node,type,fn,opt)=>{node.addEventListener(type,fn,opt);listeners.push(()=>node.removeEventListener(type,fn,opt))}
+ const ensure=()=>{if(ctx)return true;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;try{ctx=new AC();master=ctx.createGain();master.gain.value=0;master.connect(ctx.destination);return true}catch{return false}}
+ const note=(frequency,when,length,level,type='sine')=>{
+  const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=type;osc.frequency.value=frequency
+  gain.gain.setValueAtTime(.0001,when);gain.gain.linearRampToValueAtTime(level,when+.12);gain.gain.exponentialRampToValueAtTime(.0001,when+length)
+  osc.connect(gain);gain.connect(master);voices.add(osc)
+  osc.onended=()=>{voices.delete(osc);osc.disconnect();gain.disconnect()}
+  osc.start(when);osc.stop(when+length+.05)
+ }
+ const schedule=()=>{
+  timer=0;if(!on||!ctx||document.hidden||!pageActive||disposed)return
+  const now=ctx.currentTime+.06,index=step%MELODY.length,f=MELODY[index]
+  if(f){note(f,now,2.6,.105);note(f*2,now,1.6,.012)}
+  if(index%8===0){const root=index===0?98:110;note(root,now,9,.035);note(root*1.5,now,9,.019)}
+  step++;timer=setTimeout(schedule,1600)
+ }
+ const fade=(value,duration)=>{if(!ctx||!master)return;const t=ctx.currentTime;master.gain.cancelScheduledValues(t);master.gain.setValueAtTime(master.gain.value,t);master.gain.linearRampToValueAtTime(value,t+duration)}
+ const api={
+  get on(){return on},
+  wake(){if(!on||document.hidden||!pageActive||disposed||!ensure())return;clearTimeout(suspendTimer);suspendTimer=0;const activate=()=>{if(!on||document.hidden||!pageActive||disposed||ctx.state!=='running')return;fade(.45,1.8);if(!timer)schedule()};if(ctx.state==='suspended')ctx.resume().then(activate).catch(()=>{});else activate()},
+  toggle(){on=!on;try{localStorage.setItem(KEY,on?'on':'off')}catch{}if(on)api.wake();else api.stop();return on},
+  stop(){clearTimeout(timer);timer=0;fade(0,.15);for(const voice of [...voices]){try{voice.stop()}catch{}}voices.clear();clearTimeout(suspendTimer);if(ctx)suspendTimer=setTimeout(()=>{suspendTimer=0;ctx.suspend?.().catch(()=>{})},180)},
+  dispose(){api.stop();disposed=true;clearTimeout(suspendTimer);listeners.splice(0).forEach(fn=>fn());ctx?.close?.().catch(()=>{})}
+ }
+ const wake=()=>api.wake()
+ listen(window,'pointerdown',wake,{passive:true});listen(window,'keydown',wake)
+ listen(window,'pagehide',()=>{pageActive=false;api.stop()})
+ listen(window,'pageshow',e=>{pageActive=true;if(e.persisted&&ctx&&on)api.wake()})
+ listen(document,'visibilitychange',()=>{if(document.hidden)api.stop();else if(ctx&&on&&pageActive)api.wake()})
+ return api
 }
