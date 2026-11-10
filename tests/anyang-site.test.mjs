@@ -18,12 +18,12 @@ test('본관 한 동의 두 직사각 날개가 PR #22의 배치를 따른다',(
  assert.equal(CAMPUS_HALL.x,SITE_BUILDINGS[0].x)
 })
 
-test('PR #22의 방향·간격·작업장 위치에 개별 회전이나 이동이 섞이지 않는다',()=>{
+test('본관·동상·칠보탑은 PR #22의 기준 형태와 상대 위치를 유지한다',()=>{
  assert.equal(S.ref,'6f63b89b450e2c2ad92cfd9b0ff0469765912295')
  /* 작업장은 사용자 요청으로 바깥에 따로 세우지 않고 실제 등불사장 블록 자체를 쓴다.
-    그래서 PR #22 의 상대 자리를 지켜야 하는 것은 본관·구정탑·동상·칠보탑이다. */
- const originals=[S.pagoda,S.statue,S.seven,...S.hall.flat()]
- const actual=[PAGODA_CENTER,STATUE_CENTER,L.SEVEN_POSITION,...L.HALL_POLYGONS.flat()]
+    최신 요청으로 구정탑은 별도 조정하며, 본관·동상·칠보탑 기준을 유지한다. */
+ const originals=[S.statue,S.seven,...S.hall.flat()]
+ const actual=[STATUE_CENTER,L.SEVEN_POSITION,...L.HALL_POLYGONS.flat()]
  for(let i=0;i<actual.length;i++)for(let j=i+1;j<actual.length;j++)for(const axis of['x','z']){
   assert.ok(Math.abs((actual[j][axis]-actual[i][axis])-(originals[j][axis]-originals[i][axis])*L.PLACEMENT_SCALE)<1e-8)
  }
@@ -67,4 +67,31 @@ test('작업장과 마당이 한 세계로 이어져 있다',()=>{
 test('작업장 연결길의 중앙이 막히지 않고 포장이 탑 앞마당에 이어진다',()=>{
  for(let i=1;i<L.CONNECTOR.length;i++){const a=L.CONNECTOR[i-1],b=L.CONNECTOR[i];for(let t=0;t<=1;t+=.01)assert.ok(L.canStandCampus(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t))}
  const end=L.CONNECTOR.at(-1);assert.ok(Math.hypot(end.x-PAGODA_CENTER.x,end.z-PAGODA_CENTER.z)<L.PAGODA_APRON.r+1.4)
+})
+
+test('작업장은 탑의 북동쪽에 있고 문에서 탑까지 충분히 떨어져 있다',()=>{
+ const center={x:18,z:13.3}
+ assert.ok(center.x>PAGODA_CENTER.x+6&&center.z<PAGODA_CENTER.z-18)
+ const distance=Math.hypot(L.WORKSHOP_GATE.x-PAGODA_CENTER.x,L.WORKSHOP_GATE.z-PAGODA_CENTER.z)
+ assert.ok(distance>16&&distance<30)
+ const clearance=Math.min(...L.HALL_POLYGONS.map(p=>L.distanceToPolygon(PAGODA_CENTER.x,PAGODA_CENTER.z,p)))-L.PAGODA_APRON.r
+ assert.ok(clearance>6,'탑 앞마당과 법당 사이에 여유가 있어야 한다: '+clearance)
+})
+
+test('법당 안내길을 따라 문 바로 앞까지 장애물 없이 걸을 수 있다',()=>{
+ for(let i=1;i<L.HALL_PATH.length;i++){
+  const a=L.HALL_PATH[i-1],b=L.HALL_PATH[i]
+  for(let t=0;t<=1;t+=.02)assert.ok(L.canStandCampus(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t),'법당 길이 막혔다')
+ }
+ assert.deepEqual(L.HALL_PATH.at(-1),HALL_DOOR)
+ for(const path of[L.CONNECTOR,L.HALL_PATH])for(const p of L.routePolygon(path))assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.z))
+})
+
+test('옮긴 안내 인물은 길과 탑돌이를 막지 않고 걸어서 대화할 수 있다',()=>{
+ const g=L.GUIDE_POSITION
+ assert.ok(L.canStandCampus(g.x+.8,g.z))
+ for(const path of[L.CONNECTOR,L.HALL_PATH])for(let i=1;i<path.length;i++){
+  assert.ok(L.distanceToSegment(g.x,g.z,path[i-1],path[i])>1.9)
+ }
+ assert.ok(Math.hypot(g.x-PAGODA_CENTER.x,g.z-PAGODA_CENTER.z)>GUIDED_RADIUS+1)
 })

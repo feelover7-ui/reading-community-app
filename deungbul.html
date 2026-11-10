@@ -139,6 +139,10 @@ html,body{overscroll-behavior:none;touch-action:auto}
 #hudh{width:100%;min-height:44px;border:0;padding:0;background:transparent;color:inherit;text-align:left}
 #dialog .next{display:block;margin-left:auto;border:0;background:transparent;color:inherit;font:inherit;min-height:44px;padding:6px 12px;cursor:pointer}
 #creator h3{font-size:14px;margin:16px 0 8px}
+.label3d.entrance{background:#fff3c4;color:#653811;border:2px solid #bf822a;font-family:'Noto Sans KR',sans-serif;font-size:14px;padding:7px 12px;box-shadow:0 2px 8px rgba(0,0,0,.22)}
+#hallguide{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:6;min-height:44px;padding:9px 16px;border:1px solid #bd842d;border-radius:999px;background:#fff3ce;color:#653811;font:700 14px 'Noto Sans KR',sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer}
+#hallguide[hidden]{display:none}
+body.touch #hallguide{left:50%;top:auto;bottom:calc(var(--safe-bottom) + 164px);transform:translateX(-50%);max-width:calc(100vw - 140px)}
 </style>
 <link rel="stylesheet" href="/src/deungbul/mobileUi.css">
 </head>
@@ -150,7 +154,7 @@ html,body{overscroll-behavior:none;touch-action:auto}
 <div id="hud" class="panel"><button type="button" id="hudh" aria-expanded="true" aria-controls="quest-body">오늘의 소임 <small>접기</small></button><div class="body" id="quest-body"><ol id="quest"></ol><h2>본원 순례</h2><ol id="quest2"></ol><div class="foot" id="hudfoot"></div><div class="foot" id="here" role="status"></div></div></div>
 <div id="topbtns"><button class="iconbtn" id="mapb" title="지도" aria-label="지도" aria-pressed="true">🗺</button><button class="iconbtn" id="communityb" title="방명록과 대화" aria-label="방명록과 대화">💬</button><button class="iconbtn" id="dressb" title="옷 갈아입기" aria-label="옷 갈아입기">👕</button><button class="iconbtn" id="snd" title="소리" aria-label="소리 끄기" aria-pressed="true">🔊</button><button class="iconbtn" id="helpb" title="도움말" aria-label="도움말">?</button></div>
 <canvas aria-label="현재 위치 미니맵" id="minimap" width="240" height="336"></canvas>
-<div id="connection" role="status">공유 연결을 준비하고 있어요.</div><div id="prompt" role="status"></div>
+<div id="connection" role="status">공유 연결을 준비하고 있어요.</div><div id="prompt" role="status"></div><button id="hallguide" type="button" hidden>법당 입구 방향 보기</button>
 <div id="wish"></div>
 <div id="ritual" class="panel"><div class="rt" id="rtitle"></div><div id="breath">들숨</div><div class="rc" id="rcount"></div><div class="rcap" id="rcap"></div><div class="bar" id="rbarw"><i id="rbar"></i></div><div class="row"><button id="rspeed">빠르게 ×2.5</button><button class="stop" id="rstop">그만하기</button></div></div>
 <div id="tapdori" class="panel"><svg aria-hidden="true" width="52" height="52" viewBox="0 0 52 52"><circle cx="26" cy="26" r="21" fill="none" stroke="#eadcc0" stroke-width="6"/><circle id="tapring" cx="26" cy="26" r="21" fill="none" stroke="#c8402f" stroke-width="6" stroke-linecap="round" stroke-dasharray="131.9" stroke-dashoffset="131.9" transform="rotate(-90 26 26)"/></svg><div><div class="tt" id="taptxt">탑돌이 0 / 3바퀴</div><div class="ts">탑을 오른쪽에 두고 시계 방향으로</div></div><button id="tapstop">멈추기</button></div>
