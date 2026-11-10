@@ -268,7 +268,7 @@ export function createFollower (cv, camera, opt = {}) {
 
 /* ---------- 화면 위 글자 ----------
    이름표·말풍선·안내는 3D 위치를 화면 좌표로 옮겨 DOM 으로 띄웁니다. */
-export function createLabelLayer (camera) {
+export function createLabelLayer (camera, parent = document.body) {
   const pool = []
   function toScreen (v) {
     const p = v.clone().project(camera)
@@ -276,7 +276,7 @@ export function createLabelLayer (camera) {
   }
   function take (i, cls) {
     let d = pool[i]
-    if (!d) { d = document.createElement('div'); document.body.append(d); pool[i] = d }
+    if (!d) { d = document.createElement('div'); parent.append(d); pool[i] = d }
     if (d.className !== cls) d.className = cls
     return d
   }

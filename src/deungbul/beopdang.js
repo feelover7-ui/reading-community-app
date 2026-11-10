@@ -265,10 +265,6 @@ function toggleHud () {
 hudH.addEventListener('click', toggleHud)
 for (const id of ['act', 'helpb', 'bgmb', 'chatb', 'bowstop', 'backb']) releaseFocus(byId(id), cv)
 releaseFocus(hudH, cv)
-hudH.addEventListener('keydown', e => {
-  if (e.key !== 'Enter' && e.key !== ' ') return
-  e.preventDefault(); e.stopPropagation(); toggleHud()
-})
 if (isTouch || window.innerWidth < 640) {
   hudEl.classList.add('collapsed')
   hudH.querySelector('small').textContent = '펼치기'
@@ -296,7 +292,8 @@ cv.addEventListener('wheel',event=>{if(!event.ctrlKey&&!event.metaKey)freeView()
 viewButton.onclick=()=>{altarView=true;firstView=true;viewButton.setAttribute('aria-pressed','true');keys.clear();joy.reset()}
 releaseFocus(viewButton,cv)
 const viewPosition=V3(),viewTarget=V3()
-const labels = createLabelLayer(world.camera)
+document.querySelectorAll('.camera-tools').forEach(n=>byId('scene-main').append(n))
+const labels = createLabelLayer(world.camera,byId('scene-main'))
 const meBody = makePerson(world, myLook)
 const hallPeers = createHallPeers(world)
 /* 법당 안이라 카메라를 방 안에 가둔다. */
