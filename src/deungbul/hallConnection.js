@@ -1,3 +1,5 @@
+import {addFacadeFinish} from './exteriorFinish.js'
+import {createSurfaceLibrary} from './realismMaterials.js'
 import * as THREE from 'three'
 
 // 도량을 y=0으로 유지한다. 실측 층고가 아닌 게임용 높이 관계다.
@@ -27,7 +29,8 @@ export function hallOpening(frame,door,normal){
 
 export function buildHallConnection(parent,{polygon,door,normal}){
  const f=hallWingFrame(polygon),g=new THREE.Group();g.name='hall-five-floor-base';g.position.set(f.center.x,0,f.center.z);g.rotation.y=f.yaw;parent.add(g)
- const opening=hallOpening(f,door,normal),wall=new THREE.MeshLambertMaterial({color:'#e2c8a4'}),slab=new THREE.MeshLambertMaterial({color:'#bfae96'})
+ const {surface}=createSurfaceLibrary()
+ const opening=hallOpening(f,door,normal),wall=surface('stone','#dfd6c5'),slab=surface('stone','#c3bba8')
  const box=(w,h,d,x,y,z,mat=wall)=>{if(w<=0||h<=0||d<=0)return;const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;g.add(m)}
  for(let floor=1;floor<=4;floor++){
   const y=floorY(floor)
@@ -42,19 +45,8 @@ export function buildHallConnection(parent,{polygon,door,normal}){
   }
  }
  box(f.width,.12,f.depth,0,floorY(5)-.06,0,slab)
- // 기본 창은 정밀 장식 그룹 밖에 둔다. 자동 저화질에서도 층을 읽을 수 있다.
- const windows=[]
- for(const axis of ['x','z'])for(const sign of [-1,1]){
-  const len=axis==='x'?f.depth:f.width,at=sign*(axis==='x'?f.width:f.depth)/2,count=Math.max(2,Math.floor(len/1.6)),step=(len-.6)/count
-  for(let floor=1;floor<=5;floor++)for(let i=0;i<count;i++){
-   const across=-len/2+.3+(i+.5)*step,ww=step*.67
-   if(floor===3&&opening?.axis===axis&&opening.sign===sign&&Math.abs(across-opening.center)<opening.halfWidth+ww/2)continue
-   const m=new THREE.Matrix4(),position=axis==='x'?new THREE.Vector3(at+sign*.1,floorY(floor)+FLOOR_HEIGHT*.5,across):new THREE.Vector3(across,floorY(floor)+FLOOR_HEIGHT*.5,at+sign*.1)
-   m.compose(position,new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),axis==='x'?Math.PI/2:0),new THREE.Vector3(ww,FLOOR_HEIGHT*.57,.03));windows.push(m)
-  }
- }
- const glass=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshLambertMaterial({color:'#51666a'}),windows.length)
- windows.forEach((m,i)=>glass.setMatrixAt(i,m));glass.instanceMatrix.needsUpdate=true;g.add(glass)
+ // 창틀과 안쪽 유리는 가벼운 화질에서도 유지한다.
+ addFacadeFinish(g,{width:f.width,depth:f.depth,baseY:floorY(1),floorHeight:FLOOR_HEIGHT,floors:5,opening})
  g.userData.opening=opening;g.userData.frame=f
  return g
 }

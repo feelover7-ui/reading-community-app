@@ -1,3 +1,4 @@
+import {HALL_ROOM} from './hallProportions.js'
 /* 공식 설명에 따른 독자 제작 시안. 사진 복제/실측 복원이 아니다. */
 import {THREE} from './three3d.js'
 import {createSurfaceLibrary,addInstances} from './realismMaterials.js'
@@ -138,7 +139,7 @@ export function ceilingDecoration(world,W,H){
   })
   tex.colorSpace=THREE.SRGBColorSpace
   tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(5,4)
-  const top=world.mesh(new THREE.PlaneGeometry(W-2,H-2),world.M('#ffffff',{map:tex,side:THREE.DoubleSide,transparent:true}),W/2,4.6,H/2)
+  const top=world.mesh(new THREE.PlaneGeometry(W-2,H-2),world.M('#ffffff',{map:tex,side:THREE.DoubleSide,transparent:true}),W/2,HALL_ROOM.ceiling,H/2)
   top.rotation.x=Math.PI/2
   return top
 }

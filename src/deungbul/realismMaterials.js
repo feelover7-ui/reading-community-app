@@ -6,18 +6,25 @@ export function createSurfaceLibrary(){
   const cache=new Map(),textures=[]
   function surface(kind,color){
     const key=kind+color;if(cache.has(key))return cache.get(key)
-    const n=128,data=new Uint8Array(n*n*4),base=new THREE.Color(color).getRGB({},THREE.SRGBColorSpace)
+    const n=128,data=new Uint8Array(n*n*4),height=new Uint8Array(n*n*4),base=new THREE.Color(color).getRGB({},THREE.SRGBColorSpace)
     for(let y=0;y<n;y++)for(let x=0;x<n;x++){
       const noise=Math.sin(x*127.1+y*311.7)*43758.5453,grain=noise-Math.floor(noise)
-      const seam=kind==='roof'?Math.sin(x*Math.PI/8)*.09:0
-      const v=1+(grain-.5)*.13+seam+(kind==='wood'?Math.sin(y*.9+Math.sin(x*.06)*2)*.065:0)
+      const roofWave=(Math.cos(x*Math.PI/8)+1)/2
+      const stoneJoint=x%32<1||y%24<1
+      const tileJoint=y%32<1||(x+(Math.floor(y/32)%2)*16)%32<1
+      const joint=(kind==='stone'&&stoneJoint)||(kind==='paving'&&tileJoint)
+      const seam=kind==='roof'?roofWave*.065:0
+      const v=1+(grain-.5)*.035+seam+(kind==='wood'?Math.sin(y*.9+Math.sin(x*.06)*2)*.065:0)-(joint?.12:0)
       const i=(y*n+x)*4
       data[i]=Math.min(255,Math.max(0,Math.round(base.r*255*v)))
       data[i+1]=Math.min(255,Math.max(0,Math.round(base.g*255*v)))
       data[i+2]=Math.min(255,Math.max(0,Math.round(base.b*255*v)));data[i+3]=255
+      const bump=joint?45:kind==='roof'?95+roofWave*100:150+grain*6
+      height[i]=height[i+1]=height[i+2]=Math.round(bump);height[i+3]=255
     }
     const map=new THREE.DataTexture(data,n,n);map.colorSpace=THREE.SRGBColorSpace;map.wrapS=map.wrapT=THREE.RepeatWrapping;map.needsUpdate=true;textures.push(map)
-    const mat=new THREE.MeshStandardMaterial({map,bumpMap:map,bumpScale:kind==='stone'?.025:.012,roughness:kind==='metal'?.43:.88,metalness:kind==='metal'?.3:0})
+    const bumpMap=new THREE.DataTexture(height,n,n);bumpMap.wrapS=bumpMap.wrapT=THREE.RepeatWrapping;bumpMap.needsUpdate=true;textures.push(bumpMap)
+    const mat=new THREE.MeshStandardMaterial({map,bumpMap,bumpScale:kind==='roof'?.035:kind==='paving'?.003:kind==='stone'?.008:.012,roughness:kind==='glass'?.26:kind==='metal'?.43:kind==='wood'?.72:.88,metalness:kind==='glass'?.12:kind==='metal'?.3:0})
     cache.set(key,mat);return mat
   }
   return {surface,dispose(){for(const m of cache.values())m.dispose();for(const t of textures)t.dispose();cache.clear()}}

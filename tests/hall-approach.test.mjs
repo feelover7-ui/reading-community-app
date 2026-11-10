@@ -18,7 +18,7 @@ test('3층 문은 실제 개구부이고 아래 두 층 외벽은 남는다',()=
  assert.equal(ray.intersectObjects(g.children,true).length,0,'외부에서 3층 문 앞을 가로막는 벽이 없다')
  ray.set(new THREE.Vector3(L.HALL_ENTRY.x,-2.5,L.HALL_ENTRY.z),direction)
  assert.ok(ray.intersectObjects(g.children,true).length>0,'1층 외벽은 걷어내지 않는다')
- assert.ok(g.children.some(o=>o.isInstancedMesh),'가벼운 화질에서도 기본 창호가 남는다')
+ let basicWindows=false;g.traverse(o=>{if(o.isInstancedMesh)basicWindows=true});assert.ok(basicWindows,'가벼운 화질에서도 기본 창호가 남는다')
 })
 test('정밀 창호를 켜도 3층 개구부를 창문이 덮지 않는다',()=>{
  const parent=new THREE.Group(),g=H.buildHallConnection(parent,{polygon:L.HALL_POLYGONS[0],door:L.HALL_ENTRY,normal:L.HALL_ENTRY_NORMAL})

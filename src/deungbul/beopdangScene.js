@@ -1,3 +1,4 @@
+import {HALL_ROOM} from './hallProportions.js'
 /* 대법당 3D 장면.
    2D 때와 같은 타일 좌표(beopdangData)를 받아 안쪽을 세웁니다.
    공식 안내의 내부 사진을 보고 특징만 줄여 직접 만들었습니다. 사진을 복제하지 않습니다. */
@@ -34,7 +35,7 @@ export function buildHall (world) {
   const wood = woodTexture(world)
   wood.colorSpace=THREE.SRGBColorSpace
   wood.wrapS = wood.wrapT = THREE.RepeatWrapping; wood.repeat.set(7, 6)
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), M('#ffffff', { map: wood }))
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshStandardMaterial({map:wood,bumpMap:wood,bumpScale:.012,roughness:.76}))
   floor.rotation.x = -Math.PI / 2
   floor.position.set(W / 2, 0, H / 2)
   floor.receiveShadow = true
@@ -56,8 +57,8 @@ export function buildHall (world) {
   const wallParts = []
   const wall = (x0, z0, x1, z1) => {
     const w = x1 - x0, d = z1 - z0
-    const m = box(w, 3.6, d, M('#c1ad8f', { transparent: true }), x0 + w / 2, 1.8, z0 + d / 2)
-    const cap = box(w + .1, .2, d + .1, M('#4a2f1d', { transparent: true }), x0 + w / 2, 3.72, z0 + d / 2)
+    const m = box(w, HALL_ROOM.wall, d, M('#c1ad8f', { transparent: true }), x0 + w / 2, HALL_ROOM.wall/2, z0 + d / 2)
+    const cap = box(w + .1, .2, d + .1, M('#4a2f1d', { transparent: true }), x0 + w / 2, HALL_ROOM.wall+.12, z0 + d / 2)
     world.addFade(m); m.userData.attach.push(cap)
     const axis = w < d ? 'x' : 'z'
     const at = axis === 'x' ? x0 + w / 2 : z0 + d / 2
@@ -83,22 +84,22 @@ export function buildHall (world) {
   onWall(box(.12, 2.4, .22, M('#8a5e3c', { transparent: true }), DOOR.x + DOOR.w / 2, 1.2, H - .95), 'z', H - .95)
   // 단청 띠
   for (let i = 0; i < W; i += 1) {
-    onWall(box(.8, .2, .08, M(DANCHEONG[i % 4], { transparent: true }), i + .5, 3.2, 1.05), 'z', 1.05)
+    onWall(box(.8, .2, .08, M(DANCHEONG[i % 4], { transparent: true }), i + .5, HALL_ROOM.wallBand, 1.05), 'z', 1.05)
   }
   for (const z of [3, 7, 11, 15]) {
-    onWall(box(.08, .2, .8, M(DANCHEONG[z % 4], { transparent: true }), 1.05, 3.2, z), 'x', 1.05)
-    onWall(box(.08, .2, .8, M(DANCHEONG[(z + 2) % 4], { transparent: true }), W - 1.05, 3.2, z), 'x', W - 1.05)
+    onWall(box(.08, .2, .8, M(DANCHEONG[z % 4], { transparent: true }), 1.05, HALL_ROOM.wallBand, z), 'x', 1.05)
+    onWall(box(.08, .2, .8, M(DANCHEONG[(z + 2) % 4], { transparent: true }), W - 1.05, HALL_ROOM.wallBand, z), 'x', W - 1.05)
   }
   // 옆벽 창
   for (const z of [6, 9, 12, 15]) {
-    onWall(box(.1, 1.1, 1.2, M('#cfe0e4', { transparent: true }), 1.02, 1.9, z), 'x', 1.02)
-    onWall(box(.1, 1.1, 1.2, M('#cfe0e4', { transparent: true }), W - 1.02, 1.9, z), 'x', W - 1.02)
+    onWall(box(.1, HALL_ROOM.windowHeight, 1.2, M('#cfe0e4', { transparent: true }), 1.02, HALL_ROOM.windowCenter, z), 'x', 1.02)
+    onWall(box(.1, HALL_ROOM.windowHeight, 1.2, M('#cfe0e4', { transparent: true }), W - 1.02, HALL_ROOM.windowCenter, z), 'x', W - 1.02)
   }
 
   // 창살은 벽의 소실 처리에 같이 등록한다.
   for(const x of[1.1,W-1.1])for(const z of[6,9,12,15]){
-    for(let i=-2;i<=2;i++)onWall(box(.07,1.1,.035,M('#6b5034',{transparent:true}),x,1.9,z+i*.22),'x',x)
-    for(const y of[1.55,1.9,2.25])onWall(box(.07,.035,1.2,M('#6b5034',{transparent:true}),x,y,z),'x',x)
+    for(let i=-2;i<=2;i++)onWall(box(.07,HALL_ROOM.windowHeight,.035,M('#6b5034',{transparent:true}),x,HALL_ROOM.windowCenter,z+i*.22),'x',x)
+    for(const y of[HALL_ROOM.windowCenter-HALL_ROOM.windowHeight/2,HALL_ROOM.windowCenter,HALL_ROOM.windowCenter+HALL_ROOM.windowHeight/2])onWall(box(.07,.035,1.2,M('#6b5034',{transparent:true}),x,y,z),'x',x)
   }
 
   /* 좌복 */
@@ -148,20 +149,23 @@ export function buildHall (world) {
   const ceil = ceilingDecoration(world,W,H)
   ceilParts.push(ceil)
   for (let i = 1; i < 6; i++) {
-    ceilParts.push(box(W - 2, .22, .3, M('#4a2f1d', { transparent: true }), W / 2, 4.42, 3 + i * 3))
+    ceilParts.push(box(W - 2, .22, .3, M('#4a2f1d', { transparent: true }), W / 2, HALL_ROOM.beam, 3 + i * 3))
+  }
+  for(const x of[4,8,12,16,20,24]){
+    ceilParts.push(box(.16,.16,H-2,M('#6b4731',{transparent:true}),x,HALL_ROOM.beam+.04,H/2))
   }
   // 평반자 가장자리를 보로 연결하는 빗반자. 실제 경사/치수는 실측값이 아니다.
   for(const side of[-1,1]){
-    const panel=box(1.45,.09,H-2,M('#477363',{transparent:true}),side<0?1.65:W-1.65,4.25,H/2)
+    const panel=box(1.45,.09,H-2,M('#477363',{transparent:true}),side<0?1.65:W-1.65,HALL_ROOM.ceiling-.35,H/2)
     panel.rotation.z=side*.45;ceilParts.push(panel)
-    for(const z of[6,9,12,15])ceilParts.push(box(.09,.16,1.4,M('#c1a568',{transparent:true}),side<0?1.15:W-1.15,3.65,z))
+    for(const z of[6,9,12,15])ceilParts.push(box(.09,.16,1.4,M('#c1a568',{transparent:true}),side<0?1.15:W-1.15,HALL_ROOM.wall+.05,z))
   }
-  const CEIL_Y = 4.3
+  const CEIL_Y = HALL_ROOM.cutaway
 
   /* 안쪽 등. 바깥 햇빛이 닿지 않아 따로 밝힌다. */
-  for (const [lx, lz, inten] of [[W / 2, 4, 16], [W / 2, 10, 13], [W / 2, 16, 11]]) {
+  for (const [lx, lz, inten] of [[W / 2, 4, 22], [W / 2, 10, 19], [W / 2, 16, 16]]) {
     const l = new THREE.PointLight('#ffe6bd', inten, 26, 2)
-    l.position.set(lx, 4.2, lz)
+    l.position.set(lx, HALL_ROOM.lightY, lz)
     scene.add(l)
   }
 
@@ -179,6 +183,7 @@ export function buildHall (world) {
       const set = (mesh, want) => {
         const mat = mesh.material
         mat.transparent = true
+        if(want===0){mat.opacity=0;mat.depthWrite=false;mesh.visible=false;return}
         mat.opacity += (want - mat.opacity) * k
         mat.depthWrite = mat.opacity > .9
         mesh.visible = mat.opacity > .02
@@ -187,8 +192,8 @@ export function buildHall (world) {
       for (const p of wallParts) {
         const v = p.axis === 'x' ? cam.x : cam.z
         const out = p.outside > 0 ? v > p.at : v < p.at
-        set(p.m, out ? .05 : 1)
-        set(p.cap, out ? .05 : 1)
+        set(p.m, out ? 0 : 1)
+        set(p.cap, out ? 0 : 1)
       }
     }
   }
