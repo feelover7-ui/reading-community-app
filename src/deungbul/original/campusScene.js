@@ -1,7 +1,7 @@
 import {mountSceneQuality,createSurfaceLibrary} from '../realismMaterials.js'
 import {addHallExteriorDetails} from '../hallExteriorDetails.js'
 import {restoreCraftProgress} from '../craftProgress.js'
-import {HALL_POLYGONS,CAMPUS_POLYGON,TERRACE_POLYGON,FORECOURT_POLYGON,LOWER_GARDEN,GREEN_AREAS,WORKSHOP_POLYGON,WORKSHOP_GATE,WORKSHOP_NORMAL,WORKSHOP_EXIT,WORKSHOP_INTERIOR_ENTRY,WORKSHOP_OFFSET,workshopPlace,workshopLocal,PATH_DECOR,GUIDE_POSITION,CONNECTOR,HALL_PATH,HALL_LANDING,routePolygon,CAMPUS_TREES,HALL_ENTRY_NORMAL,STATUE_FACING,PAGODA_APRON,SEVEN_POSITION,inWorkshop,canStandCampus,pointInPolygon} from '../classicPlacement.js'
+import {HALL_POLYGONS,CAMPUS_POLYGON,TERRACE_POLYGON,FORECOURT_POLYGON,LOWER_GARDEN,GREEN_AREAS,WORKSHOP_POLYGON,WORKSHOP_GATE,WORKSHOP_NORMAL,WORKSHOP_EXIT,WORKSHOP_INTERIOR_ENTRY,WORKSHOP_OFFSET,SCENE_VIEW,workshopPlace,workshopLocal,PATH_DECOR,GUIDE_POSITION,CONNECTOR,HALL_PATH,HALL_LANDING,routePolygon,CAMPUS_TREES,HALL_ENTRY_NORMAL,STATUE_FACING,PAGODA_APRON,SEVEN_POSITION,inWorkshop,canStandCampus,pointInPolygon} from '../classicPlacement.js'
 import {createBgm} from '../bgm.js'
 import {buildSevenTreasure} from '../sevenTreasure.js'
 import {bindCameraGestures,mountCameraButtons,installMobileViewport} from '../mobileUi.js'
@@ -556,7 +556,7 @@ function init3D(){
   {const yaw=Math.atan2(HALL_ENTRY_NORMAL.x,HALL_ENTRY_NORMAL.z),cx=HALL_DOOR.x+HALL_ENTRY_NORMAL.x*2.2,cz=HALL_DOOR.z+HALL_ENTRY_NORMAL.z*2.2;
   polyGround([[-.38,.4],[.38,.4],[.38,0],[.72,0],[0,-.8],[-.72,0],[-.38,0]].map(([x,z])=>({x:cx+x*Math.cos(yaw)+z*Math.sin(yaw),z:cz-x*Math.sin(yaw)+z*Math.cos(yaw)})),M('#b57a22'),.045);}
   const seven=buildSevenTreasure({scene:campusRoot,M,mesh,box},{...SEVEN_POSITION,y:9.3});
-  /* 작업장은 북쪽의 실제 등불사장 그 자체입니다. 바깥에 같은 건물을 또 세우지 않습니다.
+  /* 작업장은 구정탑 정북쪽의 등불사장 그 자체입니다. 바깥에 같은 건물을 또 세우지 않습니다.
      남쪽 울타리의 트인 칸이 마당으로 나가는 문이고, 문·간판은 실내 쪽에서 이미 세웁니다. */
   for(const [x,z]of CTREES)tree(x+.5,z+.5,.85+hash(x,z)*.3);
   const pagodaModel=buildPagoda({scene:campusRoot,M,mesh}),pagodaGoldM=pagodaModel.accentMaterial;
@@ -647,7 +647,8 @@ function init3D(){
   /* One map per connected room; both use the same north-up world coordinates. */
   const mm=mmEl.getContext('2d'),mmBg=document.createElement('canvas');
   /* 작업장과 마당이 한 세계로 이어져 있으므로 지도도 한 장입니다. */
-  const mapTf=(x,z)=>[14+x*3.7,30+z*3.7];
+  const mapScale=Math.min(312/(SCENE_VIEW.maxX-SCENE_VIEW.minX),272/(SCENE_VIEW.maxZ-SCENE_VIEW.minZ));
+  const mapTf=(x,z)=>[170+(x-(SCENE_VIEW.minX+SCENE_VIEW.maxX)/2)*mapScale,150+(z-(SCENE_VIEW.minZ+SCENE_VIEW.maxZ)/2)*mapScale];
   {
     const c=mmBg;c.width=340;c.height=300;const g=c.getContext('2d');
     g.fillStyle='#f3ead8';g.fillRect(0,0,340,300);g.fillStyle='#584c3e';g.font='bold 18px sans-serif';g.textAlign='center';g.fillText('등불사장과 본원',170,22);
@@ -711,7 +712,7 @@ function init3D(){
     const shadows=quality.shadows&&!overview;if(renderer.shadowMap.enabled!==shadows){renderer.shadowMap.enabled=shadows;renderer.shadowMap.needsUpdate=true;}
     let yT=yaw,dT=dist,pT=lowView?Math.asin(Math.min(.6,1.15/dist)):.72,lyT=lowView?1.35:.9,side=0,focusX=player.x,focusZ=player.y;
     if(entryView&&!creatorOpen&&!ritual){const distance=Math.hypot(player.x-HALL_DOOR.x,player.y-HALL_DOOR.z);if(distance<3.2)entryView=false;else{focusX=player.x+(HALL_DOOR.x-player.x)*.35;focusZ=player.y+(HALL_DOOR.z-player.y)*.35;dT=Math.max(dist,Math.min(28,distance*1.1+7));pT=.62;lyT=1.1;}}
-    if(overview){focusX=40;focusZ=35;yT=0;pT=1.48;const v=camera.fov*Math.PI/180,h=2*Math.atan(Math.tan(v/2)*camera.aspect);dT=Math.max(84/(2*Math.tan(h/2)),76/(2*Math.tan(v/2)))*1.1;}
+    if(overview){focusX=(SCENE_VIEW.minX+SCENE_VIEW.maxX)/2;focusZ=(SCENE_VIEW.minZ+SCENE_VIEW.maxZ)/2;yT=0;pT=1.48;const v=camera.fov*Math.PI/180,h=2*Math.atan(Math.tan(v/2)*camera.aspect);dT=Math.max((SCENE_VIEW.maxX-SCENE_VIEW.minX)/(2*Math.tan(h/2)),(SCENE_VIEW.maxZ-SCENE_VIEW.minZ)/(2*Math.tan(v/2)))*1.1;}
     document.body.classList.toggle('overview-mode',overview);document.body.classList.toggle('entry-view',entryView);
     scene.fog.near=overview?180:(state.night?20:38);scene.fog.far=overview?350:(state.night?70:95);
     if(creatorOpen){entryView=false;leaveOverview();yT=creatorYaw;dT=window.innerWidth<700?4.6:3.2;pT=.2;lyT=window.innerWidth<700?-.45:.82;side=window.innerWidth<700?0:.75;}
