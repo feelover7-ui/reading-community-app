@@ -296,9 +296,9 @@ function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}i
 
 /* ================= input ================= */
 const keys=new Set();
-let yaw=0,dist=9.5,overview=false,entryView=false,lowView=false,hallAuto=false,autoYaw=0,viewYaw=0;
+let yaw=0,dist=9.5,overview=false,lowView=false,hallAuto=false,autoYaw=0,viewYaw=0;
 const hallApproach=createHallApproach();
-const manualCamera=()=>{if(hallAuto){yaw=viewYaw;hallAuto=false;}hallApproach.manual();entryView=false;leaveOverview()};
+const manualCamera=()=>{if(hallAuto){yaw=viewYaw;hallAuto=false;}hallApproach.manual();leaveOverview()};
 function leaveOverview(){overview=false;document.getElementById('overviewb')?.setAttribute('aria-pressed','false');document.getElementById('overviewb')?.setAttribute('aria-label','전체 배치 보기');}
 addEventListener('keydown',e=>{
   if(e.isComposing||e.keyCode===229||e.ctrlKey||e.altKey||e.metaKey)return;
@@ -322,7 +322,7 @@ const cameraButtons=mountCameraButtons({getDistance:()=>dist,setDistance:v=>{man
 document.getElementById('campus-app').append(cameraButtons);
 function syncEntryAccess(){
   const entry=!started||creatorOpen;
-  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#hallguide,.camera-tools').forEach(n=>n.inert=entry);
+  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,.camera-tools').forEach(n=>n.inert=entry);
   document.getElementById('title').inert=started;
   document.getElementById('creator').inert=!creatorOpen;
 }
@@ -330,15 +330,13 @@ syncEntryAccess();
 document.addEventListener('click',event=>{if(event.detail&&event.target.closest('button')&&started&&!creatorOpen&&!modalOpen&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))cv.focus({preventScroll:true})});
 installMobileViewport({onInterrupt:()=>{keys.clear();joy.reset();cameraInput.reset()}});
 const overviewButton=el('button','iconbtn','⌖');overviewButton.id='overviewb';overviewButton.type='button';overviewButton.title='전체 배치 보기';overviewButton.setAttribute('aria-label','전체 배치 보기');overviewButton.setAttribute('aria-pressed','false');document.getElementById('topbtns').append(overviewButton);
-overviewButton.onclick=()=>{if(!started||creatorOpen||ritual||modalOpen)return;if(tap)stopTap();entryView=false;overview=!overview;overviewButton.setAttribute('aria-pressed',String(overview));overviewButton.setAttribute('aria-label',overview?'걷는 시점으로 돌아가기':'전체 배치 보기');if(overview)toast('전체 배치예요. 이동하거나 다시 누르면 걷는 시점으로 돌아와요.');keys.clear();joy.reset();snapCam=true;};
+overviewButton.onclick=()=>{if(!started||creatorOpen||ritual||modalOpen)return;if(tap)stopTap();overview=!overview;overviewButton.setAttribute('aria-pressed',String(overview));overviewButton.setAttribute('aria-label',overview?'걷는 시점으로 돌아가기':'전체 배치 보기');if(overview)toast('전체 배치예요. 이동하거나 다시 누르면 걷는 시점으로 돌아와요.');keys.clear();joy.reset();snapCam=true;};
 const eyeButton=el('button','iconbtn','◉');eyeButton.id='eyeb';eyeButton.type='button';eyeButton.title='눈높이 탐방 시점';eyeButton.setAttribute('aria-label','눈높이 탐방 시점');eyeButton.setAttribute('aria-pressed','false');cameraButtons.append(eyeButton);
 eyeButton.onclick=()=>{if(!started||creatorOpen||modalOpen||ritual)return;manualCamera();lowView=!lowView;eyeButton.setAttribute('aria-pressed',String(lowView));eyeButton.setAttribute('aria-label',lowView?'기본 시점으로 돌아가기':'눈높이 탐방 시점');snapCam=true;};
-const hallGuide=document.getElementById('hallguide');
-hallGuide.onclick=()=>{if(!started||creatorOpen||modalOpen||ritual)return;leaveOverview();entryView=true;yaw=Math.atan2(player.x-HALL_DOOR.x,player.y-HALL_DOOR.z);toast('본원 3층 연결문 방향입니다. 도량을 걸어서 이동해 보세요.');};
 const mmEl=document.getElementById('minimap');
 function toggleMap(){mmEl.classList.toggle('hide');document.getElementById('mapb').setAttribute('aria-pressed',String(!mmEl.classList.contains('hide')));}
 if(window.innerWidth<700){mmEl.classList.add('hide');document.getElementById('mapb').setAttribute('aria-pressed','false');}
-document.getElementById('mapb').onclick=()=>{entryView=false;toggleMap();};
+document.getElementById('mapb').onclick=toggleMap;
 function appendSourceRefs(parent,kind){
   const kinds=kind?[kind]:['pagoda','statue'];
   for(const key of kinds){
@@ -718,7 +716,7 @@ function init3D(){
     updateTap();
     if(creatorOpen)player.face=creatorYaw+Math.sin(t*.7)*.5;
     playerContact.position.set(player.x,.035,player.y);pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?POSE.stand:player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
-    const inside=inWorkshop(player.x,player.y);if(inside)entryView=false;workshopRoot.visible=true;campusRoot.visible=true;
+    const inside=inWorkshop(player.x,player.y);workshopRoot.visible=true;campusRoot.visible=true;
     npcMeshes.forEach(m=>m.visible=true);walkerMeshes.forEach(m=>m.visible=true);pts.visible=state.night&&inside&&!reducedMotion;
     updateOnline(dt,canStand);visiblePeers.clear();for(const[id,p]of onlinePeers)visiblePeers.set(id,p);remoteLayer.sync(visiblePeers,reducedMotion,player);orbitGuide.visible=!!tap;
     if(carry){carry.visible=!ritual&&!creatorOpen;carry.position.set(player.x,1.85+Math.sin(t*3)*.03,player.y);}
@@ -726,23 +724,22 @@ function init3D(){
     // 自動 시점은 모양 선택·전체 보기·수동 탐방·의식보다 우선하지 않는다.
     const hallDistance=Math.min(...HALL_POLYGONS.map(p=>pointInPolygon(player.x,player.y,p)?0:distanceToPolygon(player.x,player.y,p)));
     const wasAuto=hallAuto;
-    hallAuto=hallApproach.update(hallDistance,{suspended:overview||creatorOpen||!!ritual||!!tap||lowView||inside||entryView});
+    hallAuto=hallApproach.update(hallDistance,{suspended:overview||creatorOpen||!!ritual||!!tap||lowView||inside});
     if(wasAuto&&!hallAuto){yaw=viewYaw;camYaw=viewYaw;}
     if(reducedMotion&&wasAuto!==hallAuto)snapCam=true;
     // camera
     const shadows=quality.shadows&&!overview;if(renderer.shadowMap.enabled!==shadows){renderer.shadowMap.enabled=shadows;renderer.shadowMap.needsUpdate=true;}
     let yT=yaw,dT=dist,pT=lowView?Math.asin(Math.min(.6,1.15/dist)):.72,lyT=lowView?1.35:.9,side=0,focusX=player.x,focusZ=player.y;
-    if(entryView&&!creatorOpen&&!ritual){const distance=Math.hypot(player.x-HALL_DOOR.x,player.y-HALL_DOOR.z);if(distance<3.2)entryView=false;else{focusX=player.x+(HALL_DOOR.x-player.x)*.35;focusZ=player.y+(HALL_DOOR.z-player.y)*.35;dT=Math.max(dist,Math.min(28,distance*1.1+7));pT=.62;lyT=1.1;}}
     if(overview){focusX=(SCENE_VIEW.minX+SCENE_VIEW.maxX)/2;focusZ=(SCENE_VIEW.minZ+SCENE_VIEW.maxZ)/2;yT=0;pT=1.48;const v=camera.fov*Math.PI/180,h=2*Math.atan(Math.tan(v/2)*camera.aspect);dT=Math.max((SCENE_VIEW.maxX-SCENE_VIEW.minX)/(2*Math.tan(h/2)),(SCENE_VIEW.maxZ-SCENE_VIEW.minZ)/(2*Math.tan(v/2)))*1.1;}
-    document.body.classList.toggle('overview-mode',overview);document.body.classList.toggle('entry-view',entryView);
+    document.body.classList.toggle('overview-mode',overview);
     scene.fog.near=overview?180:(state.night?20:38);scene.fog.far=overview?350:(state.night?70:95);
-    if(creatorOpen){entryView=false;leaveOverview();yT=creatorYaw;dT=window.innerWidth<700?4.6:3.2;pT=.2;lyT=window.innerWidth<700?-.45:.82;side=window.innerWidth<700?0:.75;}
+    if(creatorOpen){leaveOverview();yT=creatorYaw;dT=window.innerWidth<700?4.6:3.2;pT=.2;lyT=window.innerWidth<700?-.45:.82;side=window.innerWidth<700?0:.75;}
     else if(ritual){leaveOverview();yT=player.face+1.0;dT=6;pT=.42;lyT=.6;}
     const k=snapCam?1:1-Math.exp(-dt*6);camYaw=angLerp(camYaw,yT,k);camDist+=(dT-camDist)*k;camPitch+=(pT-camPitch)*k;camLookY+=(lyT-camLookY)*k;
     const right=V3(Math.cos(camYaw),0,-Math.sin(camYaw));let target=V3(tap?PAGODA.x:focusX,tap?1.0:camLookY,tap?PAGODA.z:focusZ).addScaledVector(right,side);
     let want=V3(focusX+Math.sin(camYaw)*camDist*Math.cos(camPitch),camLookY+camDist*Math.sin(camPitch),focusZ+Math.cos(camYaw)*camDist*Math.cos(camPitch)).addScaledVector(right,side);
     if(hallAuto){
-      const view=fitCampusHallView({player:{x:player.x,z:player.y},door:HALL_DOOR,normal:HALL_ENTRY_NORMAL,seven:SEVEN_POSITION,sevenTop:SEVEN_TOP_Y,aspect:camera.aspect,fov:camera.fov});
+      const view=fitCampusHallView({player:{x:player.x,z:player.y},door:HALL_DOOR,normal:HALL_ENTRY_NORMAL,seven:SEVEN_POSITION,sevenTop:SEVEN_TOP_Y,aspect:camera.aspect,fov:camera.fov,avoid:{x:PAGODA.x,z:PAGODA.z}});
       want=V3(...view.position);target=V3(...view.target);autoYaw=Math.atan2(want.x-target.x,want.z-target.z);camYaw=autoYaw;camDist=want.distanceTo(target);camPitch=.48;camLookY=target.y;
     }
     const k2=snapCam?1:1-Math.exp(-dt*7);camPos.lerp(want,k2);camLook.lerp(target,k2);snapCam=false;camera.position.copy(camPos);camera.lookAt(camLook);viewYaw=Math.atan2(camPos.x-camLook.x,camPos.z-camLook.z);
@@ -776,7 +773,6 @@ function init3D(){
     if(showUI&&!dialog&&!modalOpen&&!ritual){for(const o of hungObjs){if(Math.abs(o.x-player.x)<.55&&Math.abs(o.z-player.y)<1.0){const s=toScreen(V3(o.x,o.y+.55,o.z));if(s.ok){wishEl.textContent=o.h.L.wish||'';wishEl.className=state.night?'night':'';wishEl.style.left=s.x+'px';wishEl.style.top=s.y+'px';wishEl.style.display='block';shown=true;}break;}}}
     if(!shown)wishEl.style.display='none';
     const it=showUI&&!busy?nearest():null;if(it){promptEl.textContent=(isTouch?'작업 버튼 · ':'Space · ')+it.name;promptEl.style.display='block';}else promptEl.style.display='none';
-    hallGuide.hidden=true;
     drawMinimap();
     requestAnimationFrame(loop);}
   if(import.meta.env.DEV)window.__hallView=()=>({active:hallAuto,position:camera.position.toArray(),floor3:0,firstFloor:floorY(1),seven:seven.position.toArray(),viewYaw,manualYaw:yaw,sevenScreen:V3(SEVEN_POSITION.x,SEVEN_TOP_Y,SEVEN_POSITION.z).project(camera).toArray()});
@@ -882,6 +878,6 @@ fontsReady.then(()=>{try{init3D();sharing.start();
   }
   startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.moving=false;onlineAt=0;lastOnlinePose='';snapCam=true;};
-if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,entryView,lowView,hallAuto,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
+if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,lowView,hallAuto,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
 startb.onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');openCreator(true);};
 })();
