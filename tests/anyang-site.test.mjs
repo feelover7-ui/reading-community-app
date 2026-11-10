@@ -18,16 +18,16 @@ test('본관 한 동의 두 직사각 날개가 PR #22의 배치를 따른다',(
  assert.equal(CAMPUS_HALL.x,SITE_BUILDINGS[0].x)
 })
 
-test('본관·동상·칠보탑은 PR #22의 기준 형태와 상대 위치를 유지한다',()=>{
+test('구정탑·동상은 원래 좌표이며 법당·칠보탑은 동일 벡터로만 평행 이동한다',()=>{
  assert.equal(S.ref,'6f63b89b450e2c2ad92cfd9b0ff0469765912295')
- /* 작업장은 사용자 요청으로 바깥에 따로 세우지 않고 실제 등불사장 블록 자체를 쓴다.
-    최신 요청으로 구정탑은 별도 조정하며, 본관·동상·칠보탑 기준을 유지한다. */
- const originals=[S.statue,S.seven,...S.hall.flat()]
- const actual=[STATUE_CENTER,L.SEVEN_POSITION,...L.HALL_POLYGONS.flat()]
- for(let i=0;i<actual.length;i++)for(let j=i+1;j<actual.length;j++)for(const axis of['x','z']){
-  assert.ok(Math.abs((actual[j][axis]-actual[i][axis])-(originals[j][axis]-originals[i][axis])*L.PLACEMENT_SCALE)<1e-8)
+ assert.deepEqual(PAGODA_CENTER,L.place(S.pagoda));assert.deepEqual(STATUE_CENTER,L.place(S.statue))
+ for(let i=0;i<S.hall.length;i++)for(let j=0;j<S.hall[i].length;j++){
+  const before=L.place(S.hall[i][j]),after=L.HALL_POLYGONS[i][j]
+  assert.ok(Math.abs(after.x-before.x-L.HALL_SHIFT.x)<1e-9)
+  assert.ok(Math.abs(after.z-before.z-L.HALL_SHIFT.z)<1e-9)
  }
- assert.ok(STATUE_CENTER.x<PAGODA_CENTER.x&&STATUE_CENTER.z<PAGODA_CENTER.z)
+ assert.deepEqual(L.SEVEN_POSITION,L.hallPlace(S.seven))
+ assert.deepEqual(L.workshopLocal(L.workshopPlace({x:8.5,z:18.45})),{x:8.5,z:18.45})
 })
 
 test('탑돌이 한 바퀴와 양옆 여유 폭이 실제 충돌 판정에서도 모두 열린다',()=>{
@@ -59,9 +59,9 @@ test('작업장 출구에서 법당 문·동상 참배 자리·탑돌이 시작�
 
 test('작업장과 마당이 한 세계로 이어져 있다',()=>{
  // 사용자 요청: 공간 전환 없이 걸어서 오간다. 문턱 양쪽이 모두 열려 있어야 한다.
- assert.ok(L.inWorkshop(18,25.8),'문 안쪽이 작업장이 아니다')
- assert.ok(!L.inWorkshop(18,27.2),'문 바깥이 아직 작업장이다')
- assert.ok(L.canStandCampus(18,27.2),'문 바로 바깥을 걸을 수 없다')
+ assert.ok(L.inWorkshop(L.WORKSHOP_GATE.x,25.8),'문 안쪽이 작업장이 아니다')
+ assert.ok(!L.inWorkshop(L.WORKSHOP_GATE.x,27.2),'문 바깥이 아직 작업장이다')
+ assert.ok(L.canStandCampus(L.WORKSHOP_GATE.x,27.2),'문 바로 바깥을 걸을 수 없다')
 })
 
 test('작업장 연결길의 중앙이 막히지 않고 포장이 탑 앞마당에 이어진다',()=>{
@@ -70,10 +70,10 @@ test('작업장 연결길의 중앙이 막히지 않고 포장이 탑 앞마당�
 })
 
 test('작업장은 탑의 북동쪽에 있고 문에서 탑까지 충분히 떨어져 있다',()=>{
- const center={x:18,z:13.3}
+ const center=L.workshopPlace({x:18,z:13.3})
  assert.ok(center.x>PAGODA_CENTER.x+6&&center.z<PAGODA_CENTER.z-18)
  const distance=Math.hypot(L.WORKSHOP_GATE.x-PAGODA_CENTER.x,L.WORKSHOP_GATE.z-PAGODA_CENTER.z)
- assert.ok(distance>16&&distance<30)
+ assert.ok(distance>25&&distance<40)
  const clearance=Math.min(...L.HALL_POLYGONS.map(p=>L.distanceToPolygon(PAGODA_CENTER.x,PAGODA_CENTER.z,p)))-L.PAGODA_APRON.r
  assert.ok(clearance>6,'탑 앞마당과 법당 사이에 여유가 있어야 한다: '+clearance)
 })
