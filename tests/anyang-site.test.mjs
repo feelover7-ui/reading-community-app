@@ -78,7 +78,7 @@ test('작업장 남문은 탑의 정북쪽이며 짧은 길과 여유 공간을 
  assert.ok(L.CONNECTOR.at(-1).z>L.CONNECTOR[0].z)
  const length=L.CONNECTOR.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-L.CONNECTOR[i].x,p.z-L.CONNECTOR[i].z),0)
  assert.ok(length>9&&length<12)
- for(const p of L.CONNECTOR)assert.ok(Math.abs(p.x-PAGODA_CENTER.x)<1e-9)
+ assert.ok(L.CONNECTOR.some(p=>Math.abs(p.x-PAGODA_CENTER.x)>.4))
  for(const g of L.PATH_DECOR)for(const p of[g.left,g.right]){
   assert.ok(L.distanceToSegment(p.x,p.z,L.CONNECTOR[0],L.CONNECTOR.at(-1))>2)
  }
@@ -89,13 +89,10 @@ test('작업장 남문은 탑의 정북쪽이며 짧은 길과 여유 공간을 
  }
 })
 
-test('법당 안내길을 따라 문 바로 앞까지 장애물 없이 걸을 수 있다',()=>{
- for(let i=1;i<L.HALL_PATH.length;i++){
-  const a=L.HALL_PATH[i-1],b=L.HALL_PATH[i]
-  for(let t=0;t<=1;t+=.02)assert.ok(L.canStandCampus(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t),'법당 길이 막혔다')
- }
- assert.deepEqual(L.HALL_PATH.at(-1),HALL_DOOR)
- for(const path of[L.CONNECTOR,L.HALL_PATH])for(const p of L.routePolygon(path))assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.z))
+test('법당에는 별도 길 표시 없이 도량 포장으로 접근한다',()=>{
+ assert.equal(L.HALL_PATH.length,0)
+ assert.ok(L.canStandCampus(HALL_DOOR.x,HALL_DOOR.z))
+ for(const p of L.routePolygon(L.CONNECTOR))assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.z))
 })
 
 test('옮긴 안내 인물은 길과 탑돌이를 막지 않고 걸어서 대화할 수 있다',()=>{
