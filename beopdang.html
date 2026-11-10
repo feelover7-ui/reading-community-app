@@ -15,6 +15,10 @@
 #hudh{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;text-align:left}
 #hudh small{font:400 11px 'Noto Sans KR',sans-serif}
 #hud.collapsed .hud-title{margin:0}
+body.altar-detail #hud,body.altar-detail #prompt,body.altar-detail .tag3d,body.altar-detail .pin3d{display:none!important}
+.altar-caption{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);max-width:calc(100vw - 24px);padding:9px 14px;border-radius:12px;background:#fff5df;color:#453320;font-size:13px;text-align:center;z-index:6}
+.altar-caption[hidden]{display:none}
+body.touch .altar-caption{bottom:212px}
 </style>
 </head>
 <body>

@@ -67,3 +67,7 @@ body.prestart #game{pointer-events:none}
 #chatbar .chat-feedback{flex-basis:100%;padding:8px 10px;border-radius:8px;background:var(--paper,#fff9ec);color:#843b28;font-size:13px;line-height:1.4;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 #chatbar .chat-feedback[hidden]{display:none}
 body.keyboard-open #connection{display:none}
+
+/* PC도 버튼으로 확대·축소/눈높이 시점을 조절한다. */
+body:not(.touch) .camera-tools{position:fixed;right:max(12px,var(--safe-right));bottom:24px;display:flex;gap:6px;z-index:7}
+.camera-tools #qualityb{font-size:11px;line-height:1.2}
