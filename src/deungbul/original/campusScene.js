@@ -1,3 +1,4 @@
+import {createWalkInDoor} from '../walkInDoor.js'
 import {addRoofFinish,createGroundContact,foliageGeometry} from '../exteriorFinish.js'
 import {buildHallConnection,hallWingFrame,floorY,HALL_ROOF_Y,SEVEN_BASE_Y,SEVEN_TOP_Y} from '../hallConnection.js'
 import {createHallApproach,fitCampusHallView} from '../campusHallCamera.js'
@@ -235,11 +236,12 @@ function updateTap(){
   if(tap.orbit.done){stopTap();state.tapdoriDone=true;changed();chime();pagodaFlash();say('구정탑',['탑을 중심으로 세 바퀴를 마쳤어요.','모은 마음을 일상으로 이어가 봐요.']);}
 }
 
+let hallTraveling=false;
+const hallWalkIn=createWalkInDoor({door:HALL_DOOR,normal:HALL_ENTRY_NORMAL});
 function enterHall(){
+  if(hallTraveling)return;hallTraveling=true;
   if(tap)stopTap();
-  const m=modalShell('본원 3층 연결문','도량과 같은 높이의 3층 입구입니다. 여기에서 기존 5층 대법당 체험으로 이동합니다.'),go=el('button','btn','대법당 들어가기');
-  const run=()=>{closeModal();save();writeStore('hanmaum-deungbul-nick',nick);writeStore('hanmaum-deungbul-sex',state.ap?.gender||'m');location.href='/beopdang.html?from=campus';};
-  go.onclick=run;sharedModal.primary=run;m.append(go);
+  closeModal();keys.clear();joy.reset();save();writeStore('hanmaum-deungbul-nick',nick);writeStore('hanmaum-deungbul-sex',state.ap?.gender||'m');location.href='/beopdang.html?from=campus';
 }
 /* 조감도 범례를 그대로 보여 준다. 들어갈 수 있는 곳은 법당 하나뿐이다. */
 function siteInfo(b){
@@ -349,7 +351,7 @@ function appendSourceRefs(parent,kind){
 document.getElementById('helpb').onclick=()=>{
   if(!started||creatorOpen)return;
   const m=modalShell('도움말',null),h=el('div','help');
-  h.innerHTML='<p>이동: 방향키·WASD 또는 조이스틱. 작업·살펴보기: Space·E 또는 작업 버튼.</p><p>작업장 밖 건물은 탑 오른편 법당 하나입니다. 구정탑 앞에서 <b>자동 탑돌이 시작</b>을 누르면 세 바퀴 돕니다. 멈추기 버튼이나 방향 입력으로 중단합니다.</p><p>대행선사 동상 앞에서는 서서 삼배를 올릴 수 있습니다. 법당 입구는 탑 쪽을 향하며 기존 법당 내부로 이어집니다.</p><p>게임용 배치이며 실제 본원의 건물 위치나 출입 동선을 나타내지 않습니다. 구정탑과 동상은 공식 설명의 구조를 반영한 간략 조형 시안입니다.</p>';
+  h.innerHTML='<p>이동: 방향키·WASD 또는 조이스틱. 작업·살펴보기: Space·E 또는 작업 버튼.</p><p>작업장 밖 건물은 탑 오른편 법당 하나입니다. 구정탑 앞에서 <b>자동 탑돌이 시작</b>을 누르면 세 바퀴 돕니다. 멈추기 버튼이나 방향 입력으로 중단합니다.</p><p>대행선사 동상 앞에서는 서서 삼배를 올릴 수 있습니다. 법당 입구는 탑 쪽을 향합니다. 문 안으로 걸어가면 별도 버튼 없이 기존 법당 내부로 들어갑니다. 작업 버튼이나 Space로도 입장할 수 있습니다.</p><p>게임용 배치이며 실제 본원의 건물 위치나 출입 동선을 나타내지 않습니다. 구정탑과 동상은 공식 설명의 구조를 반영한 간략 조형 시안입니다.</p>';
   const close=el('button','btn','닫기');close.onclick=closeModal;m.append(h);appendSourceRefs(m);m.append(close);
 };
 
@@ -716,6 +718,7 @@ function init3D(){
     if(seq)stepSeq(dt);else{const tg=tap?POSE.hap:POSE.stand;player.pose=lerpPose(player.pose,tg,Math.min(1,dt*8));}
     if(ritual&&ritual.update)ritual.update(dt);
     updateTap();
+    if(hallWalkIn.sample({x:player.x,z:player.y,moving:player.moving,enabled:!busy&&!tap&&!hallTraveling}))enterHall();
     if(creatorOpen)player.face=creatorYaw+Math.sin(t*.7)*.5;
     playerContact.position.set(player.x,.035,player.y);pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?POSE.stand:player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
     const inside=inWorkshop(player.x,player.y);if(inside)entryView=false;workshopRoot.visible=true;campusRoot.visible=true;
@@ -775,7 +778,7 @@ function init3D(){
     let shown=false;
     if(showUI&&!dialog&&!modalOpen&&!ritual){for(const o of hungObjs){if(Math.abs(o.x-player.x)<.55&&Math.abs(o.z-player.y)<1.0){const s=toScreen(V3(o.x,o.y+.55,o.z));if(s.ok){wishEl.textContent=o.h.L.wish||'';wishEl.className=state.night?'night':'';wishEl.style.left=s.x+'px';wishEl.style.top=s.y+'px';wishEl.style.display='block';shown=true;}break;}}}
     if(!shown)wishEl.style.display='none';
-    const it=showUI&&!busy?nearest():null;if(it){promptEl.textContent=(isTouch?'작업 버튼 · ':'Space · ')+it.name;promptEl.style.display='block';}else promptEl.style.display='none';
+    const it=showUI&&!busy?nearest():null;if(it){promptEl.textContent=it.key==='hallDoor'?'문 안으로 걸어가면 입장해요':(isTouch?'작업 버튼 · ':'Space · ')+it.name;promptEl.style.display='block';}else promptEl.style.display='none';
     hallGuide.hidden=true;
     drawMinimap();
     requestAnimationFrame(loop);}
@@ -866,7 +869,7 @@ function paintOnlineLabels(layer,toScreen){
 }
 addEventListener('lantern-connection',event=>setConnection(event.detail==='full'?'지금은 접속 인원이 가득 찼어요.':'법우 연결을 다시 확인 중이에요.'));
 addEventListener('pagehide',()=>{campusYard?.leave();campusYard=null;sharing.stop()});
-addEventListener('pageshow',event=>{if(event.persisted){sharing.start();connectOnline(true)}});
+addEventListener('pageshow',event=>{if(event.persisted){hallTraveling=false;hallWalkIn.reset();keys.clear();joy.reset();sharing.start();connectOnline(true)}});
 addEventListener('online',()=>{sharing.refresh();if(!campusYard?.joined){campusYard?.leave();campusYard=null;connectOnline()}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();onlineAt=0;lastOnlinePose=''}});
 
@@ -882,6 +885,6 @@ fontsReady.then(()=>{try{init3D();sharing.start();
   }
   startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.moving=false;onlineAt=0;lastOnlinePose='';snapCam=true;};
-if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,entryView,lowView,hallAuto,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
+if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,entryView,lowView,hallAuto,hallTraveling,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
 startb.onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');openCreator(true);};
 })();
