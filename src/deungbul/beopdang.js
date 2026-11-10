@@ -273,7 +273,7 @@ if (isTouch || window.innerWidth < 640) {
 }
 
 /* ---------- 3D 세계 ---------- */
-const world = createWorld(cv, { fov: 56, bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: !isTouch, light: .3, sunLight: .18, sky: '#ffe9c8', groundLight: '#6b4a32' })
+const world = createWorld(cv, { fov: 56, bg: '#2a1c12', nightBg: '#120c08', fogNear: 30, fogFar: 70, lookX: W / 2, lookZ: H / 2, shadow: !isTouch, light: .38, sunLight: .18, sky: '#fff2db', groundLight: '#9c8870' })
 world.quality=mountSceneQuality(world.renderer,{container:byId('topbtns'),shadows:world.sun})
 releaseFocus(byId('qualityb'),cv)
 const hall = buildHall(world)

@@ -1,3 +1,4 @@
+import {addRoofFinish,createGroundContact,foliageGeometry} from '../exteriorFinish.js'
 import {buildHallConnection,hallWingFrame,floorY,HALL_ROOF_Y,SEVEN_BASE_Y,SEVEN_TOP_Y} from '../hallConnection.js'
 import {createHallApproach,fitCampusHallView} from '../campusHallCamera.js'
 import {mountSceneQuality,createSurfaceLibrary} from '../realismMaterials.js'
@@ -377,6 +378,7 @@ function init3D(){
   const quality=mountSceneQuality(renderer,{container:cameraButtons,shadows:sun});
   const workshopRoot=new THREE.Group(),campusRoot=new THREE.Group();scene.add(workshopRoot,campusRoot);workshopRoot.position.set(WORKSHOP_OFFSET.x,0,WORKSHOP_OFFSET.z);workshopRoot.updateMatrixWorld(true);let staticRoot=workshopRoot;
   const M=(color,o={})=>new THREE.MeshLambertMaterial({color,...o});
+  const finishes=createSurfaceLibrary();
   const MAT={wall:'#5e3d27',wallTop:'#3e2818',wood:'#b07c45',woodDark:'#7a4f28',stone:'#a39d92',fence:'#77706a',fenceCap:'#3f3a36',red:'#c8402f',gold:'#d9a531',grey:'#8a8a92',roof:'#4a5560'};
   function mesh(geo,mat,x,y,z,parent){const m=new THREE.Mesh(geo,typeof mat==='string'?M(mat):mat);m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;(parent||staticRoot).add(m);return m;}
   const box=(w,h,d,mat,x,y,z,parent)=>mesh(new THREE.BoxGeometry(w,h,d),mat,x,y,z,parent);
@@ -441,8 +443,10 @@ function init3D(){
   function hanok(cx,cz,w,d,o={}){const y0=o.y0||0,bh=o.baseH??.5,wh=o.wallH||2,rh=o.roofH||1.5;
     if(bh>0)box(w+.5,bh,d+.5,o.base||'#9c9588',cx,y0+bh/2,cz);
     box(w,wh,d,o.wall||'#efe2c4',cx,y0+bh+wh/2,cz);
+    if(o.facade!==false){
     const front=new THREE.Mesh(new THREE.PlaneGeometry(w*.86,wh*.72),M('#ffffff',{map:repTex(latticeTex,Math.round(w/1.1),1)}));front.position.set(cx,y0+bh+wh*.42,cz+d/2+.01);staticRoot.add(front);
     const n=Math.max(2,Math.round(w/2.2));for(let i=0;i<=n;i++)box(.2,wh,.2,o.pillar||'#8a2e22',cx-w/2+i*w/n,y0+bh+wh/2,cz+d/2+.05);
+    }
     const band=box(w+.25,.22,d+.25,M('#ffffff',{map:repTex(dancheongTex,Math.round(w/1.6),1)}),cx,y0+bh+wh+.11,cz);
     const roof=mesh(hipRoofGeo(w+1.8,d+1.8,rh,.62),M(o.roof||MAT.roof,{side:THREE.DoubleSide}),cx,y0+bh+wh+.2,cz);
     box((w+1.8)*.5,.14,.2,'#2f353c',cx,y0+bh+wh+.2+rh,cz);return roof;}
@@ -509,7 +513,7 @@ function init3D(){
   [[14.5,13.5],[21.5,13.5]].forEach(([x,z])=>{box(.7,.2,.7,MAT.stone,x,.1,z);mesh(new THREE.CylinderGeometry(.13,.16,.8,10),M(MAT.stone),x,.6,z);box(.6,.45,.6,'#aaa49a',x,1.22,z);stoneFires.push(box(.36,.26,.62,M('#5a554e',{emissive:'#000000'}),x,1.22,z));const roof=mesh(new THREE.ConeGeometry(.6,.4,4),M('#7f7a71'),x,1.65,z);roof.rotation.y=Math.PI/4;mesh(new THREE.SphereGeometry(.07,8,6),M('#7f7a71'),x,1.88,z);const g=glowSprite('#ffbf6a',2.2);g.position.set(x,1.22,z);g.visible=false;staticRoot.add(g);stoneFires.push(g);});
   const stoneLight=new THREE.PointLight('#ffc070',0*LIGHT,9,2);stoneLight.position.set(18,1.4,14.2);staticRoot.add(stoneLight);
   box(.12,1.4,.12,'#5a3b26',8.5,.7,17.5);textPlane('소원등 걸이대',1.9,.5,{font:'"Noto Sans KR",sans-serif'}).position.set(8.5,1.45,17.57);{const b=textPlane('소원등 걸이대',1.9,.5,{font:'"Noto Sans KR",sans-serif'});b.position.set(8.5,1.45,17.43);b.rotation.y=Math.PI;}
-  function tree(x,z,s=1){mesh(new THREE.CylinderGeometry(.18*s,.25*s,1.4*s,8),M('#6b4630'),x,.7*s,z);[['#3f6e46',0,1.9,0,1.05],['#4f8456',-.45,2.35,.2,.75],['#5a9461',.4,2.5,-.2,.7],['#67a36d',0,2.9,0,.5]].forEach(([c,dx,y,dz,r])=>{const sp=mesh(new THREE.SphereGeometry(r*s,14,10),M(c,{transparent:true}),x+dx*s,y*s,z+dz*s);sp.userData.attach=[];fadeables.push(sp);});}
+  function tree(x,z,s=1){const shadow=createGroundContact(.9*s,.13);shadow.position.set(x,.035,z);staticRoot.add(shadow);mesh(new THREE.CylinderGeometry(.18*s,.25*s,1.4*s,8),M('#6b4630'),x,.7*s,z);[['#3f6e46',0,1.9,0,1.05],['#4f8456',-.45,2.35,.2,.75],['#5a9461',.4,2.5,-.2,.7],['#67a36d',0,2.9,0,.5]].forEach(([c,dx,y,dz,r])=>{const leaf=finishes.surface('foliage',c);const leafMaterial=leaf.clone();leafMaterial.vertexColors=true;leafMaterial.transparent=true;const sp=mesh(foliageGeometry(r*s),leafMaterial,x+dx*s,y*s,z+dz*s);sp.userData.attach=[];fadeables.push(sp);});}
   tree(3,22);tree(33,22);
 
   /* ropes & hung lanterns */
@@ -526,7 +530,8 @@ function init3D(){
   staticRoot=campusRoot;
   ground(-10,20,120,75,M('#6f7d52'),floorY(1)-.04);
   function polyGround(poly,mat,y=0){const shape=new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,-p.z))),m=new THREE.Mesh(new THREE.ShapeGeometry(shape),mat);m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;staticRoot.add(m);return m;}
-  const paving=M('#ffffff',{map:repTex(paveTex,1.5,1.5)}),green=M('#ffffff',{map:repTex(grassTex,2,2)});
+  const paving=finishes.surface('paving','#d8cfb9'),green=M('#ffffff',{map:repTex(grassTex,2,2)});
+  paving.map.repeat.set(.45,.45);paving.bumpMap.repeat.set(.45,.45);
   // 도량과 작업장은 3층 높이의 한 보행면이다. 아래 두 층 높이를 옹벽으로 드러낸다.
   const retaining=M('#b8ae9b',{map:repTex(stoneBlockTex,3,2)});
   for(const poly of [CAMPUS_POLYGON,WORKSHOP_POLYGON,routePolygon(CONNECTOR,3.55)]){
@@ -550,9 +555,10 @@ function init3D(){
 
   for(const poly of HALL_POLYGONS){
     const frame=hallWingFrame(poly),g=buildHallConnection(campusRoot,{polygon:poly,door:HALL_DOOR,normal:HALL_ENTRY_NORMAL});staticRoot=g;
-    const roof=hanok(0,0,frame.width-.3,frame.depth-.3,{y0:floorY(5),baseH:0,wallH:2.2,roofH:1.8,wall:'#f3e6c8'});
+    const roof=hanok(0,0,frame.width-.3,frame.depth-.3,{y0:floorY(5),baseH:0,wallH:2.2,roofH:1.8,wall:'#f3e6c8',facade:false});
     roof.material=createSurfaceLibrary().surface('roof','#434d52');roof.material.side=THREE.DoubleSide;
-    const details=addHallExteriorDetails(g,{width:frame.width,depth:frame.depth,height:8.8,baseY:floorY(1),topY:floorY(5)+1.1,opening:g.userData.opening});quality.add(details);
+    const details=addHallExteriorDetails(g,{width:frame.width,depth:frame.depth,height:11,floors:5,baseY:floorY(1),topY:floorY(5)+1.1,opening:g.userData.opening});quality.add(details);
+    const tiles=addRoofFinish(g,{width:frame.width+1.5,depth:frame.depth+1.5,baseY:floorY(5)+2.4,height:1.8});quality.add(tiles);
     addFadeGroup([g]);
   }
   staticRoot=campusRoot;
@@ -566,6 +572,7 @@ function init3D(){
   /* 작업장은 구정탑 정북쪽의 등불사장 그 자체입니다. 바깥에 같은 건물을 또 세우지 않습니다.
      남쪽 울타리의 트인 칸이 마당으로 나가는 문이고, 문·간판은 실내 쪽에서 이미 세웁니다. */
   for(const [x,z]of CTREES)tree(x+.5,z+.5,.85+hash(x,z)*.3);
+  for(const p of[PAGODA,STATUE_CENTER]){const shadow=createGroundContact(1.8,.16);shadow.position.set(p.x,.035,p.z);campusRoot.add(shadow);}
   const pagodaModel=buildPagoda({scene:campusRoot,M,mesh}),pagodaGoldM=pagodaModel.accentMaterial;
   const pagodaLight=new THREE.PointLight('#ffb560',0*LIGHT,14,1.6);pagodaLight.position.set(PAGODA.x,3.4,PAGODA.z+1.5);campusRoot.add(pagodaLight);
   let flashT=0;pagodaFlash=()=>{flashT=3;};
@@ -619,6 +626,7 @@ function init3D(){
     u.body.position.y=p.y+(walking?Math.abs(sw)*.03:0);u.upper.rotation.x=p.bend;
     u.legs[0].rotation.x=p.legX+sw*.55;u.legs[1].rotation.x=p.legX-sw*.55;u.legs[0].rotation.y=p.legY;u.legs[1].rotation.y=-p.legY;
     const as=sw*.5*p.swing;u.arms[0].rotation.x=p.armX-as;u.arms[1].rotation.x=p.armX+as;u.arms[0].rotation.z=p.armZ;u.arms[1].rotation.z=-p.armZ;}
+  const playerContact=createGroundContact(.36,.15);scene.add(playerContact);
   let pMesh=null;
   rebuildPlayer=()=>{if(pMesh)disposeObject(pMesh);pMesh=buildPerson(state.ap||DEFAULT_AP.m);};rebuildPlayer();
   function disposeObject(g){const geos=new Set(),mats=new Set();g.traverse(o=>{if(o.geometry)geos.add(o.geometry);if(o.material)(Array.isArray(o.material)?o.material:[o.material]).forEach(m=>mats.add(m))});geos.forEach(g=>g.dispose());mats.forEach(m=>m.dispose());scene.remove(g);}
@@ -709,7 +717,7 @@ function init3D(){
     if(ritual&&ritual.update)ritual.update(dt);
     updateTap();
     if(creatorOpen)player.face=creatorYaw+Math.sin(t*.7)*.5;
-    pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?POSE.stand:player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
+    playerContact.position.set(player.x,.035,player.y);pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?POSE.stand:player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
     const inside=inWorkshop(player.x,player.y);if(inside)entryView=false;workshopRoot.visible=true;campusRoot.visible=true;
     npcMeshes.forEach(m=>m.visible=true);walkerMeshes.forEach(m=>m.visible=true);pts.visible=state.night&&inside&&!reducedMotion;
     updateOnline(dt,canStand);visiblePeers.clear();for(const[id,p]of onlinePeers)visiblePeers.set(id,p);remoteLayer.sync(visiblePeers,reducedMotion,player);orbitGuide.visible=!!tap;
