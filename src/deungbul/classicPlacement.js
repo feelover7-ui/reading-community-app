@@ -1,7 +1,7 @@
 import {PR22_PLACEMENT as S} from './pr22Placement.js'
 export const PLACEMENT_SCALE=1.2
 /* 승인 스케치: 구정탑·동상은 위성 기준 위치에 고정하고, 법당은 회전 없이
-   평행 이동한다. 작업장은 실제로 동쪽으로 옮겨 북동쪽에 둔다. */
+   평행 이동한다. 최신 승인 스케치에 따라 작업장만 구정탑 정북쪽에 둔다. */
 export const PLACEMENT_OFFSET=Object.freeze({x:-8.2,z:8.6})
 export const place=p=>({x:p.x*PLACEMENT_SCALE+PLACEMENT_OFFSET.x,z:p.z*PLACEMENT_SCALE+PLACEMENT_OFFSET.z})
 export const WORLD_BOUNDS=Object.freeze({w:126,h:70})
@@ -18,10 +18,11 @@ export const FORECOURT_POLYGON=Object.freeze(S.forecourt.map(place))
 export const LOWER_GARDEN=Object.freeze(S.lowerGarden.map(place))
 export const GREEN_AREAS=Object.freeze(S.greens.map(g=>({id:g.id,polygon:g.polygon.map(place)})))
 /* 기존 작업장 내부의 로컬 좌표는 유지하고, 실제 세계에서 전체를 한 번만 이동한다. */
-export const WORKSHOP_OFFSET=Object.freeze({x:36,z:0})
+export const WORKSHOP_OFFSET=Object.freeze({x:PAGODA_POSITION.x-18,z:0})
 export const workshopPlace=p=>({x:p.x+WORKSHOP_OFFSET.x,z:p.z+WORKSHOP_OFFSET.z})
 export const workshopLocal=p=>({x:p.x-WORKSHOP_OFFSET.x,z:p.z-WORKSHOP_OFFSET.z})
 export const WORKSHOP_POLYGON=Object.freeze([{x:0,z:0},{x:36,z:0},{x:36,z:26.6},{x:0,z:26.6}].map(workshopPlace))
+export const inWorkshop=(x,z)=>{const p=workshopLocal({x,z});return p.x>=0&&p.x<=36&&p.z>=0&&p.z<=26.6}
 export const GUIDE_POSITION=Object.freeze({x:PAGODA_POSITION.x-7,z:PAGODA_POSITION.z+.5})
 export const ORBIT_RADIUS=4
 export const PAGODA_APRON=Object.freeze({...PAGODA_POSITION,r:5.3})
@@ -42,10 +43,12 @@ export function roundedRoute(points){
  for(let n=0;n<=4;n++){const t=n/4,u=1-t;out.push({x:u*u*p.x+2*u*t*b.x+t*t*q.x,z:u*u*p.z+2*u*t*b.z+t*t*q.z})}}
  out.push(points.at(-1));return Object.freeze(out)
 }
-export const CONNECTOR=roundedRoute([{x:54,z:26.8},{x:54,z:31.5},{x:45,z:35},{x:37,z:35},{x:PAGODA_POSITION.x+5,z:PAGODA_POSITION.z-2.2}])
+export const CONNECTOR=Object.freeze([workshopPlace({x:18,z:26.8}),{x:PAGODA_POSITION.x,z:PAGODA_POSITION.z-PAGODA_APRON.r+.35}])
 export const HALL_PATH=roundedRoute([{x:PAGODA_POSITION.x+1.8,z:PAGODA_POSITION.z+5},{x:30,z:48.2},HALL_ENTRY])
-export const PATH_DECOR=Object.freeze([4,10].map(i=>{
- const p=CONNECTOR[i],a=CONNECTOR[i-1],b=CONNECTOR[i+1],dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz),nx=-dz/len,nz=dx/len
+// 짧은 직선길에서도 장식은 비율로 배치해 꼭짓점 번호에 의존하지 않는다.
+export const PATH_DECOR=Object.freeze([.3,.7].map(t=>{
+ const a=CONNECTOR[0],b=CONNECTOR.at(-1),dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz)
+ const p={x:a.x+dx*t,z:a.z+dz*t},nx=-dz/len,nz=dx/len
  return{left:{x:p.x+nx*2.1,z:p.z+nz*2.1},right:{x:p.x-nx*2.1,z:p.z-nz*2.1}}
 }))
 export const HALL_LANDING=Object.freeze({...HALL_ENTRY,r:2.5})
@@ -58,8 +61,8 @@ export function distanceToSegment(x,z,a,b){const dx=b.x-a.x,dz=b.z-a.z,t=Math.ma
 export const distanceToPolygon=(x,z,p)=>Math.min(...p.map((a,i)=>distanceToSegment(x,z,a,p[(i+1)%p.length])))
 export const onRoute=(x,z,points,margin=1.6)=>points.slice(1).some((b,i)=>distanceToSegment(x,z,points[i],b)<margin)
 export const onConnector=(x,z,margin=1.6)=>onRoute(x,z,CONNECTOR,margin)
-export const CAMPUS_TREES=Object.freeze(S.trees.map(place).filter(p=>Math.hypot(p.x-PAGODA_POSITION.x,p.z-PAGODA_POSITION.z)>6.2&&Math.hypot(p.x-HALL_ENTRY.x,p.z-HALL_ENTRY.z)>3&&!onConnector(p.x,p.z,3)&&!onRoute(p.x,p.z,HALL_PATH,3)))
-export const inWorkshop=(x,z)=>x>=36&&x<=72&&z>=0&&z<=26.6
+export const CAMPUS_TREES=Object.freeze(S.trees.map(place).filter(p=>!inWorkshop(p.x,p.z)&&distanceToPolygon(p.x,p.z,WORKSHOP_POLYGON)>.75&&Math.hypot(p.x-PAGODA_POSITION.x,p.z-PAGODA_POSITION.z)>6.2&&Math.hypot(p.x-HALL_ENTRY.x,p.z-HALL_ENTRY.z)>3&&!onConnector(p.x,p.z,3)&&!onRoute(p.x,p.z,HALL_PATH,3)))
+
 export function canStandCampus(x,z){
  if(!Number.isFinite(x)||!Number.isFinite(z)||x<.4||z<.4||x>125.6||z>69.6)return false
  const ground=pointInPolygon(x,z,CAMPUS_POLYGON)||distanceToPolygon(x,z,CAMPUS_POLYGON)<1.1||Math.hypot(x-PAGODA_POSITION.x,z-PAGODA_POSITION.z)<PAGODA_APRON.r||onConnector(x,z)||onRoute(x,z,HALL_PATH)||Math.hypot(x-HALL_ENTRY.x,z-HALL_ENTRY.z)<HALL_LANDING.r||distanceToPolygon(x,z,WORKSHOP_POLYGON)<2.5
@@ -69,3 +72,10 @@ export function canStandCampus(x,z){
  if(CAMPUS_TREES.some(p=>Math.hypot(x-p.x,z-p.z)<.45))return false
  return true
 }
+
+/* 전체 보기·미니맵은 실제 배치 외곽을 함께 사용한다. */
+const viewPoints=[...WORKSHOP_POLYGON,...CAMPUS_POLYGON,...HALL_POLYGONS.flat()]
+export const SCENE_VIEW=Object.freeze({
+ minX:Math.min(...viewPoints.map(p=>p.x))-3,maxX:Math.max(...viewPoints.map(p=>p.x))+3,
+ minZ:Math.min(...viewPoints.map(p=>p.z))-3,maxZ:Math.max(...viewPoints.map(p=>p.z))+3
+})
