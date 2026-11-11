@@ -1,3 +1,4 @@
+import {createSeatedPractice,stepSeatedPractice,readBest108,recordBest108,YEBUL_LINES,formatPracticeRemaining} from './hallPractices.js'
 import {hallLookFromAppearance} from './characterStyle.js'
 import {BOW_CYCLE_SECONDS} from './bowMotion.js'
 import {findWalkPath,createGuidedWalk} from './guidedWalk.js'
@@ -39,7 +40,8 @@ const BOW_KEY = 'hanmaum-deungbul-bow'
 const BOW_CYCLE = BOW_CYCLE_SECONDS            // 한 배에 걸리는 시간(초)
 const BOW_CYCLE_QUIET = 1.2      // 동작 줄이기에서는 짧게
 let bowReturn=null
-const bow = { on: false, goal: 0, done: 0, t: 0, spot: null }
+const bow = { on: false, goal: 0, done: 0, t: 0, spot: null,mode:'bow',speed:1 }
+let seatedPractice=null,best108=readBest108(readStore('hanmaum-hall-practices'),readStore('hanmaum-campus-v2'))
 // 본원 기준 오늘은 한국 시간(UTC+9) 자정에 바뀐다.
 const today = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
 let countDay = today(), dayCheckAt = 0
@@ -79,7 +81,7 @@ const el = modal.el
 const seatButton=el('button','iconbtn','좌복');seatButton.type='button';seatButton.id='choose-seat';seatButton.setAttribute('aria-label','참배할 빈 방석 고르기');byId('topbtns').append(seatButton)
 const seatBar=el('div','guided-actions'),seatText=el('span',null,'선택한 방석으로 이동 중'),seatStop=el('button','btn ghost','멈추기');seatBar.hidden=true;seatBar.append(seatText,seatStop);document.body.append(seatBar);seatStop.onclick=cancelSeatWalk
 seatButton.onclick=()=>{
- if(traveling||bow.on)return
+ if(traveling||bow.on||seatedPractice)return
  cancelSeatWalk()
  const panel=modal.shell('참배할 자리','빈 방석을 고르면 그 자리까지 걸어갑니다. 도착한 뒤 참배를 선택해 주세요.')
  const list=el('div','bowpick')
@@ -96,7 +98,7 @@ const keys = bindKeys({
   onAction: () => action(),
   onEnter: () => chat.toggle(),
   onModalAction: () => modal.runPrimary(),
-  onEscape: () => { if (modal.open) modal.close(); else if (chat.isOpen) chat.hide(); else if (bow.on) stopBow('멈췄어요') },
+  onEscape: () => { if (modal.open) modal.close(); else if (chat.isOpen) chat.hide(); else if (bow.on) stopBow('멈췄어요'); else if(seatedPractice)stopSeatedPractice('자리에서 일어났어요') },
   isModalOpen: () => modal.open
 })
 const joy = bindJoystick(byId('joy'))
@@ -122,7 +124,7 @@ const statusEl = byId('status'), countEl = byId('count'), hereEl = byId('here')
 const bowBar = byId('bowbar'), bowNum = byId('bownum')
 function setStatus (text) { if (statusEl) statusEl.textContent = text }
 function updateCount () {
-  countEl.textContent = bowTotal > 0 ? '오늘 ' + bowTotal + '배' : '좌복 위에서 절을 할 수 있어요'
+  countEl.textContent = (bowTotal > 0 ? '오늘 ' + bowTotal + '배' : '좌복 위에서 절을 할 수 있어요')+(best108?' · 108배 최고 '+best108+'배':'')
 }
 function updateHere () {
   if (!hereEl) return
@@ -175,6 +177,7 @@ function action () {
   if (traveling || modal.open) return
   if (chat.isOpen) { chat.hide(); return }
   if (bow.on) { stopBow('멈췄어요'); return }
+  if(seatedPractice){stopSeatedPractice('자리에서 일어났어요');return}
   cancelSeatWalk()
   const p = promptNow()
   if (p) p.run()
@@ -212,31 +215,35 @@ function openBowPicker (c) {
     b.onclick = () => { modal.close(); startBow(c, n) }
     wrap.append(b)
   }
-  m.append(wrap)
+  const practices=el('div','practice-choices');for(const [label,fn]of[['예불 · 칠정례',()=>{modal.close();startBow(c,7,'yebul')}],['법회 · 함께 읽기',()=>{modal.close();startSeatedPractice(c,'reading')}],['좌선 · 호흡하며 머물기',()=>openMeditationPicker(c)]]){const b=el('button','btn ghost',label);b.onclick=fn;practices.append(b)}
+  m.append(practices,wrap)
+  if(best108)m.append(el('p','note','108배 최고기록 '+best108+'배'))
   if (bowTotal > 0) m.append(el('p', 'note', '오늘 여기서 ' + bowTotal + '배 했어요.'))
   const close = el('button', 'btn ghost', '닫기'); close.onclick = modal.close
   m.append(close)
 }
-function startBow (c, goal) {
+function startBow (c, goal,mode='bow') {
   if(seatTaken(c)){setStatus('다른 법우가 있는 자리예요. 다른 방석을 골라 주세요.');return}
   cancelSeatWalk()
+  if(seatedPractice)stopSeatedPractice()
   bowReturn=null
   syncBowDay()
   document.body.classList.add('bow-active')
-  bow.on = true; bow.goal = goal; bow.done = 0; bow.t = 0; bow.spot = c
+  bow.on = true; bow.mode=mode;bow.speed=1;bow.goal = goal; bow.done = 0; bow.t = 0; bow.spot = c
   player.x = c.x; player.y = c.y; player.dir = 'up'
   player.vx = 0; player.vy = 0; player.moving = false
   faceTowards(c.x, 2)
   keys.clear(); joy.reset()
   bowBar.classList.add('show')
   bowNum.textContent = '0 / ' + goal
-  setStatus(goal + '배를 시작했어요.')
+  setStatus(mode==='yebul'?'예불 · 칠정례를 시작했어요.':goal + '배를 시작했어요.');bowSpeed.hidden=goal!==108;bowSpeed.textContent='빠르게 ×2.5';bowText.textContent=mode==='yebul'?YEBUL_LINES[0]:''
   peers.send(true)
 }
 function stopBow (why) {
   if (!bow.on) return
   bowReturn=reducedMotion?null:{from:bowPose(bow.t/BOW_CYCLE,false),t:0}
   const done = bow.done, goal = bow.goal
+  if(done>0)markHallPractice()
   document.body.classList.remove('bow-active')
   bow.on = false; bow.t = 0
   bowBar.classList.remove('show')
@@ -245,6 +252,21 @@ function stopBow (why) {
   else setStatus((why || '멈췄어요') + ' · ' + done + '배 했어요. 오늘 모두 ' + bowTotal + '배.')
   updateCount()
 }
+const bowSpeed=el('button',null,'빠르게 ×2.5'),bowText=el('p','bow-text');bowSpeed.id='bowspeed';bowSpeed.hidden=true;bowBar.append(bowSpeed,bowText)
+bowSpeed.onclick=()=>{if(!bow.on||bow.goal!==108)return;bow.speed=bow.speed===1?2.5:1;bowSpeed.textContent=bow.speed===1?'빠르게 ×2.5':'보통 속도'}
+function markHallPractice(){try{const a=JSON.parse(readStore('hanmaum-campus-v2')||'{}');if(a&&typeof a==='object'&&!Array.isArray(a))writeStore('hanmaum-campus-v2',JSON.stringify({...a,hallDone:true,best108:Math.max(a.best108||0,best108)}))}catch{}}
+function save108(){best108=recordBest108(best108,bow.done);writeStore('hanmaum-hall-practices',JSON.stringify({best108}));markHallPractice()}
+const practicePanel=el('section','seated-practice'),practiceTitle=el('h2'),practiceText=el('p'),practiceTime=el('div','practice-time'),practiceNext=el('button','btn','다음 글'),practiceStop=el('button','btn ghost','자리에서 일어나기');practicePanel.hidden=true;practicePanel.id='seated-practice';practicePanel.setAttribute('aria-label','법당 머무르기');practiceTime.setAttribute('role','timer');practiceTime.setAttribute('aria-live','off');practicePanel.append(practiceTitle,practiceText,practiceTime,practiceNext,practiceStop);byId('scene-main').append(practicePanel)
+function openMeditationPicker(c){const m=modal.shell('좌선','편안히 머물 시간을 골라 주세요. 언제든 일어날 수 있어요.');for(const min of[1,3,5]){const b=el('button','btn ghost',min+'분 좌선');b.onclick=()=>{modal.close();startSeatedPractice(c,'meditation',min*60)};m.append(b)}}
+function startSeatedPractice(c,kind,duration){
+ if(seatTaken(c)){setStatus('다른 법우가 있는 자리예요.');return}
+ cancelSeatWalk();if(bow.on)stopBow();bowReturn=null;player.x=c.x;player.y=c.y;player.face=Math.PI;player.moving=false;player.vx=player.vy=0;keys.clear();joy.reset()
+ seatedPractice=createSeatedPractice(kind,duration);practicePanel.hidden=false;document.body.classList.add('seated-active');practiceNext.hidden=kind!=='reading';practiceTitle.textContent=kind==='reading'?'법회 · 함께 읽기':'좌선';paintSeatedPractice();peers.send(true)
+}
+function paintSeatedPractice(){if(!seatedPractice)return;const p=seatedPractice;practiceText.textContent=p.kind==='reading'?p.lines[p.index]:'편안한 호흡으로 잠시 머물러 보세요.';practiceTime.textContent=p.kind==='reading'?p.notice+' · '+(p.index+1)+' / '+p.lines.length:formatPracticeRemaining(p.duration-p.elapsed)+' · '+p.breath;practiceNext.textContent=p.index===p.lines.length-1?'함께 읽기 마치기':'다음 글'}
+function stopSeatedPractice(message){if(!seatedPractice)return;const p=seatedPractice;seatedPractice=null;practicePanel.hidden=true;document.body.classList.remove('seated-active');bowReturn=reducedMotion?null:{from:POSE.sit,t:0};if(p.done)markHallPractice();setStatus(message||'자리에서 일어났어요.');peers.send(true)}
+practiceStop.onclick=()=>stopSeatedPractice()
+practiceNext.onclick=()=>{if(!seatedPractice||seatedPractice.kind!=='reading')return;if(++seatedPractice.index>=seatedPractice.lines.length){seatedPractice.done=true;stopSeatedPractice('함께 읽기를 마쳤어요.')}else paintSeatedPractice()}
 byId('bowstop').addEventListener('click', () => stopBow('멈췄어요'))
 
 byId('helpb').onclick = () => {
@@ -351,18 +373,23 @@ function update (dt) {
   if (now - dayCheckAt >= 1000) { dayCheckAt = now; syncBowDay() }
   if(keys.has('q')||keys.has('r'))freeView()
   if(!altarView)follower.turn(keys, dt)
-  if (bow.on) {
+  if(seatedPractice){
+   const manual=['a','d','w','s','arrowleft','arrowright','arrowup','arrowdown'].some(k=>keys.has(k))||Math.hypot(joy.x,joy.y)>.15
+   player.moving=false;player.vx=player.vy=0
+   if(manual)stopSeatedPractice('자리에서 일어났어요.')
+   else if(!modal.open&&!chat.isOpen){stepSeatedPractice(seatedPractice,dt);paintSeatedPractice();if(seatedPractice.done)stopSeatedPractice('좌선을 마쳤어요.')}
+  }else if (bow.on) {
     const pressed = keys.has('a') || keys.has('d') || keys.has('w') || keys.has('s') ||
       keys.has('arrowleft') || keys.has('arrowright') || keys.has('arrowup') || keys.has('arrowdown') ||
       Math.hypot(joy.x, joy.y) > .2
     player.moving = false; player.vx = 0; player.vy = 0
     if (pressed) stopBow('일어섰어요')
     else {
-      bow.t += dt
+      bow.t += dt*bow.speed
       const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
       while (bow.t >= cycle) {
         bow.t -= cycle
-        bow.done++; bowTotal++; saveBowTotal(); updateCount()
+        bow.done++; bowTotal++;if(bow.goal===108)save108();saveBowTotal(); updateCount();if(bow.mode==='yebul')bowText.textContent=YEBUL_LINES[Math.min(6,bow.done)]
         bowNum.textContent = bow.done + ' / ' + bow.goal
         if (bow.done >= bow.goal) { stopBow(); break }
       }
@@ -380,14 +407,14 @@ function update (dt) {
   }
   seatBar.hidden=!seatWalk.active
 
-  if(hallExitGate.sample({x:player.x,z:player.y,moving:player.moving,enabled:!traveling&&!modal.open&&!chat.isOpen&&!bow.on}))travel(hallReturnUrl(location.search))
+  if(hallExitGate.sample({x:player.x,z:player.y,moving:player.moving,enabled:!traveling&&!modal.open&&!chat.isOpen&&!bow.on&&!seatedPractice}))travel(hallReturnUrl(location.search))
   if(bowReturn){if(player.moving)bowReturn=null;else{bowReturn.t+=dt;if(bowReturn.t>=.8)bowReturn=null}}
   // 절할 때는 몸을 낮춘다
   const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
   const u = bow.on ? bow.t / cycle : 0
   // 몸 전체를 누르지 않고 합장·무릎·엎드림 관절로 절합니다.
   stepPerson(meBody, player.x, player.y, bow.on ? Math.PI : player.face, player.moving, player.walk, reducedMotion,
-    bow.on ? bowPose(u, reducedMotion) : bowReturn?lerpPose(bowReturn.from,POSE.stand,Math.pow(bowReturn.t/.8,2)*(3-2*bowReturn.t/.8)):null)
+    bow.on ? bowPose(u, reducedMotion) : seatedPractice?POSE.sit:bowReturn?lerpPose(bowReturn.from,POSE.stand,Math.pow(bowReturn.t/.8,2)*(3-2*bowReturn.t/.8)):null)
   meBody.position.y+=cushionSupportAt(player.x,player.y)
   peers.update(dt)
   peers.send()
@@ -427,7 +454,7 @@ function render () {
   }
   labels.paint(items)
 
-  if (!modal.open && !bow.on && !chat.isOpen) {
+  if (!modal.open && !bow.on && !chat.isOpen&&!seatedPractice) {
     const p = promptNow()
     if (p) {
       promptEl.textContent = atDoor(player.x,player.y) ? '문 밖으로 걸어가면 도량으로 나가요' : (isTouch ? '살펴보기 · ' : 'Space · ') + p.label
@@ -445,7 +472,7 @@ function loop (now) {
 }
 
 /* ---------- 들어오고 나가기 ---------- */
-addEventListener('pagehide', () => { cancelSeatWalk(); keys.clear(); joy.reset(); peers.stop(); hallPeers.clear() })
+addEventListener('pagehide', () => { cancelSeatWalk(); keys.clear(); joy.reset();if(seatedPractice)stopSeatedPractice();if(bow.on)stopBow('잠시 쉬어요');peers.stop(); hallPeers.clear() })
 addEventListener('pageshow', e => {
   if (!e.persisted) return
   traveling = false
@@ -471,7 +498,7 @@ if (import.meta.env.DEV) window.__cam = () => ({ pos: world.camera.position.toAr
 if (import.meta.env.DEV) window.__beopdang = () => ({
   x: +player.x.toFixed(2), y: +player.y.toFixed(2), dir: player.dir, dist: +follower.state.dist.toFixed(1),
   traveling, modalOpen: modal.open, nick: me.nick, sex: me.sex,
-  bow: { on: bow.on, goal: bow.goal, done: bow.done,phase:bow.t/BOW_CYCLE,rootY:meBody.position.y,returning:!!bowReturn }, bowTotal,
+  bow: { on: bow.on, goal: bow.goal, done: bow.done,phase:bow.t/BOW_CYCLE,speed:bow.speed,mode:bow.mode,rootY:meBody.position.y,returning:!!bowReturn }, bowTotal,best108,practice:seatedPractice?{kind:seatedPractice.kind,index:seatedPractice.index,elapsed:seatedPractice.elapsed,duration:seatedPractice.duration}:null,
   guided:seatWalk.active,onCushion: !!cushionAt(player.x, player.y), atDoor: atDoor(player.x, player.y),
   prompt: (promptNow() || {}).label || '',
   joined: peers.joined,

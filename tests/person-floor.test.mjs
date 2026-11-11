@@ -33,3 +33,9 @@ test('합장할 때 두 손이 가슴 앞에서 모인다',async()=>{
  const hands=body.userData.parts.elbows.map(e=>e.children.at(-1).getWorldPosition(new THREE.Vector3()))
  assert.ok(hands[0].distanceTo(hands[1])<.1,'손바닥 사이가 벌어지지 않는다')
 })
+test('복구한 좌선 자세도 방석 아래로 침범하지 않는다',async()=>{
+ const {POSE}=await import('../src/deungbul/bowMotion.js'),scene=new THREE.Scene(),M=c=>new THREE.MeshBasicMaterial({color:c}),mesh=(g,m,x,y,z,p)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);(p||scene).add(o);return o}
+ const world={scene,M,mesh,box:(w,h,d,c,x,y,z,p)=>mesh(new THREE.BoxGeometry(w,h,d),typeof c==='string'?M(c):c,x,y,z,p)},body=makePerson(world,{})
+ stepPerson(body,0,0,0,false,0,false,POSE.sit);body.position.y+=CUSHION_TOP
+ assert.ok(new THREE.Box3().setFromObject(body,true).min.y>=CUSHION_TOP-.002)
+})
