@@ -1,3 +1,4 @@
+import {nextVisitTarget,visitTargetLabel} from '../visitProgress.js'
 import {handGeometry,finishCharacter,addCharacterHair,torsoGeometry,shoeGeometry} from '../characterStyle.js'
 import {findWalkPath,createGuidedWalk} from '../guidedWalk.js'
 import {addLandscapeFinish} from '../landscapeFinish.js'
@@ -174,7 +175,7 @@ function changed(){updateHUD();save();onChanged();}
 updateHUD();
 
 /* 등 만들기는 lanternCraft.js 한 곳에 있고 두 맵이 같이 쓴다. */
-const craftHost={state,say,modalShell,closeModal,toast,tok,chime,bell,changed,sharing:null,owner:OWNER,normalizeLantern,
+const craftHost={state,saveDraft:save,say,modalShell,closeModal,toast,tok,chime,bell,changed,sharing:null,owner:OWNER,normalizeLantern,
  setNight:(v)=>setNight(v),sendLit:()=>campusYard?.sendLit(nick),
  outsideLine:'마당 남쪽 문으로 나가면 본원이에요. 본원 마당에도 연등이 켜졌어요.',
  lines:{intro:'마당 남쪽 문으로 나가면 본원이에요. 끝나고 탑돌이랑 대법당 참배도 해 봐요.',hang:'문 밖 마당으로 나가서 왼쪽 걸이대에 걸어요.',done:'마당 남쪽 문으로 나가면 본원이에요. 구정탑 탑돌이도 하고, 대행선사 동상 앞에서 삼배도 올리고, 5층 대법당에도 올라가 봐요.'}};
@@ -309,8 +310,7 @@ const INTERACT=[
   {x:114,y:9.9,name:'가운데 방석 · 참배하기',fn:hallMenu,mark:[114,1.6,9.9],key:'cushion'},
   {x:114,y:19.35,name:'나가기 · 본관 앞마당',fn:exitHall,mark:[114,3,19.9],key:'hallExit'}];
 function nearest(){if(inHallLobby(player.x,player.y))return INTERACT.find(i=>i.key==='hallDoor');let best=null,bd=1;for(const it of INTERACT){const r=it.key==='hallDoor'?2.8:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
-function targetKey(){if(state.stage>0)return['frame','light','paper','paint','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';
-  if(!state.tapdoriDone)return tap?null:'tower';if(!state.statueDone)return'statue';if(!state.hallDone)return inHall()?'cushion':'hallDoor';return null;}
+function targetKey(){const key=nextVisitTarget(state);return key==='tower'&&tap?null:key;}
 function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}if(modalOpen||ritual||seq)return;const it=nearest();if(it){it.fn();updateHUD();}}
 
 /* ================= input ================= */
@@ -904,12 +904,27 @@ visitButton.onclick=()=>{
  }
 }
 const guideBar=el('div','guided-actions'),guideText=el('span'),guideNext=el('button','btn'),guideStop=el('button','btn ghost','멈추기');guideBar.id='guided-actions';guideBar.append(guideText,guideNext,guideStop);document.getElementById('campus-app').append(guideBar);
-guideStop.onclick=()=>{cancelGuide();toast('이동을 멈췄어요.')};guideNext.onclick=()=>goToInteraction(INTERACT.find(it=>it.key===['frame','light','paper','paint','sign'][state.stage]));
+guideStop.onclick=()=>{cancelGuide();toast('이동을 멈췄어요.')};guideNext.onclick=()=>goToInteraction(INTERACT.find(it=>it.key===nextVisitTarget(state)));
 function paintGuidance(){
  const active=guidedWalk.active,visible=started&&!creatorOpen&&!modalOpen&&!dialog&&!ritual&&!seq&&!tap&&!overview
- guideBar.hidden=!visible;guideStop.hidden=!active;guideNext.hidden=active||!inWorkshop(player.x,player.y)
+ guideBar.hidden=!visible;guideStop.hidden=!active;guideNext.hidden=active||!nextVisitTarget(state)
  guideText.textContent=active?guideName+'로 이동 중':'';guideBar.hidden=guideBar.hidden||(!active&&guideNext.hidden)
- guideNext.textContent=(state.stage===4?'등 걸러 가기':NEXT_NAME[state.stage]+'로 이동')
+ guideNext.textContent=visitTargetLabel(nextVisitTarget(state))
+}
+function appendVisitChoice(panel,key,label,primary=false){
+ const b=el('button',primary?'btn':'btn ghost',label);b.onclick=()=>goToInteraction(INTERACT.find(it=>it.key===key));panel.append(b)
+}
+craftHost.onHangComplete=({lantern,result})=>{
+ const panel=modalShell('소원등을 걸었어요',result.local?(result.uncertain?'공유 저장 여부를 확인하지 못해 이 기기에 보관했어요. 자동 재전송하지 않습니다.':'지금은 이 기기에 소원등을 보관했어요.'):'법우들과 함께 보는 소원등을 걸었어요.')
+ panel.append(el('p','hung-message',lantern.wish))
+ appendVisitChoice(panel,state.night?'tower':'big',state.night?'자동 탑돌이 하러 가기':'장엄등 점등하러 가기',true)
+ appendVisitChoice(panel,'hallDoor','법당 참배하러 가기')
+ const stay=el('button','btn ghost','여기 머물기');stay.onclick=closeModal;panel.append(stay)
+}
+craftHost.onLitComplete=()=>{
+ const panel=modalShell('도량에 등불이 켜졌어요','다음 활동을 골라 이어가거나 자유롭게 둘러보세요.')
+ appendVisitChoice(panel,'tower','자동 탑돌이 하러 가기',true);appendVisitChoice(panel,'statue','동상 참배하러 가기');appendVisitChoice(panel,'hallDoor','법당 참배하러 가기')
+ const stay=el('button','btn ghost','자유롭게 둘러보기');stay.onclick=closeModal;panel.append(stay)
 }
 const arrivalPanel=el('aside','arrival-guide');arrivalPanel.hidden=true;arrivalPanel.setAttribute('aria-label','첫 방문 안내');arrivalPanel.append(el('h2',null,'어서 오세요, 법우님'),el('p',null,'하고 싶은 일을 골라 보세요. 바로 걸어가셔도 좋아요.'));
 for(const [key,label]of[['next','등 만들기'],['tower','자동 탑돌이'],['hallDoor','법당 참배']]){const b=el('button','btn ghost',label);b.onclick=()=>{arrivalPanel.hidden=true;goToInteraction(INTERACT.find(it=>it.key===(key==='next'?['frame','light','paper','paint','sign'][state.stage]:key)))};arrivalPanel.append(b)}
