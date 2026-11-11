@@ -1,3 +1,4 @@
+import {handGeometry,finishCharacter,addCharacterHair,torsoGeometry,shoeGeometry} from './characterStyle.js'
 import {POSE,lerpPose,bowPose,poseGroundOffset,BOW_CYCLE_SECONDS} from './bowMotion.js'
 export {POSE,lerpPose,bowPose} from './bowMotion.js'
 import {bindCameraGestures,mountCameraButtons} from './mobileUi.js'
@@ -326,7 +327,7 @@ export function makePerson (world, o = {}) {
     const knee=new THREE.Group();knee.position.y=-.19;lg.add(knee);knees.push(knee)
     world.box(.12,.19,.13,pants,0,-.095,0,knee)
     const ankle=new THREE.Group();ankle.position.set(0,-.215,.03);knee.add(ankle);ankles.push(ankle)
-    world.box(.13,.07,.2,'#2a2320',0,0,0,ankle)
+    world.mesh(shoeGeometry(),world.M('#2a2320'),0,0,0,ankle)
     return lg
   })
 
@@ -336,10 +337,12 @@ export function makePerson (world, o = {}) {
     const band = world.box(.62, .09, .03, o.kasa, 0, .28, sh + .005, upper)
     band.rotation.z = -.7
   } else {
-    world.mesh(new THREE.CylinderGeometry(sh, fem ? .155 : .17, .48, 16), world.M(bodyColor), 0, .24, 0, upper)
+    world.mesh(torsoGeometry(sh), world.M(bodyColor), 0, .24, 0, upper)
     if (o.apron) world.box(.26, .34, .02, o.apron, 0, .18, (fem ? .155 : .17) + .012, upper)
   }
 
+  if(o.skirt)world.mesh(new THREE.CylinderGeometry(.17,.27,.42,16),world.M(pants),0,.42,0,body)
+  if(o.hood){const hood=world.mesh(new THREE.TorusGeometry(.12,.05,8,16),world.M(bodyColor),0,.5,-.07,upper);hood.rotation.x=Math.PI/2}
   const elbows=[]
   const arms = [-1, 1].map(sgn => {
     const a = new THREE.Group()
@@ -349,22 +352,18 @@ export function makePerson (world, o = {}) {
     world.mesh(new THREE.CylinderGeometry(.052,.048,.2,10),world.M(o.sleeve||bodyColor),0,-.1,0,a)
     const elbow=new THREE.Group();elbow.position.y=-.2;a.add(elbow);elbows.push(elbow)
     world.mesh(new THREE.CylinderGeometry(.048,.046,.2,10),world.M(o.sleeve||bodyColor),0,-.1,0,elbow)
-    world.mesh(new THREE.SphereGeometry(.05,10,8),skin,0,-.23,0,elbow)
+    world.mesh(handGeometry(sgn),skin,0,-.23,0,elbow)
     return a
   })
   world.mesh(new THREE.CylinderGeometry(.06, .07, .08, 10), skin, 0, .51, 0, upper)
 
   const head = new THREE.Group(); head.position.y = .66; upper.add(head)
   world.mesh(new THREE.SphereGeometry(.19, 18, 14), skin, 0, 0, 0, head)
-  if (o.hair) {
-    const hair = world.mesh(new THREE.SphereGeometry(.2, 18, 10, 0, Math.PI * 2, 0, Math.PI * .52),
-      world.M(o.hair), 0, .01, -.01, head)
-    hair.rotation.x = -.25
-    if (o.long) world.box(.3, .34, .14, o.hair, 0, -.2, -.1, head)
-  }
+  if(o.hair)addCharacterHair({head,style:o.hairStyle||(o.long?'long':'short'),color:o.hair,mesh:world.mesh.bind(world),M:world.M.bind(world)})
   const eye = world.M('#2b1d14')
   for (const x of [-.068, .068]) world.mesh(new THREE.SphereGeometry(fem ? .027 : .024, 8, 6), eye, x, .01, .172, head)
 
+  finishCharacter({head,upper,skin,dark:eye,cloth:o.vest?world.M(bodyColor):eye,vest:!!o.vest,mesh:world.mesh.bind(world)})
   // legL/legR 은 예전 이름입니다. 남겨 두면 옛 코드가 그대로 돕니다.
   g.userData.parts = { body, upper, legs, knees, ankles, arms, elbows, head, legL: legs[0], legR: legs[1] }
   world.scene.add(g)

@@ -29,6 +29,6 @@ export function poseGroundOffset(p){
  const foot=knee-.215*Math.cos(b)-.03*Math.sin(b)-.035*Math.abs(Math.cos(shoe))-.1*Math.abs(Math.sin(shoe))
  const arm=p.bend+p.armX,e=p.elbowX||0,z=p.armZ
  const hand=hip+.44*Math.cos(p.bend)-.2*Math.cos(z)*Math.cos(arm)-.23*Math.cos(e)*Math.cos(z)*Math.cos(arm)+.23*Math.sin(e)*Math.sin(arm)-.05
- const head=hip+.66*Math.cos(p.bend)-.19
+ const head=hip+.69*Math.cos(p.bend)-.17
  return Math.max(0,-Math.min(thigh,shin,foot,hand,head))
 }

@@ -1,3 +1,4 @@
+import {handGeometry,finishCharacter,addCharacterHair,torsoGeometry,shoeGeometry} from '../characterStyle.js'
 import {findWalkPath,createGuidedWalk} from '../guidedWalk.js'
 import {addLandscapeFinish} from '../landscapeFinish.js'
 import {createAreaView,createWorkshopView,fitWorkshopView,fitStatueView} from '../campusFraming.js'
@@ -57,7 +58,7 @@ let nick=readStore('hanmaum-deungbul-nick').slice(0,12),sharedLanterns=[],shared
 const setConnection=text=>{document.getElementById('connection').textContent=text;};
 
 const isTouch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
-if(isTouch){document.body.classList.add('touch');document.getElementById('ctlhint').innerHTML='왼쪽 조이스틱으로 이동 · 오른쪽 버튼으로 작업·대화<br>화면 끌기 · 두 손가락 또는 +/−로 확대·축소';}
+if(isTouch)document.body.classList.add('touch');
 
 /* ================= 2D lantern art ================= */
 /* ================= world grid (tile units: x → X, y → Z) ================= */
@@ -93,8 +94,8 @@ const USER_ORDER=slots.map((s,i)=>i).filter(i=>!SEED_IDX.includes(i)).sort((a,b)
 const HAIRS=[['short','짧은머리'],['part','가르마'],['bob','단발'],['long','긴머리'],['pony','묶은머리'],['bun','올림머리'],['bald','삭발']];
 const HAIRCOL=[['#1e1612','흑발'],['#3b2618','흑갈색'],['#6b4226','갈색']];
 const OUTFITS=[['vest','청년회 조끼'],['hanbok','생활한복'],['hoodie','후드티'],['practice','수련복']];
-const CLOTHCOL=['#e3a83f','#c8402f','#3f7a5c','#2b5fa5','#9b7ad1','#f29bb5','#5a4a3f'];
-const DEFAULT_AP={m:{gender:'m',hair:'short',hairColor:'#1e1612',outfit:'vest',color:'#e3a83f'},f:{gender:'f',hair:'pony',hairColor:'#1e1612',outfit:'vest',color:'#e3a83f'}};
+const CLOTHCOL=['#758466','#e3a83f','#c8402f','#3f7a5c','#2b5fa5','#9b7ad1','#f29bb5','#5a4a3f'];
+const DEFAULT_AP={m:{gender:'m',hair:'short',hairColor:'#1e1612',outfit:'vest',color:'#758466'},f:{gender:'f',hair:'pony',hairColor:'#1e1612',outfit:'vest',color:'#758466'}};
 
 const state={stage:0,craft:{},hasHung:false,litOnce:false,night:false,talked:false,lanterns:[],ap:null,tapdoriDone:false,statueDone:false,hallDone:false,best108:0};
 const KEY='hanmaum-campus-v2';
@@ -109,6 +110,7 @@ function hungList(){const out=SEEDS.map((L,i)=>({L,slot:slots[SEED_IDX[i]],i}));
 
 const POSE={
   stand:{y:0,bend:0,legX:0,legY:0,armX:0,armZ:-.08,swing:1},
+  hold:{y:0,bend:0,legX:0,legY:0,armX:-.95,armZ:.52,swing:0},
   hap:{y:0,bend:0,legX:0,legY:0,armX:-1.2,armZ:.62,swing:0},
   bow:{y:0,bend:.95,legX:0,legY:0,armX:-1.2,armZ:.62,swing:0},
   kneel:{y:-.3,bend:.05,legX:1.45,legY:0,armX:-1.2,armZ:.62,swing:0},
@@ -332,6 +334,7 @@ addEventListener('keyup',e=>keys.delete(keyName(e)));
 addEventListener('blur',()=>{keys.clear();joy.reset();cancelGuide()});
 const joyEl=document.getElementById('joy'),joy=bindJoystick(joyEl);
 document.getElementById('act').addEventListener('click',action);
+if(!readStore('hanmaum-deungbul-bgm'))writeStore('hanmaum-deungbul-bgm','off');
 const bgm=createBgm();muted=!bgm.on;
 const syncSound=()=>{const b=document.getElementById('snd');b.textContent=bgm.on?'🔊':'🔇';b.setAttribute('aria-pressed',String(bgm.on));b.setAttribute('aria-label',bgm.on?'배경음악과 소리 끄기':'배경음악과 소리 켜기');};syncSound();
 document.getElementById('snd').onclick=()=>{muted=!bgm.toggle();if(AC){(muted?AC.suspend():AC.resume()).catch(()=>{})}syncSound();};
@@ -351,7 +354,7 @@ function openLandmark(id){
 
 function syncEntryAccess(){
   const entry=!started||creatorOpen;
-  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#nearby-guide,#guided-actions,.camera-tools').forEach(n=>n.inert=entry);
+  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#nearby-guide,#guided-actions,.arrival-guide,.camera-tools').forEach(n=>n.inert=entry);
   document.getElementById('title').inert=started;
   document.getElementById('creator').inert=!creatorOpen;
 }
@@ -632,30 +635,24 @@ function init3D(){
     case 'practice':return{top:'#8f8b80',sleeve:'#8f8b80',bottom:'#77736a'};
     case 'robe':return{top:'#8f8b80',sleeve:'#8f8b80',bottom:'#8f8b80',robe:true,kasa:'#8a5a2b'};
     default:return{top:ap.color,sleeve:'#f4f1ea',bottom:'#3b3b48',vest:true};}}
-  function buildHair(head,style,col){if(style==='bald')return;const m=M(col,{side:THREE.DoubleSide});const add=(geo,x,y,z)=>mesh(geo,m,x,y,z,head);
-    const cap=add(new THREE.SphereGeometry(.2,18,10,0,Math.PI*2,0,Math.PI*.55),0,.012,-.012);cap.rotation.x=-.3;
-    if(style==='part'){const f=add(new THREE.BoxGeometry(.24,.05,.1),.04,.15,.12);f.rotation.set(.55,0,.28);}
-    else if(style==='bob')add(new THREE.CylinderGeometry(.208,.218,.27,22,1,true,.95,Math.PI*2-1.9),0,-.06,0);
-    else if(style==='long'){add(new THREE.CylinderGeometry(.212,.24,.6,22,1,true,1.5,Math.PI*2-3.0),0,-.22,-.01);}
-    else if(style==='pony'){add(new THREE.SphereGeometry(.07,10,8),0,.04,-.2);const t=add(new THREE.CylinderGeometry(.055,.025,.4,8),0,-.14,-.25);t.rotation.x=.35;}
-    else if(style==='bun')add(new THREE.SphereGeometry(.1,12,10),0,.17,-.11);}
+  function buildHair(head,style,col){return addCharacterHair({head,style,color:col,mesh,M})}
   function buildPerson(ap){const root=new THREE.Group();const body=new THREE.Group();root.add(body);const fem=ap.gender==='f';const oc=outfitColors(ap);const sk=M('#f1c9a0');const hipY=.44;
     const add=(geo,mat,x,y,z,parent)=>mesh(geo,mat,x,y,z,parent);
-    const legs=[-1,1].map(s=>{const lg=new THREE.Group();lg.position.set(s*.085,hipY,0);lg.rotation.order='YXZ';body.add(lg);add(new THREE.BoxGeometry(.12,.38,.13),oc.bottom,0,-.19,0,lg);add(new THREE.BoxGeometry(.13,.07,.2),'#2a2320',0,-.41,.03,lg);return lg;});
+    const legs=[-1,1].map(s=>{const lg=new THREE.Group();lg.position.set(s*.085,hipY,0);lg.rotation.order='YXZ';body.add(lg);add(new THREE.CapsuleGeometry(.058,.264,4,8),oc.bottom,0,-.19,0,lg);add(shoeGeometry(),'#2a2320',0,-.405,.03,lg);return lg;});
     if(oc.skirt||oc.robe)add(new THREE.CylinderGeometry(.17,oc.robe?.3:.27,oc.robe?.66:.42,16),oc.robe?oc.top:oc.bottom,0,oc.robe?.36:.42,0,body);
     const upper=new THREE.Group();upper.position.y=hipY;body.add(upper);const sh=fem?.16:.19;
-    add(new THREE.CylinderGeometry(sh,fem?.155:.17,.48,16),oc.top,0,.24,0,upper);
+    add(torsoGeometry(sh),oc.top,0,.24,0,upper);
     if(oc.vest)add(new THREE.CylinderGeometry(sh*.62,.12,.08,12),'#f4f1ea',0,.47,0,upper);
     if(oc.hood){const hd=add(new THREE.TorusGeometry(.12,.05,8,16),oc.top,0,.5,-.07,upper);hd.rotation.x=Math.PI/2;}
     if(ap.outfit==='hanbok')add(new THREE.BoxGeometry(.05,.18,.02),oc.accent,.06,.34,sh-.01,upper);
     if(oc.kasa){const b=add(new THREE.BoxGeometry(.62,.09,.03),oc.kasa,0,.28,sh+.005,upper);b.rotation.z=-.7;const b2=add(new THREE.BoxGeometry(.62,.09,.03),oc.kasa,0,.28,-sh-.005,upper);b2.rotation.z=.7;}
     if(ap.apron)add(new THREE.BoxGeometry(.26,.34,.02),'#e9dcc4',0,.18,(fem?.155:.17)+.012,upper);
-    const arms=[-1,1].map(s=>{const a=new THREE.Group();a.position.set(s*(sh+.045),.44,0);upper.add(a);add(new THREE.CylinderGeometry(.052,.046,.4,10),oc.sleeve,0,-.2,0,a);add(new THREE.SphereGeometry(.05,10,8),sk,0,-.43,0,a);return a;});
+    const arms=[-1,1].map(s=>{const a=new THREE.Group();a.position.set(s*(sh+.045),.44,0);upper.add(a);add(new THREE.CylinderGeometry(.052,.046,.4,10),oc.sleeve,0,-.2,0,a);add(handGeometry(s),sk,0,-.43,0,a);return a;});
     add(new THREE.CylinderGeometry(.06,.07,.08,10),sk,0,.51,0,upper);
     const head=new THREE.Group();head.position.y=.66;upper.add(head);add(new THREE.SphereGeometry(.19,18,14),sk,0,0,0,head);
     const eye=M('#2b1d14');[-.068,.068].forEach(x=>add(new THREE.SphereGeometry(fem?.027:.024,8,6),eye,x,0,.172,head));
     if(fem)[-.068,.068].forEach(x=>add(new THREE.BoxGeometry(.05,.012,.01),eye,x+(x>0?.01:-.01),.035,.175,head));
-    add(new THREE.BoxGeometry(.06,.014,.01),fem?'#c8606a':'#a0604a',0,-.08,.18,head);
+    finishCharacter({head,upper,skin:sk,dark:eye,cloth:oc.vest?M(oc.top):eye,vest:!!oc.vest,mesh:add});
     buildHair(head,ap.hair,ap.hairColor||'#1e1612');
     root.userData={body,upper,legs,arms,head};scene.add(root);return root;}
   function applyPose(m,p,phase,walking){const u=m.userData;const sw=walking?Math.sin(phase*11):0;
@@ -764,18 +761,20 @@ function init3D(){
     const l=Math.hypot(mx,my);if(guidedWalk.active&&l>.15)cancelGuide();if(tap?.guided&&l>.15){stopTap('직접 이동해 자동 탑돌이를 멈췄어요.');}if(l>1){mx/=l;my/=l;}player.moving=l>.05;
     if(player.moving){leaveOverview();const moveYaw=viewYaw,dx=mx*Math.cos(moveYaw)+my*Math.sin(moveYaw),dz=-mx*Math.sin(moveYaw)+my*Math.cos(moveYaw);const sp=(tap?2.8:4.3)*dt;const nx=player.x+dx*sp,ny=player.y+dz*sp;if(canStand(nx,player.y))player.x=nx;if(canStand(player.x,ny))player.y=ny;player.walk+=dt;player.face=angLerp(player.face,Math.atan2(dx,dz),Math.min(1,dt*12));}
     if(guidedWalk.active&&!busy){const q=guidedWalk.step({x:player.x,z:player.y},dt,canStand);player.x=q.x;player.y=q.z;player.moving=q.moving;if(q.moving){player.face=q.face;player.walk+=dt}if(q.blocked){cancelGuide();toast('길이 막혀 이동을 멈췄어요.')}if(q.arrived){const arrive=guideArrival;cancelGuide();arrive?.()}}
+    if(player.moving||modalOpen||creatorOpen||ritual)arrivalPanel.hidden=true;
     paintGuidance();
     guideTap(dt,canStand);
-    if(seq)stepSeq(dt);else{const tg=tap?POSE.hap:POSE.stand;player.pose=lerpPose(player.pose,tg,Math.min(1,dt*8));}
+    if(seq)stepSeq(dt);else{const tg=tap?POSE.hap:state.stage>0?POSE.hold:POSE.stand;player.pose=lerpPose(player.pose,tg,Math.min(1,dt*8));}
     if(ritual&&ritual.update)ritual.update(dt);
     updateTap();
     if(hallWalkIn.sample({x:player.x,z:player.y,moving:player.moving,enabled:!busy&&!tap&&!hallTraveling}))enterHall();
     if(creatorOpen)player.face=creatorYaw+Math.sin(t*.7)*.5;
-    playerContact.position.set(player.x,.035,player.y);pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?POSE.stand:player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
+    playerContact.position.set(player.x,.035,player.y);pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?(state.stage>0&&!ritual?POSE.hold:POSE.stand):player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
     const inside=inWorkshop(player.x,player.y);workshopRoot.visible=true;campusRoot.visible=true;
     npcMeshes.forEach(m=>m.visible=true);walkerMeshes.forEach(m=>m.visible=true);pts.visible=state.night&&inside&&!reducedMotion;
     updateOnline(dt,canStand);visiblePeers.clear();for(const[id,p]of onlinePeers)visiblePeers.set(id,p);remoteLayer.sync(visiblePeers,reducedMotion,player);orbitGuide.visible=!!tap;
-    if(carry){carry.visible=!ritual&&!creatorOpen;carry.position.set(player.x,1.85+Math.sin(t*3)*.03,player.y);}
+    if(carry){carry.visible=!ritual&&!creatorOpen;carry.position.set(player.x+Math.sin(player.face)*.36,.98+(reducedMotion?0:Math.sin(t*3)*.008),player.y+Math.cos(player.face)*.36);}
+    pMesh.userData.head.rotation.x=carry&&carry.visible ? .12 : 0;
     WALKERS.forEach((w,i)=>{if(!reducedMotion)w.a+=w.sp*dt;const m=walkerMeshes[i];m.position.set(PAGODA.x+Math.cos(w.a)*w.r,0,PAGODA.z+Math.sin(w.a)*w.r);m.rotation.y=Math.atan2(-Math.sin(w.a),Math.cos(w.a));applyPose(m,POSE.hap,t+i,!reducedMotion);});
     // 자동 시점은 모양 선택·전체 보기·수동 탐방·의식보다 우선하지 않는다.
     const hallDistance=Math.min(...HALL_POLYGONS.map(p=>pointInPolygon(player.x,player.y,p)?0:distanceToPolygon(player.x,player.y,p)));
@@ -867,26 +866,26 @@ function init3D(){
 
 /* ================= character creator ================= */
 const creatorEl=document.getElementById('creator');
-creatorEl.addEventListener('keydown',e=>{if(e.key!=='Tab'||!creatorOpen)return;const items=[...creatorEl.querySelectorAll('button:not([disabled]),input')].filter(n=>n.getClientRects().length),first=items[0],last=items.at(-1);if((e.shiftKey&&document.activeElement===first)||(!e.shiftKey&&document.activeElement===last)){e.preventDefault();(e.shiftKey?last:first)?.focus()}});
-function openCreator(first){if(first){player.x=15.5+WORKSHOP_OFFSET.x;player.y=6.4;creatorYaw=0;snapCam=true;}else creatorYaw=yaw;creatorOpen=true;document.body.classList.add('creating');closeDialog();
-  let ap={...(state.ap||DEFAULT_AP.m)};const apply=()=>{state.ap={...ap};rebuildPlayer();};
+creatorEl.addEventListener('keydown',e=>{if(e.key!=='Tab'||!creatorOpen)return;const items=[...creatorEl.querySelectorAll('button:not([disabled]),input:not([disabled]),summary')].filter(n=>n.getClientRects().length),first=items[0],last=items.at(-1);if(document.activeElement===creatorEl||(e.shiftKey&&document.activeElement===first)||(!e.shiftKey&&document.activeElement===last)){e.preventDefault();(e.shiftKey?last:first)?.focus()}});
+function openCreator(first){if(first){player.x=18+WORKSHOP_OFFSET.x;player.y=24.4;creatorYaw=0;snapCam=true;}else creatorYaw=yaw;creatorOpen=true;document.body.classList.add('creating');closeDialog();
+  let ap={...(state.ap||DEFAULT_AP.m)};let groupTarget=creatorEl;const apply=()=>{state.ap={...ap};rebuildPlayer();};
   creatorEl.innerHTML='';creatorEl.style.display='block';syncEntryAccess();
-  creatorEl.append(Object.assign(el('h2',null,first?'나의 모습 고르기':'옷 갈아입기'),{id:'creator-title'}),el('p','sub',first?'등불사장에 들어갈 내 모습을 골라요. 나중에 👕 버튼으로 바꿀 수 있어요.':'마음에 드는 모습으로 바꿔요.'));
-  const group=(title,node)=>{creatorEl.append(el('h3',null,title),node);};
+  creatorEl.append(Object.assign(el('h2',null,first?'도량에 들어갈 모습':'옷 갈아입기'),{id:'creator-title'}),el('p','sub',first?'이름과 기본 모습을 골라 주세요. 머리와 옷은 나중에도 바꿀 수 있어요.':'마음에 드는 모습으로 바꿔요.'));
+  const group=(title,node)=>{groupTarget.append(el('h3',null,title),node);};
   const chips=(items,get,set,big)=>{const w=el('div','chips');const bs=items.map(([v,n])=>{const b=el('button','chip'+(big?' big':''),n);b.onclick=()=>{set(v);refresh();apply();};w.append(b);return[b,v];});w.refresh=()=>bs.forEach(([b,v])=>(b.classList.toggle('sel',get()===v),b.setAttribute('aria-pressed',String(get()===v))));return w;};
   const swatches=(cols,get,set)=>{const w=el('div','swatches');const bs=cols.map(c=>{const b=el('button','swatch');b.style.background=c;b.setAttribute('aria-label','색상 '+c);b.onclick=()=>{set(c);refresh();apply();};w.append(b);return[b,c];});w.refresh=()=>bs.forEach(([b,c])=>(b.classList.toggle('sel',get()===c),b.setAttribute('aria-pressed',String(get()===c))));return w;};
   const nameLabel=el('label',null,'이름 또는 별명 (12자 이내)'),nameInput=el('input');nameInput.id='creator-nickname';nameLabel.htmlFor=nameInput.id;nameInput.autocomplete='nickname';nameInput.maxLength=12;nameInput.value=nick;nameInput.setAttribute('aria-label','이름 또는 별명');creatorEl.append(nameLabel,nameInput);
-  const g1=chips([['m','남'],['f','여']],()=>ap.gender,v=>{if(ap.gender!==v){const keep={outfit:ap.outfit,color:ap.color,hairColor:ap.hairColor};ap={...DEFAULT_AP[v],...keep};}},true);
+  const g1=chips([['m','남성형'],['f','여성형']],()=>ap.gender,v=>{if(ap.gender!==v){const keep={outfit:ap.outfit,color:ap.color,hairColor:ap.hairColor};ap={...DEFAULT_AP[v],...keep};}},true);
   const g2=chips(HAIRS,()=>ap.hair,v=>ap.hair=v);
   const g3=swatches(HAIRCOL.map(h=>h[0]),()=>ap.hairColor,v=>ap.hairColor=v);
   const g4=chips(OUTFITS,()=>ap.outfit,v=>ap.outfit=v);
   const g5=swatches(CLOTHCOL,()=>ap.color,v=>ap.color=v);const g5wrap=el('div');g5wrap.append(g5);
-  group('성별',g1);group('머리 모양',g2);group('머리색',g3);group('옷',g4);const h5=el('h3',null,'옷 색');creatorEl.append(h5,g5wrap);
+  group('기본 모습',g1);const extra=el('details','appearance-details');extra.open=!first;extra.append(el('summary',null,'머리와 옷 더 꾸미기'));creatorEl.append(extra);groupTarget=extra;group('머리 모양',g2);group('머리색',g3);group('옷',g4);const h5=el('h3',null,'옷 색');extra.append(h5,g5wrap);
   const go=el('button','btn',first?'이 모습으로 들어가기':'다 골랐어요');creatorEl.append(go);
   function refresh(){[g1,g2,g3,g4,g5].forEach(g=>g.refresh());const hide=ap.outfit==='practice';h5.style.display=g5wrap.style.display=hide?'none':'block';}
   go.onclick=()=>{if(!nameInput.value.trim()){nameInput.focus();return}nick=nameInput.value.trim().slice(0,12);writeStore('hanmaum-deungbul-nick',nick);writeStore('hanmaum-deungbul-sex',ap.gender);state.ap={...ap};save();creatorOpen=false;document.body.classList.remove('creating');creatorEl.style.display='none';syncEntryAccess();cv.focus({preventScroll:true});yaw=creatorYaw;
-    if(first&&!state.talked)setTimeout(()=>say('등불사장',['한마음선원 등불사장에 오신 걸 환영해요.','안쪽에 계신 반장 법우에게 먼저 인사해 볼까요? (금색 ▼ 표시)']),400);};
-  refresh();apply();nameInput.focus({preventScroll:true});}
+    if(first)arriveAtWorkshop(entryNewVisitor);};
+  refresh();apply();creatorEl.focus({preventScroll:true});}
 document.getElementById('dressb').onclick=()=>{if(!started||ritual||seq||creatorOpen||modalOpen)return;if(tap)stopTap();openCreator(false);};
 
 
@@ -911,6 +910,14 @@ function paintGuidance(){
  guideBar.hidden=!visible;guideStop.hidden=!active;guideNext.hidden=active||!inWorkshop(player.x,player.y)
  guideText.textContent=active?guideName+'로 이동 중':'';guideBar.hidden=guideBar.hidden||(!active&&guideNext.hidden)
  guideNext.textContent=(state.stage===4?'등 걸러 가기':NEXT_NAME[state.stage]+'로 이동')
+}
+const arrivalPanel=el('aside','arrival-guide');arrivalPanel.hidden=true;arrivalPanel.setAttribute('aria-label','첫 방문 안내');arrivalPanel.append(el('h2',null,'어서 오세요, 법우님'),el('p',null,'하고 싶은 일을 골라 보세요. 바로 걸어가셔도 좋아요.'));
+for(const [key,label]of[['next','등 만들기'],['tower','자동 탑돌이'],['hallDoor','법당 참배']]){const b=el('button','btn ghost',label);b.onclick=()=>{arrivalPanel.hidden=true;goToInteraction(INTERACT.find(it=>it.key===(key==='next'?['frame','light','paper','paint','sign'][state.stage]:key)))};arrivalPanel.append(b)}
+const freely=el('button','entry-free','자유롭게 둘러보기');freely.onclick=()=>arrivalPanel.hidden=true;arrivalPanel.append(freely);document.getElementById('campus-app').append(arrivalPanel);
+let entryNewVisitor=false;
+function arriveAtWorkshop(showGuide=false){
+ player.x=WORKSHOP_OFFSET.x+18;player.y=24.4;player.face=Math.PI;yaw=0;lowView=false;leaveOverview();snapCam=true;keys.clear();joy.reset();
+ if(showGuide)setTimeout(()=>{if(started&&!creatorOpen&&!modalOpen&&!player.moving)arrivalPanel.hidden=false},500)
 }
 document.getElementById('communityb').onclick=()=>{if(started&&!creatorOpen&&!ritual)community.open()};
 function connectOnline(force=false){
@@ -979,8 +986,12 @@ fontsReady.then(()=>{try{init3D();sharing.start();
     syncEntryAccess();state.ap=state.ap||{...DEFAULT_AP[readStore('hanmaum-deungbul-sex')==='f'?'f':'m']};rebuildPlayer();
     if(from==='beopdang'){state.hallDone=true;changed()}
   }
-  startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
+  startb.disabled=false;const returning=!!(nick&&state.ap&&readStore('hanmaum-deungbul-sex'));startb.textContent=returning?'이어서 들어가기':'들어가기';document.getElementById('entry-status').textContent='준비됐어요. 편하게 들어오세요.';const note=document.getElementById('entry-return');note.hidden=!returning;if(returning)note.textContent=nick+' 법우님, 다시 오셨군요.';document.getElementById('entry-profile').hidden=!returning;}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.moving=false;onlineAt=0;lastOnlinePose='';snapCam=true;};
 if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,lowView,hallAuto,hallTraveling,stage:state.stage,craft:{...state.craft},guided:guidedWalk.active,tap:tap?{laps:tap.orbit.laps,goal:tap.goal}:null,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
-startb.onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');openCreator(true);};
+function enterCampus(edit=false){
+ if(startb.disabled)return;ac();tok();entryNewVisitor=!(nick&&readStore('hanmaum-deungbul-sex'));started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');
+ if(!edit&&nick&&state.ap&&readStore('hanmaum-deungbul-sex')){syncEntryAccess();rebuildPlayer();arriveAtWorkshop(false);cv.focus({preventScroll:true})}else openCreator(true)
+}
+startb.onclick=()=>enterCampus();document.getElementById('entry-profile').onclick=()=>enterCampus(true);
 })();

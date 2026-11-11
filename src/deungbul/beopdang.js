@@ -1,3 +1,4 @@
+import {hallLookFromAppearance} from './characterStyle.js'
 import {BOW_CYCLE_SECONDS} from './bowMotion.js'
 import {findWalkPath,createGuidedWalk} from './guidedWalk.js'
 import {mountSceneQuality} from './realismMaterials.js'
@@ -27,7 +28,8 @@ const isTouch = matchMedia('(hover:none) and (pointer:coarse)').matches
 if (isTouch) document.body.classList.add('touch')
 
 const me = readIdentity()
-const myLook = { body: '#e3a83f', hair: '#2b1d14', pants: '#3b3b48', long: me.sex === 'f' }
+let savedAppearance=null;try{savedAppearance=JSON.parse(readStore('hanmaum-campus-v2')||'null')?.ap}catch{}
+const myLook=hallLookFromAppearance(savedAppearance,me.sex)
 
 const player = { x: startPosition.x, y: startPosition.y, dir: 'up', face: Math.PI, moving: false, walk: 0, vx: 0, vy: 0 }
 let traveling = false
