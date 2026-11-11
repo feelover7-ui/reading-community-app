@@ -1,3 +1,4 @@
+import {addLandscapeFinish} from '../landscapeFinish.js'
 import {createAreaView,createWorkshopView,fitWorkshopView,fitStatueView} from '../campusFraming.js'
 import {LANDMARK_GUIDES,nearbyLandmark,castLandmarkRay} from '../landmarkGuides.js'
 import {addEaveFinish,addGardenEdges} from '../photoFinish.js'
@@ -8,7 +9,7 @@ import {createHallApproach,fitCampusHallView} from '../campusHallCamera.js'
 import {mountSceneQuality,createSurfaceLibrary} from '../realismMaterials.js'
 import {addHallExteriorDetails} from '../hallExteriorDetails.js'
 import {restoreCraftProgress} from '../craftProgress.js'
-import {HALL_POLYGONS,CAMPUS_POLYGON,TERRACE_POLYGON,FORECOURT_POLYGON,LOWER_GARDEN,GREEN_AREAS,WORKSHOP_POLYGON,WORKSHOP_GATE,WORKSHOP_NORMAL,WORKSHOP_EXIT,WORKSHOP_INTERIOR_ENTRY,WORKSHOP_OFFSET,SCENE_VIEW,workshopPlace,workshopLocal,PATH_DECOR,GUIDE_POSITION,CONNECTOR,HALL_PATH,HALL_LANDING,routePolygon,CAMPUS_TREES,HALL_ENTRY_NORMAL,STATUE_FACING,PAGODA_APRON,SEVEN_POSITION,inWorkshop,inHallLobby,canStandCampus,pointInPolygon,distanceToPolygon} from '../classicPlacement.js'
+import {HALL_POLYGONS,CAMPUS_POLYGON,TERRACE_POLYGON,FORECOURT_POLYGON,WORKSHOP_POLYGON,WORKSHOP_GATE,WORKSHOP_NORMAL,WORKSHOP_EXIT,WORKSHOP_INTERIOR_ENTRY,WORKSHOP_OFFSET,SCENE_VIEW,workshopPlace,workshopLocal,PATH_DECOR,GUIDE_POSITION,CONNECTOR,HALL_PATH,HALL_LANDING,routePolygon,APPROVED_LANDSCAPE,HALL_ENTRY_NORMAL,STATUE_FACING,PAGODA_APRON,SEVEN_POSITION,inWorkshop,inHallLobby,canStandCampus,pointInPolygon,distanceToPolygon} from '../classicPlacement.js'
 import {createBgm} from '../bgm.js'
 import {buildSevenTreasure} from '../sevenTreasure.js'
 import {bindCameraGestures,mountCameraButtons,installMobileViewport} from '../mobileUi.js'
@@ -72,7 +73,6 @@ block(2,4,1,6);block(29,3,4,1);block(23,7,10,4);block(15,17,6,3);block(14,13,1,1
 // campus
 const BLD=Object.fromEntries(OUTDOOR_BUILDINGS.map(b=>[b.id,[b.x,b.z,b.w,b.d]]));
 // 외부 충돌은 classicPlacement의 폴리곤과 동일한 좌표를 쓴다.
-const CTREES=CAMPUS_TREES.map(p=>[p.x-.5,p.z-.5]);
 // hall
 [[107,9],[107,13],[107,17],[120,9],[120,13],[120,17]].forEach(([x,y])=>block(x,y,1,1));block(107,5,14,2);block(121,8,2,2);
 const PAGODA=PAGODA_CENTER;
@@ -409,7 +409,6 @@ function init3D(){
   const woodTex=canvasTex(256,256,(g)=>{for(let r=0;r<8;r++){g.fillStyle=r%2?'#c99a62':'#c08f57';g.fillRect(0,r*32,256,32);g.fillStyle='rgba(90,55,25,.25)';g.fillRect(0,r*32+31,256,1.5);const off=(r*97)%256;g.fillRect(off,r*32,1.5,32);g.fillRect((off+128)%256,r*32,1.5,32);for(let k=0;k<6;k++){g.fillStyle='rgba(110,70,35,.08)';g.fillRect(hash(r,k)*256,r*32+hash(k,r)*28,30+hash(k,k+r)*40,1);}}});
   const stoneTex=canvasTex(256,256,(g)=>{g.fillStyle='#d6cab0';g.fillRect(0,0,256,256);for(let y=0;y<4;y++)for(let x=0;x<4;x++){const h=hash(x,y);g.fillStyle=h>.5?'#ddd2b9':'#d2c6ab';g.fillRect(x*64+2,y*64+2,60,60);g.fillStyle='rgba(120,105,80,.3)';for(let k=0;k<4;k++)circ(g,x*64+hash(x+k,y)*60,y*64+hash(y+k,x)*60,1.6);}});
   const paveTex=canvasTex(256,256,(g)=>{g.fillStyle='#b9ad93';g.fillRect(0,0,256,256);for(let y=0;y<8;y++)for(let x=0;x<4;x++){const h=hash(x+3,y+5);g.fillStyle=h>.6?'#cfc4aa':h>.3?'#c7bba0':'#d6ccb3';const off=(y%2)*32;g.fillRect(((x*64+off)%256)+1.5,y*32+1.5,61,29);}});
-  const grassTex=canvasTex(128,128,(g)=>{g.fillStyle='#7aa45e';g.fillRect(0,0,128,128);for(let i=0;i<260;i++){g.fillStyle=hash(i,1)>.5?'rgba(60,110,50,.5)':'rgba(150,190,110,.45)';g.fillRect(hash(i,2)*128,hash(i,3)*128,2,3);}});
   const stoneBlockTex=canvasTex(256,256,(g)=>{g.fillStyle='#8f8070';g.fillRect(0,0,256,256);for(let y=0;y<10;y++){let x=-(hash(y,9)*40);while(x<256){const w=24+hash(x|0,y)*40;const h=hash(y,x|0);g.fillStyle=h>.66?'#a89480':h>.33?'#9a8776':'#b2a08b';g.fillRect(x+1.5,y*25.6+1.5,w-3,22.6);x+=w;}}});
   function facadeTex(base,win){return canvasTex(128,128,(g)=>{g.fillStyle=base;g.fillRect(0,0,128,128);g.fillStyle='rgba(0,0,0,.08)';g.fillRect(0,124,128,4);g.fillStyle=win;g.fillRect(22,30,84,58);g.fillStyle='rgba(255,255,255,.22)';g.fillRect(22,30,84,9);g.fillStyle='rgba(0,0,0,.25)';g.fillRect(62,30,4,58);g.fillStyle='rgba(0,0,0,.12)';g.fillRect(18,88,92,5);});}
   const latticeTex=canvasTex(128,128,(g)=>{g.fillStyle='#f3e9d2';g.fillRect(0,0,128,128);g.strokeStyle='#8a5a3a';g.lineWidth=3;for(let i=0;i<=128;i+=16){g.beginPath();g.moveTo(i,0);g.lineTo(i,128);g.stroke();g.beginPath();g.moveTo(0,i);g.lineTo(128,i);g.stroke();}g.lineWidth=6;g.strokeRect(3,3,122,122);});
@@ -547,7 +546,7 @@ function init3D(){
   staticRoot=campusRoot;
   ground(-10,20,120,75,M('#6f7d52'),floorY(1)-.04);
   function polyGround(poly,mat,y=0){const shape=new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,-p.z))),m=new THREE.Mesh(new THREE.ShapeGeometry(shape),mat);m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;staticRoot.add(m);return m;}
-  const paving=finishes.surface('paving','#d9d5c9'),green=M('#ffffff',{map:repTex(grassTex,2,2)});
+  const paving=finishes.surface('paving','#d9d5c9'),green=finishes.surface('lawn','#829b58');green.map.repeat.set(.6,.6);green.bumpMap.repeat.set(.6,.6);
   paving.map.repeat.set(.17,.17);paving.bumpMap.repeat.set(.17,.17);
   // 도량과 작업장은 3층 높이의 한 보행면이다. 아래 두 층 높이를 옹벽으로 드러낸다.
   const retaining=M('#b8ae9b',{map:repTex(stoneBlockTex,3,2)});
@@ -559,9 +558,9 @@ function init3D(){
 
   polyGround(CAMPUS_POLYGON,paving);
   polyGround(FORECOURT_POLYGON,paving,.002);
-  polyGround(LOWER_GARDEN,green,.008);
-  for(const area of GREEN_AREAS)polyGround(area.polygon,green,.012);
-  addGardenEdges(campusRoot,[LOWER_GARDEN,...GREEN_AREAS.map(a=>a.polygon)]);
+  for(const lawn of APPROVED_LANDSCAPE.lawns)polyGround(lawn,green,.012);
+  addGardenEdges(campusRoot,[...APPROVED_LANDSCAPE.lawns,...APPROVED_LANDSCAPE.beds.filter(b=>!b.bank).map(b=>b.polygon)]);
+  addLandscapeFinish(campusRoot,APPROVED_LANDSCAPE,{fadeables,lowerY:floorY(1)-.04,coarse:isTouch});
   const apron=mesh(new THREE.CircleGeometry(PAGODA_APRON.r,64),paving,PAGODA.x,.016,PAGODA.z);apron.rotation.x=-Math.PI/2;
   const ringLine=mesh(new THREE.RingGeometry(GUIDED_RADIUS+.45,GUIDED_RADIUS+.52,64),M('#b3a588'),PAGODA.x,.022,PAGODA.z);ringLine.rotation.x=-Math.PI/2;
   const road=paving,roadEdge=M('#c4b79c');
@@ -590,7 +589,7 @@ function init3D(){
   seven.name='campus-chilbotap';
   /* 작업장은 구정탑 정북쪽의 등불사장 그 자체입니다. 바깥에 같은 건물을 또 세우지 않습니다.
      남쪽 울타리의 트인 칸이 마당으로 나가는 문이고, 문·간판은 실내 쪽에서 이미 세웁니다. */
-  for(const [x,z]of CTREES)tree(x+.5,z+.5,.85+hash(x,z)*.3);
+  // 바깥 나무/충돌은 APPROVED_LANDSCAPE의 같은 좌표를 사용한다.
   for(const p of[PAGODA,STATUE_CENTER]){const shadow=createGroundContact(1.8,.16);shadow.position.set(p.x,.035,p.z);campusRoot.add(shadow);}
   const pagodaModel=buildPagoda({scene:campusRoot,M,mesh}),pagodaGoldM=pagodaModel.accentMaterial;
   pagodaModel.group.userData.guideId='pagoda';seven.userData.guideId='seven';
@@ -695,7 +694,7 @@ function init3D(){
     const text=(name,p)=>{const[x,z]=mapTf(p.x,p.z);g.fillStyle='#493e31';g.font='bold 11px sans-serif';g.fillText(name,x,z)};
     // 도량
     poly(CAMPUS_POLYGON,'#d3c6ab');poly(FORECOURT_POLYGON,'#daceb8');
-    GREEN_AREAS.forEach(p=>poly(p.polygon,'#9bab80'));poly(LOWER_GARDEN,'#9bab80');
+    APPROVED_LANDSCAPE.lawns.forEach(p=>poly(p,'#91a768'));APPROVED_LANDSCAPE.beds.forEach(b=>poly(b.polygon,'#73895e'));
     g.strokeStyle='#c5b28e';g.lineWidth=5;g.lineJoin='round';for(const path of[CONNECTOR]){g.beginPath();path.forEach((p,i)=>{const[x,z]=mapTf(p.x,p.z);i?g.lineTo(x,z):g.moveTo(x,z)});g.stroke();}
     HALL_POLYGONS.forEach(p=>poly(p,'#6b655a'));
     // 등불사장
