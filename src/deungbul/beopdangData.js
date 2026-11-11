@@ -1,3 +1,4 @@
+import {createWalkInDoor} from './walkInDoor.js'
 /* 대법당(본관 5층) 내부.
    한마음선원 공식 '도량 둘러보기 · 대법당과 본존불' 안내와 그 페이지의 내부
    사진을 2026-11-08 직접 보고, 눈에 띄는 것들의 자리 관계만 타일로 옮겼습니다.
@@ -50,6 +51,9 @@ export const spots = [
 ]
 
 export const startPosition = { x: 13, y: 18.2 }
+
+// 입장 위치보다 바깥쪽인 실제 문칸 안에서만 퇴장한다.
+export const createHallExitGate = () => createWalkInDoor({door:{x:DOOR.x+DOOR.w/2,z:DOOR.y},normal:{x:0,z:-1},threshold:.35,halfWidth:DOOR.w/2-.3})
 
 /* ---------- 지나갈 수 있는 칸 ---------- */
 const solid = []

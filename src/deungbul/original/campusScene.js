@@ -1,5 +1,6 @@
+import {addEaveFinish,addGardenEdges} from '../photoFinish.js'
 import {createWalkInDoor} from '../walkInDoor.js'
-import {addRoofFinish,createGroundContact,foliageGeometry} from '../exteriorFinish.js'
+import {addRoofFinish,createGroundContact,foliageGeometry,curvedHipRoof} from '../exteriorFinish.js'
 import {buildHallConnection,hallWingFrame,floorY,HALL_ROOF_Y,SEVEN_BASE_Y,SEVEN_TOP_Y} from '../hallConnection.js'
 import {createHallApproach,fitCampusHallView} from '../campusHallCamera.js'
 import {mountSceneQuality,createSurfaceLibrary} from '../realismMaterials.js'
@@ -439,7 +440,7 @@ function init3D(){
   function glowSprite(color,scale){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false,opacity:.75}));sp.scale.set(scale,scale,1);return sp;}
 
   /* roofs */
-  function hipRoofGeo(w,d,h,ridge){const a=w/2,b=d/2,r=Math.max(0,a-b)*ridge+Math.min(a,b)*.05;const v=[[-a,0,-b],[a,0,-b],[a,0,b],[-a,0,b],[-r,h,0],[r,h,0]];const tri=[[3,2,5],[3,5,4],[1,0,4],[1,4,5],[2,1,5],[0,3,4]];const pos=[];tri.forEach(t=>t.forEach(i=>pos.push(...v[i])));const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.computeVertexNormals();return g;}
+  function hipRoofGeo(w,d,h,ridge){return curvedHipRoof(w,d,h,ridge)}
   function hanok(cx,cz,w,d,o={}){const y0=o.y0||0,bh=o.baseH??.5,wh=o.wallH||2,rh=o.roofH||1.5;
     if(bh>0)box(w+.5,bh,d+.5,o.base||'#9c9588',cx,y0+bh/2,cz);
     box(w,wh,d,o.wall||'#efe2c4',cx,y0+bh+wh/2,cz);
@@ -530,8 +531,8 @@ function init3D(){
   staticRoot=campusRoot;
   ground(-10,20,120,75,M('#6f7d52'),floorY(1)-.04);
   function polyGround(poly,mat,y=0){const shape=new THREE.Shape(poly.map(p=>new THREE.Vector2(p.x,-p.z))),m=new THREE.Mesh(new THREE.ShapeGeometry(shape),mat);m.rotation.x=-Math.PI/2;m.position.y=y;m.receiveShadow=true;staticRoot.add(m);return m;}
-  const paving=finishes.surface('paving','#d8cfb9'),green=M('#ffffff',{map:repTex(grassTex,2,2)});
-  paving.map.repeat.set(.45,.45);paving.bumpMap.repeat.set(.45,.45);
+  const paving=finishes.surface('paving','#d9d5c9'),green=M('#ffffff',{map:repTex(grassTex,2,2)});
+  paving.map.repeat.set(.17,.17);paving.bumpMap.repeat.set(.17,.17);
   // 도량과 작업장은 3층 높이의 한 보행면이다. 아래 두 층 높이를 옹벽으로 드러낸다.
   const retaining=M('#b8ae9b',{map:repTex(stoneBlockTex,3,2)});
   for(const poly of [CAMPUS_POLYGON,WORKSHOP_POLYGON,routePolygon(CONNECTOR,3.55)]){
@@ -544,6 +545,7 @@ function init3D(){
   polyGround(FORECOURT_POLYGON,paving,.002);
   polyGround(LOWER_GARDEN,green,.008);
   for(const area of GREEN_AREAS)polyGround(area.polygon,green,.012);
+  addGardenEdges(campusRoot,[LOWER_GARDEN,...GREEN_AREAS.map(a=>a.polygon)]);
   const apron=mesh(new THREE.CircleGeometry(PAGODA_APRON.r,64),paving,PAGODA.x,.016,PAGODA.z);apron.rotation.x=-Math.PI/2;
   const ringLine=mesh(new THREE.RingGeometry(GUIDED_RADIUS+.45,GUIDED_RADIUS+.52,64),M('#b3a588'),PAGODA.x,.022,PAGODA.z);ringLine.rotation.x=-Math.PI/2;
   const road=paving,roadEdge=M('#c4b79c');
@@ -555,10 +557,11 @@ function init3D(){
 
   for(const poly of HALL_POLYGONS){
     const frame=hallWingFrame(poly),g=buildHallConnection(campusRoot,{polygon:poly,door:HALL_DOOR,normal:HALL_ENTRY_NORMAL});staticRoot=g;
-    const roof=hanok(0,0,frame.width-.3,frame.depth-.3,{y0:floorY(5),baseH:0,wallH:2.2,roofH:1.8,wall:'#f3e6c8',facade:false});
+    const roof=hanok(0,0,frame.width-.3,frame.depth-.3,{y0:floorY(5),baseH:0,wallH:2.2,roofH:1.8,wall:'#c9b5ab',facade:false});
     roof.material=createSurfaceLibrary().surface('roof','#434d52');roof.material.side=THREE.DoubleSide;
     const details=addHallExteriorDetails(g,{width:frame.width,depth:frame.depth,height:11,floors:5,baseY:floorY(1),topY:floorY(5)+1.1,opening:g.userData.opening});quality.add(details);
     const tiles=addRoofFinish(g,{width:frame.width+1.5,depth:frame.depth+1.5,baseY:floorY(5)+2.4,height:1.8});quality.add(tiles);
+    quality.add(addEaveFinish(g,{width:frame.width,depth:frame.depth,y:floorY(5)+2.18}));
     addFadeGroup([g]);
   }
   staticRoot=campusRoot;

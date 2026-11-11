@@ -30,7 +30,7 @@ export function hallOpening(frame,door,normal){
 export function buildHallConnection(parent,{polygon,door,normal}){
  const f=hallWingFrame(polygon),g=new THREE.Group();g.name='hall-five-floor-base';g.position.set(f.center.x,0,f.center.z);g.rotation.y=f.yaw;parent.add(g)
  const {surface}=createSurfaceLibrary()
- const opening=hallOpening(f,door,normal),wall=surface('stone','#dfd6c5'),slab=surface('stone','#c3bba8')
+ const opening=hallOpening(f,door,normal),wall=surface('stone','#c9b5ab'),slab=surface('stone','#c3bba8')
  const box=(w,h,d,x,y,z,mat=wall)=>{if(w<=0||h<=0||d<=0)return;const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.castShadow=m.receiveShadow=true;g.add(m)}
  for(let floor=1;floor<=4;floor++){
   const y=floorY(floor)
