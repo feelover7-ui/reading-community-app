@@ -843,7 +843,7 @@ function init3D(){
       const local=workshopLocal({x:player.x,z:player.y}),p=showUI&&inside&&!busy&&!overview?toScreen(V3(station.x+station.w/2+WORKSHOP_OFFSET.x,2.35,station.y+station.h+WORKSHOP_OFFSET.z)):null;
       if(!p?.ok||(isTouch&&Math.hypot(local.x-station.x,local.z-station.y)>10)){node.style.display='none';return}
       const next=state.talked&&!state.hasHung&&state.stage===index,done=state.hasHung||state.stage>index;
-      node.textContent=`${index+1} ${['골조','한지','채색','전기'][index]}${next?' · 지금':done?' ✓':''}`;node.classList.toggle('current',next);node.style.display='block';node.style.left=p.x+'px';node.style.top=p.y+'px';
+      node.textContent=`${index+1} ${station.name.replace(' 작업대','')}${next?' · 지금':done?' ✓':''}`;node.classList.toggle('current',next);node.style.display='block';node.style.left=p.x+'px';node.style.top=p.y+'px';
     });
     const guide=nearbyLandmark({x:player.x,z:player.y},{suspended:!showUI||inside||!!busy||!!tap||overview});
     let gp=guide&&toScreen(V3(guide.anchor.x,guide.anchor.y,guide.anchor.z));
