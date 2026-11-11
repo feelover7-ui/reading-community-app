@@ -5,12 +5,18 @@ function smoothClosed(points){
  return out
 }
 // 사용자가 승인한 변경안. 위성사진의 정확한 잔디/화단 판독값으로 취급하지 않는다.
-export function createApprovedLandscape({statue,statueStand,pagoda,hallDoor}){
+export function createApprovedLandscape({statue,statueStand,pagoda,hallDoor,precinct}){
  const lawn=smoothClosed([[7,39.3],[11,39],[16.5,39.4],[19.4,41.1],[19,44.2],[18.1,47.2],[18.1,49.5],[19.4,53],[21,56.2],[21.1,58.7],[20,61.6],[18.9,64.1],[16.5,61.1],[13.2,57.4],[10.5,53.2],[8.2,49],[6.6,44.7],[5.9,41.7]])
  // 동상 앞 참배 자리까지 덮지 않고 받침·화엄석을 감싸는 잔디.
  const angle=Math.atan2(statueStand.x-statue.x,statueStand.z-statue.z),c=Math.cos(angle),s=Math.sin(angle)
- const statueBed=smoothClosed([[-3.2,-2.8],[-1.7,-4.4],[1,-4.4],[4.4,-2],[4.3,0],[2.6,2.35],[.8,2.6],[-1.6,2.5],[-3.1,.4]])
+ const statueCore=smoothClosed([[-3.2,-2.8],[-1.7,-4.4],[1,-4.4],[4.4,-2],[4.3,0],[2.6,2.35],[.8,2.6],[-1.6,2.5],[-3.1,.4]])
   .map(p=>point(statue.x+p.x*c+p.z*s,statue.z-p.x*s+p.z*c))
+ // 왼쪽 포장 띠 없이 기존 도량의 사선 외곽까지 잔디를 잇는다.
+ const west=precinct[0],northWest=precinct[1],north=precinct[2],southWest=precinct.at(-1)
+ const along=(a,b,t)=>point(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t)
+ const statueBed=[...statueCore.slice(9,29),point(statue.x-1.5,statue.z+3),
+  along(west,southWest,.4),{...west},{...northWest},along(northWest,north,.65)]
+
  const east=smoothClosed([[28.6,32.7],[30.1,35.9],[32.1,39.6],[32.8,42.2],[33.2,44.3],[35.8,46.5],[37.6,47.2],[38.8,45.5],[37.5,41],[34.4,35.4],[31.4,32.4]])
  const trees=[
   [4.4,32,1],[7.9,31,.95],[3.2,33.4,.85],

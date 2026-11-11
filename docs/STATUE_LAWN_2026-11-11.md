@@ -9,3 +9,9 @@
 화면: [PC](../public/scene-comparison/statue-lawn-pc-2026-11-11.png), [모바일](../public/scene-comparison/statue-lawn-mobile-2026-11-11.png).
 
 사진 기반 수정이며 잔디 경계 실측/실제 iPhone GPU 검증은 하지 못했다. 운영 배포/병합은 하지 않고 PR39에 반영한다.
+
+## 왼쪽 끝까지 잔디 연결
+
+추가 요청으로 동상 왼쪽에 남던 포장 띠를 없애고 잔디를 CAMPUS_POLYGON의 실제 서쪽 사선 경계까지 연결했다. 외곽 꼭짓점을 공유하므로 도량 밖으로 확장하지 않는다. 참배 자리·접근로와 시설 위치/방향은 유지한다. 기존 곡선의 오른쪽과 앞쪽은 그대로 두고 왼쪽 외곽만 연결했다.
+
+테스트115개 통과(서쪽 경계 안쪽 잔디 연속성과 도량 외부 침범 방지 추가). 빌드 통과. Chromium PC/모바일 모형에서 정면 자동 시점과 클릭/터치 설명 확인, pageerror0. [PC 실행 화면](../public/scene-comparison/statue-west-lawn-pc-2026-11-11.png). 운영 배포와 실제 iPhone 확인 전.

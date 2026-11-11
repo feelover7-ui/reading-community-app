@@ -717,3 +717,5 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 사용자 요청으로 동상 받침·화엄석 주변은 잔디로 수정한다. 이전 조경 승인 중 동상 주변 넓은 포장은 이 요청으로 대체한다. 앞쪽 참배 자리/접근로 포장과 보행은 유지한다.
 - APPROVED_LANDSCAPE의 statue-back은 ground:lawn이다. 동상 바깥의 튜브 고리는 낮은 받침 석판으로 대체했다. 시설 좌표/방향·다른 조경은 유지한다.
 - 사진/검증/한계는 docs/STATUE_LAWN_2026-11-11.md.
+
+- 추가 요청: 동상 주변 잔디는 도량 왼쪽 사선 끝까지 잇는다. CAMPUS_POLYGON 서쪽 꼭짓점을 공유하고 참배 자리/접근로는 포장으로 유지한다. 동상 둘레를 독립된 작은 잔디 섬으로 되돌리지 않는다.

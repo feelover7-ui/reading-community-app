@@ -66,7 +66,7 @@ export function distanceToSegment(x,z,a,b){const dx=b.x-a.x,dz=b.z-a.z,t=Math.ma
 export const distanceToPolygon=(x,z,p)=>Math.min(...p.map((a,i)=>distanceToSegment(x,z,a,p[(i+1)%p.length])))
 export const onRoute=(x,z,points,margin=1.6)=>points.slice(1).some((b,i)=>distanceToSegment(x,z,points[i],b)<margin)
 export const onConnector=(x,z,margin=1.6)=>onRoute(x,z,CONNECTOR,margin)
-export const APPROVED_LANDSCAPE=createApprovedLandscape({statue:STATUE_POSITION,statueStand:STATUE_APPROACH,pagoda:PAGODA_POSITION,hallDoor:HALL_ENTRY})
+export const APPROVED_LANDSCAPE=createApprovedLandscape({statue:STATUE_POSITION,statueStand:STATUE_APPROACH,pagoda:PAGODA_POSITION,hallDoor:HALL_ENTRY,precinct:CAMPUS_POLYGON})
 export const CAMPUS_TREES=Object.freeze(APPROVED_LANDSCAPE.trees)
 
 export function inHallLobby(x,z){

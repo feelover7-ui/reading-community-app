@@ -36,3 +36,14 @@ test('동상 받침 양옆과 화엄석 주변은 잔디이며 참배 자리는 
  assert.equal(L.pointInPolygon(L.STATUE_APPROACH.x,L.STATUE_APPROACH.z,bed.polygon),false)
  assert.ok(L.canStandCampus(L.STATUE_APPROACH.x,L.STATUE_APPROACH.z),'참배 자리 보행 유지')
 })
+test('동상 주변 잔디는 왼쪽 도량 사선 끝까지 이어지고 도량 밖으로 나가지 않는다',()=>{
+ const bed=layout().beds.find(b=>b.id==='statue-back').polygon
+ const west=L.CAMPUS_POLYGON[0],south=L.CAMPUS_POLYGON.at(-1)
+ for(const t of[.05,.2,.35]){
+  const x=west.x+(south.x-west.x)*t+.025,z=west.z+(south.z-west.z)*t
+  assert.ok(L.pointInPolygon(x,z,bed),'왼쪽 끝 잔디 끊김 '+t)
+ }
+ for(const p of bed){
+  assert.ok(L.pointInPolygon(p.x,p.z,L.CAMPUS_POLYGON)||L.distanceToPolygon(p.x,p.z,L.CAMPUS_POLYGON)<1e-7,'도량 밖 잔디')
+ }
+})
