@@ -1,3 +1,6 @@
+import {hallLookFromAppearance} from './characterStyle.js'
+import {BOW_CYCLE_SECONDS} from './bowMotion.js'
+import {findWalkPath,createGuidedWalk} from './guidedWalk.js'
 import {mountSceneQuality} from './realismMaterials.js'
 import {hallReturnUrl} from './mapChoiceRoutes.js'
 import {installMobileViewport} from './mobileUi.js'
@@ -5,13 +8,13 @@ import { fitHallView } from './hallCamera.js'
 /* 대법당 안.
    칸 크기·걷는 속도·화면 배율은 등불사장·도량과 같은 값(sceneKit)을 씁니다.
    좌복 위에서 절을 할 수 있고, 같이 들어온 법우들도 서로 보입니다. */
-import { T, W, H, structures, spots, cushions, MAT, DOOR, startPosition, canStand, atDoor, cushionAt, SOURCE, createHallExitGate }
+import { T, W, H, structures, spots, cushions, MAT, DOOR, startPosition, canStand, atDoor, cushionAt, SOURCE, createHallExitGate,cushionSupportAt }
   from './beopdangData.js'
 import {
   bindKeys, bindJoystick, stepPlayer, createPeers, createModal, readIdentity,
   readStore, writeStore, createChat, SAY_MS, releaseFocus
 } from './sceneKit.js'
-import { createWorld, createFollower, createLabelLayer, makePerson, stepPerson, bowPose, V3 } from './three3d.js'
+import { createWorld, createFollower, createLabelLayer, makePerson, stepPerson, bowPose,lerpPose,POSE, V3 } from './three3d.js'
 import { buildHall, createHallPeers } from './beopdangScene.js'
 import { createBgm } from './bgm.js'
 
@@ -25,15 +28,17 @@ const isTouch = matchMedia('(hover:none) and (pointer:coarse)').matches
 if (isTouch) document.body.classList.add('touch')
 
 const me = readIdentity()
-const myLook = { body: '#e3a83f', hair: '#2b1d14', pants: '#3b3b48', long: me.sex === 'f' }
+let savedAppearance=null;try{savedAppearance=JSON.parse(readStore('hanmaum-campus-v2')||'null')?.ap}catch{}
+const myLook=hallLookFromAppearance(savedAppearance,me.sex)
 
 const player = { x: startPosition.x, y: startPosition.y, dir: 'up', face: Math.PI, moving: false, walk: 0, vx: 0, vy: 0 }
 let traveling = false
 
 /* ---------- 절 ---------- */
 const BOW_KEY = 'hanmaum-deungbul-bow'
-const BOW_CYCLE = 2.4            // 한 배에 걸리는 시간(초)
+const BOW_CYCLE = BOW_CYCLE_SECONDS            // 한 배에 걸리는 시간(초)
 const BOW_CYCLE_QUIET = 1.2      // 동작 줄이기에서는 짧게
+let bowReturn=null
 const bow = { on: false, goal: 0, done: 0, t: 0, spot: null }
 // 본원 기준 오늘은 한국 시간(UTC+9) 자정에 바뀐다.
 const today = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -62,12 +67,30 @@ function bowFrame (u) {
   return 3
 }
 
+const seatWalk=createGuidedWalk();let chosenSeat=null
+const seatTaken=c=>[...peers.peers.values()].some(p=>Math.hypot(p.x-c.x,p.y-c.y)<.85)
+function cancelSeatWalk(){seatWalk.cancel();chosenSeat=null;player.vx=0;player.vy=0;document.body.classList.remove('guide-active')}
 /* ---------- 창 ---------- */
 const modal = createModal(byId('modal'), byId('card'), {
   onClose: () => { keys.clear(); joy.reset(); try { cv.focus({ preventScroll: true }) } catch (e) {} }
 })
 const el = modal.el
 
+const seatButton=el('button','iconbtn','좌복');seatButton.type='button';seatButton.id='choose-seat';seatButton.setAttribute('aria-label','참배할 빈 방석 고르기');byId('topbtns').append(seatButton)
+const seatBar=el('div','guided-actions'),seatText=el('span',null,'선택한 방석으로 이동 중'),seatStop=el('button','btn ghost','멈추기');seatBar.hidden=true;seatBar.append(seatText,seatStop);document.body.append(seatBar);seatStop.onclick=cancelSeatWalk
+seatButton.onclick=()=>{
+ if(traveling||bow.on)return
+ cancelSeatWalk()
+ const panel=modal.shell('참배할 자리','빈 방석을 고르면 그 자리까지 걸어갑니다. 도착한 뒤 참배를 선택해 주세요.')
+ const list=el('div','bowpick')
+ cushions.forEach((c,i)=>{const b=el('button','placebtn',`${Math.floor(i/8)+1}열 ${i%8+1}번 · ${seatTaken(c)?'사용 중':'빈 방석'}`);b.disabled=seatTaken(c);b.onclick=()=>{
+  if(seatTaken(c)){setStatus('다른 법우가 있는 자리예요. 다른 방석을 골라 주세요.');return}
+  const path=findWalkPath({x:player.x,z:player.y},{x:c.x,z:c.y},canStand,{maxX:W,maxZ:H})
+  if(!path){setStatus('이 자리로 가는 길을 찾지 못했어요. 다른 방석을 골라 주세요.');return}
+  modal.close();keys.clear();joy.reset();chosenSeat=c;seatWalk.start(path);document.body.classList.add('guide-active')
+ };list.append(b)})
+ panel.append(list)
+}
 /* ---------- 키와 조이스틱 ---------- */
 const keys = bindKeys({
   onAction: () => action(),
@@ -78,8 +101,8 @@ const keys = bindKeys({
 })
 const joy = bindJoystick(byId('joy'))
 installMobileViewport({onInterrupt:()=>{keys.clear();joy.reset()}})
-addEventListener('blur', () => { keys.clear(); joy.reset() })
-document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); joy.reset() } })
+addEventListener('blur', () => { keys.clear(); joy.reset();cancelSeatWalk() })
+document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); joy.reset();cancelSeatWalk() } })
 
 /* ---------- 함께 있는 법우들 ---------- */
 const peers = createPeers({
@@ -152,6 +175,7 @@ function action () {
   if (traveling || modal.open) return
   if (chat.isOpen) { chat.hide(); return }
   if (bow.on) { stopBow('멈췄어요'); return }
+  cancelSeatWalk()
   const p = promptNow()
   if (p) p.run()
 }
@@ -194,6 +218,9 @@ function openBowPicker (c) {
   m.append(close)
 }
 function startBow (c, goal) {
+  if(seatTaken(c)){setStatus('다른 법우가 있는 자리예요. 다른 방석을 골라 주세요.');return}
+  cancelSeatWalk()
+  bowReturn=null
   syncBowDay()
   document.body.classList.add('bow-active')
   bow.on = true; bow.goal = goal; bow.done = 0; bow.t = 0; bow.spot = c
@@ -208,6 +235,7 @@ function startBow (c, goal) {
 }
 function stopBow (why) {
   if (!bow.on) return
+  bowReturn=reducedMotion?null:{from:bowPose(bow.t/BOW_CYCLE,false),t:0}
   const done = bow.done, goal = bow.goal
   document.body.classList.remove('bow-active')
   bow.on = false; bow.t = 0
@@ -340,15 +368,27 @@ function update (dt) {
       }
     }
   } else {
-    stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open || chat.isOpen, follower.moveVector)
+    const manual=['a','d','w','s','arrowleft','arrowright','arrowup','arrowdown'].some(k=>keys.has(k))||Math.hypot(joy.x,joy.y)>.15
+    if(manual||traveling||modal.open||chat.isOpen)cancelSeatWalk()
+    if(seatWalk.active){
+     if(seatTaken(chosenSeat)){cancelSeatWalk();setStatus('선택한 자리에 다른 법우가 있어요. 다른 방석을 골라 주세요.')}
+     else{const q=seatWalk.step({x:player.x,z:player.y},dt,canStand);player.x=q.x;player.y=q.z;player.moving=q.moving;player.vx=q.vx;player.vy=q.vz;if(q.moving){player.face=q.face;player.walk+=dt}
+      if(q.blocked){cancelSeatWalk();setStatus('길이 막혀 이동을 멈췄어요.')}
+      if(q.arrived){const c=chosenSeat;cancelSeatWalk();faceTowards(c.x,2);openBowPicker(c)}
+     }
+    }else stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open || chat.isOpen, follower.moveVector)
   }
+  seatBar.hidden=!seatWalk.active
+
   if(hallExitGate.sample({x:player.x,z:player.y,moving:player.moving,enabled:!traveling&&!modal.open&&!chat.isOpen&&!bow.on}))travel(hallReturnUrl(location.search))
+  if(bowReturn){if(player.moving)bowReturn=null;else{bowReturn.t+=dt;if(bowReturn.t>=.8)bowReturn=null}}
   // 절할 때는 몸을 낮춘다
   const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
   const u = bow.on ? bow.t / cycle : 0
   // 몸 전체를 누르지 않고 합장·무릎·엎드림 관절로 절합니다.
   stepPerson(meBody, player.x, player.y, bow.on ? Math.PI : player.face, player.moving, player.walk, reducedMotion,
-    bow.on ? bowPose(u, reducedMotion) : null)
+    bow.on ? bowPose(u, reducedMotion) : bowReturn?lerpPose(bowReturn.from,POSE.stand,Math.pow(bowReturn.t/.8,2)*(3-2*bowReturn.t/.8)):null)
+  meBody.position.y+=cushionSupportAt(player.x,player.y)
   peers.update(dt)
   peers.send()
   if(altarDetail&&(player.moving||keys.size||Math.hypot(joy.x,joy.y)>.1)){altarDetail=false;detailButton.setAttribute('aria-pressed','false')}
@@ -405,7 +445,7 @@ function loop (now) {
 }
 
 /* ---------- 들어오고 나가기 ---------- */
-addEventListener('pagehide', () => { keys.clear(); joy.reset(); peers.stop(); hallPeers.clear() })
+addEventListener('pagehide', () => { cancelSeatWalk(); keys.clear(); joy.reset(); peers.stop(); hallPeers.clear() })
 addEventListener('pageshow', e => {
   if (!e.persisted) return
   traveling = false
@@ -431,8 +471,8 @@ if (import.meta.env.DEV) window.__cam = () => ({ pos: world.camera.position.toAr
 if (import.meta.env.DEV) window.__beopdang = () => ({
   x: +player.x.toFixed(2), y: +player.y.toFixed(2), dir: player.dir, dist: +follower.state.dist.toFixed(1),
   traveling, modalOpen: modal.open, nick: me.nick, sex: me.sex,
-  bow: { on: bow.on, goal: bow.goal, done: bow.done }, bowTotal,
-  onCushion: !!cushionAt(player.x, player.y), atDoor: atDoor(player.x, player.y),
+  bow: { on: bow.on, goal: bow.goal, done: bow.done,phase:bow.t/BOW_CYCLE,rootY:meBody.position.y,returning:!!bowReturn }, bowTotal,
+  guided:seatWalk.active,onCushion: !!cushionAt(player.x, player.y), atDoor: atDoor(player.x, player.y),
   prompt: (promptNow() || {}).label || '',
   joined: peers.joined,
   peers: [...peers.peers.values()].map(p => ({ id: p.id, nick: p.nick, x: +p.x.toFixed(2), y: +p.y.toFixed(2), bow: p.bow }))

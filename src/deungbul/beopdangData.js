@@ -34,6 +34,9 @@ export const MAT = { x: 4, y: 8, w: 18, h: 8 }
 export const cushions = []
 for (const y of [9, 11, 13]) for (const x of [5, 7, 9, 11, 13, 15, 17, 19]) cushions.push({ x: x + .5, y: y + .5 })
 
+export const CUSHION_TOP=.23
+export const cushionSupportAt=(x,z)=>cushions.some(c=>Math.abs(x-c.x)<=.5&&Math.abs(z-c.y)<=.37)?CUSHION_TOP:0
+
 /* 살펴볼 곳 */
 export const spots = [
   { id: 'buddha', name: '석가모니 부처님과 목탱화', at: [13, 4.8], stand: [13, 7.2], pin: false,

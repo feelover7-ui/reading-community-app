@@ -1,3 +1,4 @@
+import {nextCraftStageAfterElectric} from './craftProgress.js'
 /* 등 만들기 공용 모듈.
 
    원래 `original/campusScene.js` 한 파일 안에 있던 2D 등 그림과 등 만들기 흐름을
@@ -68,32 +69,43 @@ export function createCraft(host){
  const {state,say,modalShell,closeModal,toast,tok,chime,bell,changed,owner,normalizeLantern}=host
  const setNight=(...a)=>host.setNight?.(...a)
  let hanging=false
- const NEXT_NAME=['골조 작업대','한지 작업대','채색 작업대','전기 작업대','마당의 소원등 걸이대'];
+ const NEXT_NAME=['골조 작업대','전기 작업대','한지 작업대','채색 작업대','마당의 소원등 걸이대'];
  function gate(need,name){if(state.stage<need){say(name,['아직 여기 차례가 아니에요.',`먼저 ${NEXT_NAME[state.stage]}에서 작업해요.`]);return false;}if(state.stage>need){say(name,['여기 작업은 끝났어요.',`다음은 ${NEXT_NAME[state.stage]}예요.`]);return false;}return true;}
- function stFrame(){if(!gate(0,'골조 작업대'))return;const m=modalShell('골조 작업대','철사로 등의 뼈대를 엮어요. 어떤 등을 만들까요?');let sel=null,prog=0;const N=6;const pv=makePreview(170),pvw=el('div','pv');pvw.append(pv);const opts=el('div','opts'),btns=[];
+ function stFrame(){if(!gate(0,'골조 작업대'))return;const m=modalShell('골조 작업대','철사로 등의 뼈대를 엮어요. 어떤 등을 만들까요?');let sel=null,prog=0;const N=1;const pv=makePreview(170),pvw=el('div','pv');pvw.append(pv);const opts=el('div','opts'),btns=[];
    SHAPES.forEach(s=>{const b=el('button','opt');const c=makePreview(58);c.paint({shape:s.id},{wire:1});b.append(c,el('span',null,s.name));b.onclick=()=>{if(prog>0)return;sel=s.id;btns.forEach(x=>x.classList.toggle('sel',x===b));upd();};btns.push(b);opts.append(b);});
    const bar=el('div','bar'),bi=el('i');bar.append(bi);const go=el('button','btn','모양을 먼저 골라요');go.disabled=true;
-   go.onclick=()=>{prog++;tok();if(prog>=N){state.craft={shape:sel};state.stage=1;changed();closeModal();chime();toast('뼈대 완성! 다음은 한지 작업대예요');return;}upd();};
+   go.onclick=()=>{prog++;tok();if(prog>=N){state.craft={shape:sel};state.talked=true;state.stage=1;changed();closeModal();chime();toast('뼈대 완성! 다음은 전기 작업대예요');return;}upd();};
    function upd(){pv.paint(sel?{shape:sel}:null,{wire:Math.max(.12,prog/N)});bi.style.width=(prog/N*100)+'%';if(sel){go.disabled=false;go.textContent=`철사 엮기 (${prog}/${N})`;}btns.forEach(b=>b.disabled=prog>0&&!b.classList.contains('sel'));}
    m.append(pvw,opts,bar,go);upd();}
- function stPaper(){if(!gate(1,'한지 작업대'))return;const m=modalShell('한지 작업대','풀칠한 한지를 뼈대 위에 한 장씩 붙여요. 한지 색을 골라요.');let col=null,prog=0;const N=5;const base=state.craft;const pv=makePreview(170),pvw=el('div','pv');pvw.append(pv);const opts=el('div','opts'),btns=[];
+ function stPaper(){if(!gate(2,'한지 작업대'))return;const m=modalShell('한지 작업대','풀칠한 한지를 뼈대 위에 한 장씩 붙여요. 한지 색을 골라요.');let col=null,prog=0;const N=1;const base=state.craft;const pv=makePreview(170),pvw=el('div','pv');pvw.append(pv);const opts=el('div','opts'),btns=[];
    COLORS.forEach(cl=>{const b=el('button','opt');const sw=el('span','sw');sw.style.background=cl.c;b.append(sw,el('span',null,cl.n));b.onclick=()=>{if(prog>0)return;col=cl.c;btns.forEach(x=>x.classList.toggle('sel',x===b));upd();};btns.push(b);opts.append(b);});
    const bar=el('div','bar'),bi=el('i');bar.append(bi);const go=el('button','btn','한지 색을 먼저 골라요');go.disabled=true;
-   go.onclick=()=>{prog++;tok();if(prog>=N){state.craft={...base,color:col};state.stage=2;changed();closeModal();chime();toast('한지 바르기 완성! 다음은 채색 작업대예요');return;}upd();};
+   go.onclick=()=>{prog++;tok();if(prog>=N){state.craft={...base,color:col};state.stage=3;changed();closeModal();chime();toast('한지 바르기 완성! 다음은 채색 작업대예요');return;}upd();};
    function upd(){pv.paint(col?{...base,color:col}:base,{paper:prog/N,wire:1});bi.style.width=(prog/N*100)+'%';if(col){go.disabled=false;go.textContent=`한지 바르기 (${prog}/${N})`;}btns.forEach(b=>b.disabled=prog>0&&!b.classList.contains('sel'));}
    m.append(pvw,opts,bar,go);upd();}
- function stPaint(){if(!gate(2,'채색 작업대'))return;const m=modalShell('채색 작업대','마른 한지 위에 붓으로 무늬를 넣어요.');let pat=null,prog=0;const N=3;const base=state.craft;const pv=makePreview(170),pvw=el('div','pv');pvw.append(pv);const opts=el('div','opts'),btns=[];
+ function stPaint(){if(!gate(3,'채색 작업대'))return;if(state.craft.pattern){finishCraft();return}const m=modalShell('채색 작업대','마른 한지 위에 붓으로 무늬를 넣어요.');let pat=null,prog=0;const N=1;const base=state.craft;const pv=makePreview(170),pvw=el('div','pv');pvw.append(pv);const opts=el('div','opts'),btns=[];
    PATTERNS.forEach(p=>{const b=el('button','opt');const c=makePreview(58);c.paint({...base,pattern:p.id});b.append(c,el('span',null,p.n));b.onclick=()=>{if(prog>0)return;pat=p.id;btns.forEach(x=>x.classList.toggle('sel',x===b));upd();};btns.push(b);opts.append(b);});
    const bar=el('div','bar'),bi=el('i');bar.append(bi);const go=el('button','btn','무늬를 먼저 골라요');go.disabled=true;
-   go.onclick=()=>{prog++;tok();if(prog>=N||pat==='none'){state.craft={...base,pattern:pat};state.stage=3;changed();closeModal();chime();toast('채색 완성! 다음은 전기 작업대예요');return;}upd();};
+   go.onclick=()=>{prog++;tok();if(prog>=N||pat==='none'){state.craft={...base,pattern:pat};finishCraft();return;}upd();};
    function upd(){pv.paint(pat?{...base,pattern:pat}:base,{pat:pat?Math.max(.25,prog/N):0});bi.style.width=(prog/N*100)+'%';if(pat){go.disabled=false;go.textContent=pat==='none'?'이대로 두기':`붓질하기 (${prog}/${N})`;}btns.forEach(b=>b.disabled=prog>0&&!b.classList.contains('sel'));}
    m.append(pvw,opts,bar,go);upd();}
- function stLight(){if(!gate(3,'전기 작업대'))return;const m=modalShell('전기 작업대','등 안에 전구를 넣고, 등에 소원을 적어요.');let prog=0;const N=3;const base=state.craft;const pv=makePreview(170),pvw=el('div','pv');pvw.append(pv);
-   const bar=el('div','bar'),bi=el('i');bar.append(bi);const go=el('button','btn',`전구 연결하기 (0/${N})`);const wishWrap=el('div');wishWrap.style.display='none';
-   const lab=el('label',null,'등에 적을 소원 (24자까지)');const ta=el('textarea');ta.rows=2;ta.maxLength=24;ta.placeholder='모두 평안하기를';const fin=el('button','btn','소원등 완성!');wishWrap.append(lab,ta,fin);
-   go.onclick=()=>{prog++;tok();bi.style.width=(prog/N*100)+'%';if(prog>=N){go.style.display='none';bar.style.display='none';pvw.classList.add('dark');pv.paint({...base},{lit:true,tassel:true});wishWrap.style.display='block';chime();setTimeout(()=>{try{ta.focus();}catch(e){}},80);}else go.textContent=`전구 연결하기 (${prog}/${N})`;};
-   fin.onclick=()=>{const w=(ta.value||'').trim().replace(/\s+/g,' ')||'모두 평안하기를';state.craft={...base,wish:w};state.stage=4;changed();closeModal();chime();toast('소원등 완성! 마당 걸이대에 걸어요');};
-   pv.paint(base,{});m.append(pvw,bar,go,wishWrap);}
+ function stLight(){
+  if(!gate(1,'전기 작업대'))return
+  const m=modalShell('전기 작업대','한지를 붙이기 전에 내부 전구를 연결하고 불이 들어오는지 확인해요.')
+  const pv=makePreview(170);pv.paint(state.craft,{wire:1})
+  const test=el('p','sub','전구 연결 전'),go=el('button','btn','전구 연결 · 점등 시험');let checked=false
+  go.onclick=()=>{if(!checked){checked=true;test.textContent='● 전구가 켜졌어요. 시험을 마치면 불을 끄고 한지를 붙여요.';test.style.color='#a76b14';go.textContent='시험 마치고 한지 작업으로';chime();return}
+   state.craft={...state.craft,electric:true};state.stage=nextCraftStageAfterElectric(state.craft);changed();closeModal();if(state.craft.pattern){finishCraft();return}toast('전기 작업 완성! 다음은 '+NEXT_NAME[state.stage]+'예요')}
+  m.append(pv,test,go)
+ }
+ function finishCraft(){
+  const m=modalShell('소원등 완성','마지막으로 불을 밝혀 보고 마음을 적어 보세요. 소원은 적지 않아도 됩니다.')
+  const pv=makePreview(170);pv.paint(state.craft,{lit:true,tassel:true})
+  const ta=el('textarea');ta.maxLength=24;ta.rows=2;ta.placeholder='소원 (선택 · 24자까지)';ta.setAttribute('aria-label','등에 적을 소원')
+  const fin=el('button','btn','완성하고 등 걸러 가기')
+  fin.onclick=()=>{state.craft={...state.craft,wish:ta.value.trim().replace(/\s+/g,' ').slice(0,24)||'모두 평안하기를'};state.stage=4;changed();closeModal();chime();toast('소원등 완성! 다음은 걸이대예요')}
+  m.append(pv,ta,fin)
+ }
  async function hangSign(){
    if(state.stage!==4){say('소원등 걸이대',['소원등을 완성해서 걸어요.','💬 메뉴에서 소원등 목록도 볼 수 있어요.']);return}
    if(hanging)return;hanging=true;
@@ -110,7 +122,7 @@ export function createCraft(host){
  function talkBanjang(){
   const first=!state.talked;state.talked=true;changed()
   const L=host.lines||{}
-  if(first&&state.stage===0&&!state.hasHung){say('등불사장 반장 법우',['어서 와요! 여기가 한마음선원 등불사장이에요.','연등회 때 나가는 장엄등도 전부 여기서 우리 손으로 만들어요.','오늘은 각자 소원등을 하나씩 만들어 봐요.\n작업대를 골조 → 한지 → 채색 → 전기 순서로 돌면 돼요.','다 만들면 걸이대에 걸고, 장엄등 점등식도 같이 해요!',L.intro||'끝나고 탑돌이랑 대법당 참배도 해 봐요.']);return}
+  if(first&&state.stage===0&&!state.hasHung){say('등불사장 반장 법우',['어서 와요! 여기가 한마음선원 등불사장이에요.','연등회 때 나가는 장엄등도 전부 여기서 우리 손으로 만들어요.','오늘은 각자 소원등을 하나씩 만들어 봐요.\n작업대를 골조 → 전기 → 한지 → 채색 순서로 돌면 돼요.','다 만들면 걸이대에 걸고, 장엄등 점등식도 같이 해요!',L.intro||'끝나고 탑돌이랑 대법당 참배도 해 봐요.']);return}
   if(state.stage>0&&state.stage<4){say('등불사장 반장 법우',['잘하고 있어요!',`다음은 ${NEXT_NAME[state.stage]}예요.`]);return}
   if(state.stage===4){say('등불사장 반장 법우',['와, 예쁘게 나왔네요!',L.hang||'걸이대에 걸어요.']);return}
   if(state.hasHung&&!state.litOnce){say('등불사장 반장 법우',['등 걸었어요? 이제 장엄등 앞에서 점등해 봐요.']);return}
@@ -127,6 +139,6 @@ export function createCraft(host){
 }
 
 /* 오늘의 소임 목록. 두 맵이 같은 순서를 쓴다. */
-export function craftQuest(state){return[['반장 법우에게 인사하기',state.talked],['골조 작업대 · 철사 뼈대 엮기',state.stage>=1||state.hasHung],['한지 작업대 · 한지 바르기',state.stage>=2||state.hasHung],['채색 작업대 · 무늬 넣기',state.stage>=3||state.hasHung],['전기 작업대 · 불 넣고 소원 적기',state.stage>=4||state.hasHung],['걸이대에 소원등 걸기',state.hasHung],['장엄등 점등하기',state.litOnce]]}
-export function riteQuest(state){return[['구정탑 탑돌이 세 바퀴',state.tapdoriDone],['대행선사 동상 앞 서서 삼배',state.statueDone],['5층 대법당 참배',state.hallDone]]}
+export function craftQuest(state){return[['반장 법우에게 인사하기',state.talked],['골조 작업대 · 철사 뼈대 엮기',state.stage>=1||state.hasHung],['전기 작업대 · 전구 연결과 시험',state.stage>=2||state.hasHung],['한지 작업대 · 한지 바르기',state.stage>=3||state.hasHung],['채색 작업대 · 무늬와 소원',state.stage>=4||state.hasHung],['걸이대에 소원등 걸기',state.hasHung],['장엄등 점등하기',state.litOnce]]}
+export function riteQuest(state){return[['구정탑 자동 탑돌이',state.tapdoriDone],['대행선사 동상 앞 서서 삼배',state.statueDone],['5층 대법당 참배',state.hallDone]]}
 export function fillList(elm,items,active){const cur=active?items.findIndex(i=>!i[1]):-1;elm.innerHTML='';items.forEach(([t,d],i)=>{const li=el('li',d?'done':(i===cur?'cur':''));li.append(el('b',null,d?'✓':(i===cur?'▸':'·')),el('span',null,t));elm.append(li)})}

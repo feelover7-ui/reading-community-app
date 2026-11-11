@@ -1,3 +1,4 @@
+import {formatCommunityTime} from '../communityTime.js'
 import { normalizeLantern,isSupabaseConfigured,fetchLanterns,insertLantern } from '../lanternsApi.js'
 import { canHash,hashPassword,fetchPosts,insertPost,deletePost,fetchMessages,insertMessage } from '../boardApi.js'
 export {normalizeLantern}
@@ -31,7 +32,7 @@ export function createCampusCommunity({shell,el,getNick,say}){
   // 입력 초안과 전송 중 상태는 탭을 바꿔도 유지한다. 비밀번호는 메모리에만 둔다.
   const drafts={posts:{text:'',password:'',busy:false},messages:{text:'',password:'',busy:false}};
   function open(kind='posts'){
-    const gen=++generation,panel=shell(kind==='posts'?'방명록':'법우들과 이야기','기존 등불사장과 같은 글 저장소를 사용합니다.');
+    const gen=++generation,panel=shell(kind==='posts'?'방명록':'법우들과 이야기','도량에 남기고 싶은 마음을 적어 주세요. 작성 시각은 한국시간입니다.');
     const nav=el('div','community-tabs');
     for(const [k,label]of[['posts','방명록'],['messages','대화'],['wishes','소원등']]){
       const b=el('button','btn ghost',label);b.onclick=()=>k==='wishes'?wishes():open(k);nav.append(b);
@@ -66,7 +67,7 @@ export function createCampusCommunity({shell,el,getNick,say}){
     };
     function add(row){
       if([...list.children].some(n=>n.dataset.id===String(row.id)))return;
-      const item=el('article','community-row');item.dataset.id=String(row.id);item.append(el('b',null,row.nick),el('p',null,row.body));
+      const item=el('article','community-row');item.dataset.id=String(row.id);const time=el('time','community-time',formatCommunityTime(row.createdAt));if(row.createdAt&&Number.isFinite(new Date(row.createdAt).getTime()))time.dateTime=new Date(row.createdAt).toISOString();item.append(el('b',null,row.nick),time,el('p',null,row.body));
       if(kind==='posts'){
         const pass=el('input'),del=el('button','btn ghost','내 글 삭제'),message=el('p','sub');pass.type='password';pass.maxLength=20;pass.setAttribute('aria-label',row.nick+' 글 삭제 비밀번호');
         del.onclick=async()=>{

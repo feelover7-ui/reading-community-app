@@ -5,7 +5,7 @@ import {HALL_ROOM} from './hallProportions.js'
    공식 안내의 내부 사진을 보고 특징만 줄여 직접 만들었습니다. 사진을 복제하지 않습니다. */
 import { THREE, hash3, makePerson, createPeerLayer, PEER_LAYER_DEFAULTS } from './three3d.js'
 import {buildSanctuary,ceilingDecoration} from './hallSanctuary.js'
-import { W, H, structures, cushions, MAT, DOOR, spots } from './beopdangData.js'
+import { W, H, structures, cushions, MAT, DOOR, spots,CUSHION_TOP,cushionSupportAt } from './beopdangData.js'
 
 function woodTexture (world) {
   return world.canvasTex(256, 256, g => {
@@ -108,7 +108,7 @@ export function buildHall (world) {
   const cushionTop = M('#9b4a43'), cushionSide = M('#7d3b36'), cushionLine = M('#d9a531')
   for (const c of cushions) {
     box(1.0, .16, .74, cushionSide, c.x, .08, c.y)
-    box(.94, .1, .68, cushionTop, c.x, .18, c.y)
+    box(.94, .1, .68, cushionTop, c.x, CUSHION_TOP-.05, c.y)
     box(.96, .03, .1, cushionLine, c.x, .2, c.y)
   }
 
@@ -203,4 +203,4 @@ export function buildHall (world) {
 }
 
 export const PEER_3D_MAX = PEER_LAYER_DEFAULTS.max
-export function createHallPeers (world) { return createPeerLayer(world, { bowing: true }) }
+export function createHallPeers (world) { return createPeerLayer(world, { bowing: true,floorHeight:cushionSupportAt }) }

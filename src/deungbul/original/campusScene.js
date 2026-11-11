@@ -1,3 +1,5 @@
+import {handGeometry,finishCharacter,addCharacterHair,torsoGeometry,shoeGeometry} from '../characterStyle.js'
+import {findWalkPath,createGuidedWalk} from '../guidedWalk.js'
 import {addLandscapeFinish} from '../landscapeFinish.js'
 import {createAreaView,createWorkshopView,fitWorkshopView,fitStatueView} from '../campusFraming.js'
 import {LANDMARK_GUIDES,nearbyLandmark,castLandmarkRay} from '../landmarkGuides.js'
@@ -8,7 +10,7 @@ import {buildHallConnection,hallWingFrame,floorY,HALL_ROOF_Y,SEVEN_BASE_Y,SEVEN_
 import {createHallApproach,fitCampusHallView} from '../campusHallCamera.js'
 import {mountSceneQuality,createSurfaceLibrary} from '../realismMaterials.js'
 import {addHallExteriorDetails} from '../hallExteriorDetails.js'
-import {restoreCraftProgress} from '../craftProgress.js'
+import {restoreOrderedCraft} from '../craftProgress.js'
 import {HALL_POLYGONS,CAMPUS_POLYGON,TERRACE_POLYGON,FORECOURT_POLYGON,WORKSHOP_POLYGON,WORKSHOP_GATE,WORKSHOP_NORMAL,WORKSHOP_EXIT,WORKSHOP_INTERIOR_ENTRY,WORKSHOP_OFFSET,SCENE_VIEW,workshopPlace,workshopLocal,PATH_DECOR,GUIDE_POSITION,CONNECTOR,HALL_PATH,HALL_LANDING,routePolygon,APPROVED_LANDSCAPE,HALL_ENTRY_NORMAL,STATUE_FACING,PAGODA_APRON,SEVEN_POSITION,inWorkshop,inHallLobby,canStandCampus,pointInPolygon,distanceToPolygon} from '../classicPlacement.js'
 import {createBgm} from '../bgm.js'
 import {buildSevenTreasure} from '../sevenTreasure.js'
@@ -56,7 +58,7 @@ let nick=readStore('hanmaum-deungbul-nick').slice(0,12),sharedLanterns=[],shared
 const setConnection=text=>{document.getElementById('connection').textContent=text;};
 
 const isTouch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
-if(isTouch){document.body.classList.add('touch');document.getElementById('ctlhint').innerHTML='왼쪽 조이스틱으로 이동 · 오른쪽 버튼으로 작업·대화<br>화면 끌기 · 두 손가락 또는 +/−로 확대·축소';}
+if(isTouch)document.body.classList.add('touch');
 
 /* ================= 2D lantern art ================= */
 /* ================= world grid (tile units: x → X, y → Z) ================= */
@@ -66,10 +68,10 @@ const setRect=(x,y,w,h,v)=>{for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)if
 setRect(2,2,32,10,false);setRect(16,12,4,1,false);setRect(1,13,34,12,false);setRect(16,25,4,2,false);setRect(105,5,18,15,false);
 const block=(x,y,w,h)=>setRect(x,y,w,h,true);
 const STATIONS=[
-  {id:'frame',name:'골조 작업대',x:4,y:3,w:3,h:2},{id:'paper',name:'한지 작업대',x:11,y:3,w:3,h:2},
-  {id:'paint',name:'채색 작업대',x:18,y:3,w:3,h:2},{id:'light',name:'전기 작업대',x:25,y:3,w:3,h:2}];
+  {id:'frame',name:'골조 작업대',x:4,y:3,w:3,h:2},{id:'light',name:'전기 작업대',x:11,y:3,w:3,h:2},
+  {id:'paper',name:'한지 작업대',x:18,y:3,w:3,h:2},{id:'paint',name:'채색 작업대',x:25,y:3,w:3,h:2}];
 STATIONS.forEach(s=>block(s.x,s.y,s.w,s.h));
-block(2,4,1,6);block(29,3,4,1);block(23,7,10,4);block(15,17,6,3);block(14,13,1,1);block(21,13,1,1);block(8,17,1,1);block(2,21,2,2);block(32,21,2,2);
+block(11,23,3,1);block(2,4,1,6);block(29,3,4,1);block(23,7,10,4);block(15,17,6,3);block(14,13,1,1);block(21,13,1,1);block(8,17,1,1);block(2,21,2,2);block(32,21,2,2);
 // campus
 const BLD=Object.fromEntries(OUTDOOR_BUILDINGS.map(b=>[b.id,[b.x,b.z,b.w,b.d]]));
 // 외부 충돌은 classicPlacement의 폴리곤과 동일한 좌표를 쓴다.
@@ -92,22 +94,23 @@ const USER_ORDER=slots.map((s,i)=>i).filter(i=>!SEED_IDX.includes(i)).sort((a,b)
 const HAIRS=[['short','짧은머리'],['part','가르마'],['bob','단발'],['long','긴머리'],['pony','묶은머리'],['bun','올림머리'],['bald','삭발']];
 const HAIRCOL=[['#1e1612','흑발'],['#3b2618','흑갈색'],['#6b4226','갈색']];
 const OUTFITS=[['vest','청년회 조끼'],['hanbok','생활한복'],['hoodie','후드티'],['practice','수련복']];
-const CLOTHCOL=['#e3a83f','#c8402f','#3f7a5c','#2b5fa5','#9b7ad1','#f29bb5','#5a4a3f'];
-const DEFAULT_AP={m:{gender:'m',hair:'short',hairColor:'#1e1612',outfit:'vest',color:'#e3a83f'},f:{gender:'f',hair:'pony',hairColor:'#1e1612',outfit:'vest',color:'#e3a83f'}};
+const CLOTHCOL=['#758466','#e3a83f','#c8402f','#3f7a5c','#2b5fa5','#9b7ad1','#f29bb5','#5a4a3f'];
+const DEFAULT_AP={m:{gender:'m',hair:'short',hairColor:'#1e1612',outfit:'vest',color:'#758466'},f:{gender:'f',hair:'pony',hairColor:'#1e1612',outfit:'vest',color:'#758466'}};
 
 const state={stage:0,craft:{},hasHung:false,litOnce:false,night:false,talked:false,lanterns:[],ap:null,tapdoriDone:false,statueDone:false,hallDone:false,best108:0};
 const KEY='hanmaum-campus-v2';
-try{const d=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('hanmaum-deungbul-v1')||'null');if(d){state.lanterns=Array.isArray(d.lanterns)?d.lanterns.filter(L=>L&&typeof L==='object').map(L=>({...normalizeLantern(L),owner:OWNER})).slice(-120):[];['litOnce','talked','tapdoriDone','statueDone','hallDone'].forEach(k=>state[k]=!!d[k]);state.best108=d.best108|0;state.ap=cleanAppearance(d.ap);Object.assign(state,restoreCraftProgress(d));if(state.stage>0)state.talked=true;state.hasHung=state.lanterns.length>0;}}catch(e){}
+try{const d=JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('hanmaum-deungbul-v1')||'null');if(d){state.lanterns=Array.isArray(d.lanterns)?d.lanterns.filter(L=>L&&typeof L==='object').map(L=>({...normalizeLantern(L),owner:OWNER})).slice(-120):[];['litOnce','talked','tapdoriDone','statueDone','hallDone'].forEach(k=>state[k]=!!d[k]);state.best108=d.best108|0;state.ap=cleanAppearance(d.ap);Object.assign(state,restoreOrderedCraft(d));if(state.stage>0)state.talked=true;state.hasHung=state.lanterns.length>0;}}catch(e){}
 function cleanAppearance(a){if(!a||typeof a!=='object')return null;const gender=a.gender==='f'?'f':'m';return{gender,
   hair:HAIRS.some(h=>h[0]===a.hair)?a.hair:DEFAULT_AP[gender].hair,
   hairColor:HAIRCOL.some(h=>h[0]===a.hairColor)?a.hairColor:'#1e1612',
   outfit:OUTFITS.some(o=>o[0]===a.outfit)?a.outfit:'vest',color:CLOTHCOL.includes(a.color)?a.color:'#e3a83f'};}
-function save(){try{localStorage.setItem(KEY,JSON.stringify({stage:state.stage,craft:state.craft,lanterns:state.lanterns,litOnce:state.litOnce,talked:state.talked,tapdoriDone:state.tapdoriDone,statueDone:state.statueDone,hallDone:state.hallDone,best108:state.best108,ap:state.ap}));}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({craftVersion:2,stage:state.stage,craft:state.craft,lanterns:state.lanterns,litOnce:state.litOnce,talked:state.talked,tapdoriDone:state.tapdoriDone,statueDone:state.statueDone,hallDone:state.hallDone,best108:state.best108,ap:state.ap}));}catch(e){}}
 function visibleLanterns(){const ids=new Set(sharedLanterns.map(L=>L.id).filter(Boolean));return sharedLanterns.concat(state.lanterns.filter(L=>!L.id||!ids.has(L.id)));}
 function hungList(){const out=SEEDS.map((L,i)=>({L,slot:slots[SEED_IDX[i]],i}));visibleLanterns().slice(-USER_ORDER.length).forEach((L,i)=>{const slot=slots[USER_ORDER[i]];if(slot)out.push({L,slot,i:100+i});});return out;}
 
 const POSE={
   stand:{y:0,bend:0,legX:0,legY:0,armX:0,armZ:-.08,swing:1},
+  hold:{y:0,bend:0,legX:0,legY:0,armX:-.95,armZ:.52,swing:0},
   hap:{y:0,bend:0,legX:0,legY:0,armX:-1.2,armZ:.62,swing:0},
   bow:{y:0,bend:.95,legX:0,legY:0,armX:-1.2,armZ:.62,swing:0},
   kneel:{y:-.3,bend:.05,legX:1.45,legY:0,armX:-1.2,armZ:.62,swing:0},
@@ -146,11 +149,20 @@ function closeDialog(){dialog=null;dlg.style.display='none';}
 dlg.addEventListener('click',advance);
 const modalWrap=document.getElementById('modal'),card=document.getElementById('card');
 const sharedModal=createModal(modalWrap,card,{onClose:()=>{modalOpen=false;keys.clear();joy.reset();try{cv.focus({preventScroll:true})}catch{}}});
-function modalShell(title,sub){modalOpen=true;keys.clear();joy.reset();return sharedModal.shell(title,sub);}
+function modalShell(title,sub){cancelGuide();modalOpen=true;keys.clear();joy.reset();return sharedModal.shell(title,sub);}
 function closeModal(){sharedModal.close();}
 const fadeEl=document.getElementById('fade');
 function fadeTo(fn){fadeEl.classList.add('on');setTimeout(()=>{fn();snapCam=true;setTimeout(()=>fadeEl.classList.remove('on'),120);},460);}
 
+const guidedWalk=createGuidedWalk();let guideName='',guideArrival=null,routeCanStand=()=>false;
+function cancelGuide(){guidedWalk.cancel();guideArrival=null;document.body.classList.remove('guide-active')}
+function goToInteraction(it){
+ if(!it||!started||creatorOpen||ritual||seq)return
+ closeDialog();closeModal();if(tap)stopTap();leaveOverview()
+ const path=findWalkPath({x:player.x,z:player.y},{x:it.x,z:it.y},routeCanStand)
+ if(!path){toast('여기서는 길을 찾지 못했어요. 조금 이동한 뒤 다시 선택해 주세요.');return}
+ guideName=it.name;guideArrival=()=>it.fn();guidedWalk.start(path);keys.clear();joy.reset();document.body.classList.add('guide-active')
+}
 const hud=document.getElementById('hud'),questEl=document.getElementById('quest'),quest2El=document.getElementById('quest2'),hudfoot=document.getElementById('hudfoot');
 document.getElementById('hudh').onclick=()=>{hud.classList.toggle('collapsed');document.getElementById('hudh').setAttribute('aria-expanded',String(!hud.classList.contains('collapsed')));document.querySelector('#hudh small').textContent=hud.classList.contains('collapsed')?'펼치기':'접기';};
 if(isTouch||window.innerWidth<640){document.getElementById('hudh').setAttribute('aria-expanded','false');hud.classList.add('collapsed');document.querySelector('#hudh small').textContent='펼치기';}
@@ -175,7 +187,7 @@ function talk(id){
   if(id==='banjang')craft.talkBanjang();
   else if(id==='worker')craft.talkWorker();
   else if(id==='monk')craft.talkMonk();
-  else if(id==='guide')say('안내하는 보살님',['어서 오세요, 한마음선원 본원이에요.','마당 가운데 구정탑 앞에서 자동 탑돌이를 시작할 수 있어요. 직접 움직일 필요 없이 세 바퀴를 돌아요.','탑의 북서쪽 정원에는 대행선사 동상이 있어요. 동상 앞에서는 서서 삼배를 올려요.','탑 남쪽에 이어진 건물이 본관이에요. 입구에서 들어가면 기존 대법당에서 절을 올릴 수 있어요.']);
+  else if(id==='guide')say('안내하는 보살님',['어서 오세요, 한마음선원 본원이에요.','마당 가운데 구정탑 앞에서 자동 탑돌이를 시작할 수 있어요. 직접 움직일 필요 없이 한 바퀴를 돌아요. 끝나기 전에 한 바퀴 더 이어갈 수 있어요.','탑의 북서쪽 정원에는 대행선사 동상이 있어요. 동상 앞에서는 서서 삼배를 올려요.','탑 남쪽에 이어진 건물이 본관이에요. 입구에서 들어가면 기존 대법당에서 절을 올릴 수 있어요.']);
   else if(id==='hallmonk')say('대법당 스님',['대법당에 오셨군요.','가운데 금빛 방석에 서면 예불, 법회, 좌선, 삼배, 108배 중에 골라서 할 수 있어요.','절 한 번 한 번에 마음을 실어 보세요. 숫자보다 마음이 먼저예요.']);
 }
 
@@ -206,16 +218,16 @@ function statueBow(){if(ritual||seq)return;player.x=STATUE_STAND.x;player.y=STAT
 let tap=null;const tapEl=document.getElementById('tapdori'),tapRing=document.getElementById('tapring'),tapTxt=document.getElementById('taptxt');
 function updTapUI(){
   if(!tap)return;
-  tapRing.style.strokeDashoffset=String(131.9*(1-Math.min(1,tap.orbit.laps/3)));
-  tapTxt.textContent='탑돌이 '+Math.min(3,tap.orbit.laps).toFixed(1)+' / 3바퀴';
+  tapRing.style.strokeDashoffset=String(131.9*(1-Math.min(1,tap.orbit.laps/tap.goal)));
+  tapTxt.textContent='자동 탑돌이 · '+Math.min(tap.goal,tap.orbit.laps).toFixed(1)+' / '+tap.goal+'바퀴';tapMore.hidden=tap.orbit.laps<tap.goal-.3;
 }
 function startTapdori(){
   if(ritual||seq)return;
   if(tap){say('구정탑',['구정탑을 중심으로 자동으로 돌고 있어요. 멈추기 버튼으로 중단할 수 있어요.']);return}
-  const m=modalShell('구정탑 탑돌이','시작을 누르면 직접 움직이지 않아도 탑을 오른쪽에 두고 세 바퀴 돌아요.');
+  const m=modalShell('구정탑 탑돌이','시작을 누르면 직접 움직이지 않아도 탑을 오른쪽에 두고 한 바퀴 돌아요. 끝나기 전에 한 바퀴 더 선택할 수 있어요.');
   const begin=guided=>{
-    closeModal();tap={orbit:createOrbitProgress({x:PAGODA.x,z:PAGODA.z}),wrong:0,guided,angle:Math.atan2(player.y-PAGODA.z,player.x-PAGODA.x)};
-    tap.orbit.sample(player.x,player.y,performance.now());tapEl.style.display='flex';document.body.classList.add('tap-active');updTapUI();
+    closeModal();tap={orbit:createOrbitProgress({x:PAGODA.x,z:PAGODA.z,laps:10000}),goal:1,elapsed:0,cameraYaw:viewYaw,wrong:0,guided,angle:Math.atan2(player.y-PAGODA.z,player.x-PAGODA.x)};
+    tap.orbit.sample(player.x,player.y,0);tapEl.style.display='flex';document.body.classList.add('tap-active');updTapUI();
     keys.clear();joy.reset();toast('자동 탑돌이를 시작합니다. 멈추기 버튼이나 방향 입력으로 중단할 수 있어요.');
   };
   const guided=el('button','btn','자동 탑돌이 시작');
@@ -225,18 +237,19 @@ function guideTap(dt,canStand){
   if(!tap?.guided||dialog||modalOpen||creatorOpen||ritual||seq)return;
   const next=advanceGuidedOrbit({x:player.x,z:player.y,angle:tap.angle,dt,canStand});
   if(next.blocked){stopTap('앞이 막혀 자동 탑돌이를 멈췄어요.');return}
-  player.x=next.x;player.y=next.z;tap.angle=next.angle;
+  player.x=next.x;player.y=next.z;tap.angle=next.angle;tap.elapsed+=next.elapsedMs;
   if(next.moving){player.face=next.face;player.moving=true;player.walk+=dt}
 }
 function stopTap(msg){document.body.classList.remove('tap-active');tap=null;tapEl.style.display='none';if(msg)toast(msg);}
+const tapMore=el('button',null,'한 바퀴 더');tapMore.type='button';tapMore.hidden=true;tapMore.onclick=()=>{if(tap){tap.goal++;updTapUI()}};tapEl.append(tapMore);
 document.getElementById('tapstop').onclick=()=>stopTap('탑돌이를 멈췄어요');
 function updateTap(){
   if(!tap)return;
   if(Math.hypot(player.x-PAGODA.x,player.y-PAGODA.z)>9.5){stopTap('탑에서 멀어져서 탑돌이를 멈췄어요');return}
-  const result=tap.orbit.sample(player.x,player.y,performance.now());
+  const result=tap.orbit.sample(player.x,player.y,tap.elapsed);
   if(result.delta<0){tap.wrong-=result.delta;if(tap.wrong>1.3){toast('탑을 오른쪽에 두고 시계 방향으로 돌아요');tap.wrong=0}}
   updTapUI();
-  if(tap.orbit.done){stopTap();state.tapdoriDone=true;changed();chime();pagodaFlash();say('구정탑',['탑을 중심으로 세 바퀴를 마쳤어요.','모은 마음을 일상으로 이어가 봐요.']);}
+  if(tap.orbit.laps>=tap.goal){const n=tap.goal;stopTap();state.tapdoriDone=true;changed();chime();pagodaFlash();toast(n+'바퀴를 마쳤어요. 잠시 탑을 바라보며 머물러도 좋아요.');}
 }
 
 let hallTraveling=false;
@@ -287,6 +300,7 @@ const INTERACT=[
   ...NPCS.map(n=>({x:n.x,y:n.y,name:n.name,fn:()=>talk(n.id),mark:[n.x,2.0,n.y],key:n.id})),
   {x:8.5+WORKSHOP_OFFSET.x,y:18.45,name:'소원등 걸이대',fn:hangSign,mark:[8.5+WORKSHOP_OFFSET.x,2.35,17.5],key:'sign'},
   {x:18+WORKSHOP_OFFSET.x,y:20.45,name:'장엄등',fn:bigLantern,mark:[18+WORKSHOP_OFFSET.x,6.0,18.5],key:'big'},
+  {x:12.7+WORKSHOP_OFFSET.x,y:24.3,name:'방명록 게시판',fn:()=>community.open(),mark:[12.1+WORKSHOP_OFFSET.x,2,24],key:'guestbook'},
   {x:PAGODA.x,y:PAGODA.z+GUIDED_RADIUS+.3,name:'구정탑 · 탑돌이',fn:startTapdori,mark:[PAGODA.x,7.6,PAGODA.z],key:'tower'},
   {x:STATUE_STAND.x,y:STATUE_STAND.z,name:'대행선사 동상 · 서서 삼배',fn:statueBow,mark:[STATUE_CENTER.x,3.9,STATUE_CENTER.z],key:'statue'},
   {x:HALL_DOOR.x,y:HALL_DOOR.z,name:'본원 3층 연결문',fn:enterHall,mark:[HALL_DOOR.x,3.4,HALL_DOOR.z],key:'hallDoor'},
@@ -295,7 +309,7 @@ const INTERACT=[
   {x:114,y:9.9,name:'가운데 방석 · 참배하기',fn:hallMenu,mark:[114,1.6,9.9],key:'cushion'},
   {x:114,y:19.35,name:'나가기 · 본관 앞마당',fn:exitHall,mark:[114,3,19.9],key:'hallExit'}];
 function nearest(){if(inHallLobby(player.x,player.y))return INTERACT.find(i=>i.key==='hallDoor');let best=null,bd=1;for(const it of INTERACT){const r=it.key==='hallDoor'?2.8:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
-function targetKey(){if(state.stage>0)return['frame','paper','paint','light','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';
+function targetKey(){if(state.stage>0)return['frame','light','paper','paint','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';
   if(!state.tapdoriDone)return tap?null:'tower';if(!state.statueDone)return'statue';if(!state.hallDone)return inHall()?'cushion':'hallDoor';return null;}
 function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}if(modalOpen||ritual||seq)return;const it=nearest();if(it){it.fn();updateHUD();}}
 
@@ -317,9 +331,10 @@ addEventListener('keydown',e=>{
   if(k==='m'){toggleMap();return}if(k.startsWith('arrow'))e.preventDefault();keys.add(k);
 });
 addEventListener('keyup',e=>keys.delete(keyName(e)));
-addEventListener('blur',()=>{keys.clear();joy.reset()});
+addEventListener('blur',()=>{keys.clear();joy.reset();cancelGuide()});
 const joyEl=document.getElementById('joy'),joy=bindJoystick(joyEl);
 document.getElementById('act').addEventListener('click',action);
+if(!readStore('hanmaum-deungbul-bgm'))writeStore('hanmaum-deungbul-bgm','off');
 const bgm=createBgm();muted=!bgm.on;
 const syncSound=()=>{const b=document.getElementById('snd');b.textContent=bgm.on?'🔊':'🔇';b.setAttribute('aria-pressed',String(bgm.on));b.setAttribute('aria-label',bgm.on?'배경음악과 소리 끄기':'배경음악과 소리 켜기');};syncSound();
 document.getElementById('snd').onclick=()=>{muted=!bgm.toggle();if(AC){(muted?AC.suspend():AC.resume()).catch(()=>{})}syncSound();};
@@ -339,7 +354,7 @@ function openLandmark(id){
 
 function syncEntryAccess(){
   const entry=!started||creatorOpen;
-  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#nearby-guide,.camera-tools').forEach(n=>n.inert=entry);
+  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#nearby-guide,#guided-actions,.arrival-guide,.camera-tools').forEach(n=>n.inert=entry);
   document.getElementById('title').inert=started;
   document.getElementById('creator').inert=!creatorOpen;
 }
@@ -366,7 +381,7 @@ function appendSourceRefs(parent,kind){
 document.getElementById('helpb').onclick=()=>{
   if(!started||creatorOpen)return;
   const m=modalShell('도움말',null),h=el('div','help');
-  h.innerHTML='<p>이동: 방향키·WASD 또는 조이스틱. 작업·살펴보기: Space·E 또는 작업 버튼.</p><p>작업장 밖 건물은 탑 오른편 법당 하나입니다. 구정탑 앞에서 <b>자동 탑돌이 시작</b>을 누르면 세 바퀴 돕니다. 멈추기 버튼이나 방향 입력으로 중단합니다.</p><p>대행선사 동상 앞에서는 서서 삼배를 올릴 수 있습니다. 법당 입구는 탑 쪽을 향합니다. 문 안으로 걸어가면 별도 버튼 없이 기존 법당 내부로 들어갑니다. 작업 버튼이나 Space로도 입장할 수 있습니다.</p><p>PC 작업장에서는 네 작업대를 함께 보는 정면 구도를 사용합니다. 직접 회전·확대 뒤에는 작업장 버튼으로 복원할 수 있습니다. 조형물은 직접 클릭하거나 가까이의 설명 안내를 선택해 공식 뜻을 읽습니다.</p><p>게임용 배치이며 실제 본원의 건물 위치나 출입 동선을 나타내지 않습니다. 구정탑과 동상은 공식 설명의 구조를 반영한 간략 조형 시안입니다.</p>';
+  h.innerHTML='<p>이동: 방향키·WASD 또는 조이스틱. 작업·살펴보기: Space·E 또는 작업 버튼.</p><p>작업장 밖 건물은 탑 오른편 법당 하나입니다. 구정탑 앞에서 <b>자동 탑돌이 시작</b>을 누르면 한 바퀴 돕니다. 끝나기 전에 한 바퀴 더 이어갈 수 있습니다. 멈추기 버튼이나 방향 입력으로 중단합니다.</p><p>대행선사 동상 앞에서는 서서 삼배를 올릴 수 있습니다. 법당 입구는 탑 쪽을 향합니다. 문 안으로 걸어가면 별도 버튼 없이 기존 법당 내부로 들어갑니다. 작업 버튼이나 Space로도 입장할 수 있습니다.</p><p>PC 작업장에서는 네 작업대를 함께 보는 정면 구도를 사용합니다. 직접 회전·확대 뒤에는 작업장 버튼으로 복원할 수 있습니다. 조형물은 직접 클릭하거나 가까이의 설명 안내를 선택해 공식 뜻을 읽습니다.</p><p>게임용 배치이며 실제 본원의 건물 위치나 출입 동선을 나타내지 않습니다. 구정탑과 동상은 공식 설명의 구조를 반영한 간략 조형 시안입니다.</p>';
   const close=el('button','btn','닫기');close.onclick=closeModal;m.append(h);appendSourceRefs(m);m.append(close);
 };
 
@@ -472,6 +487,11 @@ function init3D(){
     if(o.trim)box(w+.2,.2,d+.2,o.trim,x0+w/2,h+.1,z0+d/2);return m;}
 
   /* workshop tables & props */
+  // 남문 서쪽, 출입 통로를 비운 방명록 게시판. 근접 행동으로 기존 저장소를 연다.
+  const board=new THREE.Group();board.position.set(12.1,0,24);workshopRoot.add(board)
+  box(2.2,1.15,.16,MAT.woodDark,0,1.35,0,board);box(2,.96,.035,M('#eadcba'),0,1.35,.1,board)
+  for(const x of[-.85,.85])box(.1,1.9,.12,MAT.wood,x,.95,0,board)
+  const boardLabel=textPlane('방명록',1.7,.45,{fg:'#523b29',bg:'#eadcba'});boardLabel.position.set(0,1.52,.13);board.add(boardLabel)
   STATIONS.forEach(s=>{const cx=s.x+s.w/2,cz=s.y+s.h/2;box(s.w-.1,.1,s.h-.15,MAT.wood,cx,.78,cz);[[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b])=>box(.1,.74,.1,MAT.woodDark,cx+a*(s.w/2-.15),.37,cz+b*(s.h/2-.18)));box(s.w-.4,.06,s.h-.5,MAT.woodDark,cx,.25,cz);
     const top=.83;
     if(s.id==='frame'){[[-1,-.4,.16],[-.95,.1,.12],[-.6,-.3,.1]].forEach(([dx,dz,r])=>{const t=new THREE.Mesh(new THREE.TorusGeometry(r,.018,6,24),M(MAT.grey));t.rotation.x=-Math.PI/2;t.position.set(cx+dx,top+.02,cz+dz);staticRoot.add(t);});box(.3,.04,.06,MAT.red,cx+1,top+.02,cz+.4);const sp=lanternSprite({shape:'lotus'},{},.9);sp.position.set(cx+.2,top+.4,cz);staticRoot.add(sp);}
@@ -615,30 +635,24 @@ function init3D(){
     case 'practice':return{top:'#8f8b80',sleeve:'#8f8b80',bottom:'#77736a'};
     case 'robe':return{top:'#8f8b80',sleeve:'#8f8b80',bottom:'#8f8b80',robe:true,kasa:'#8a5a2b'};
     default:return{top:ap.color,sleeve:'#f4f1ea',bottom:'#3b3b48',vest:true};}}
-  function buildHair(head,style,col){if(style==='bald')return;const m=M(col,{side:THREE.DoubleSide});const add=(geo,x,y,z)=>mesh(geo,m,x,y,z,head);
-    const cap=add(new THREE.SphereGeometry(.2,18,10,0,Math.PI*2,0,Math.PI*.55),0,.012,-.012);cap.rotation.x=-.3;
-    if(style==='part'){const f=add(new THREE.BoxGeometry(.24,.05,.1),.04,.15,.12);f.rotation.set(.55,0,.28);}
-    else if(style==='bob')add(new THREE.CylinderGeometry(.208,.218,.27,22,1,true,.95,Math.PI*2-1.9),0,-.06,0);
-    else if(style==='long'){add(new THREE.CylinderGeometry(.212,.24,.6,22,1,true,1.5,Math.PI*2-3.0),0,-.22,-.01);}
-    else if(style==='pony'){add(new THREE.SphereGeometry(.07,10,8),0,.04,-.2);const t=add(new THREE.CylinderGeometry(.055,.025,.4,8),0,-.14,-.25);t.rotation.x=.35;}
-    else if(style==='bun')add(new THREE.SphereGeometry(.1,12,10),0,.17,-.11);}
+  function buildHair(head,style,col){return addCharacterHair({head,style,color:col,mesh,M})}
   function buildPerson(ap){const root=new THREE.Group();const body=new THREE.Group();root.add(body);const fem=ap.gender==='f';const oc=outfitColors(ap);const sk=M('#f1c9a0');const hipY=.44;
     const add=(geo,mat,x,y,z,parent)=>mesh(geo,mat,x,y,z,parent);
-    const legs=[-1,1].map(s=>{const lg=new THREE.Group();lg.position.set(s*.085,hipY,0);lg.rotation.order='YXZ';body.add(lg);add(new THREE.BoxGeometry(.12,.38,.13),oc.bottom,0,-.19,0,lg);add(new THREE.BoxGeometry(.13,.07,.2),'#2a2320',0,-.41,.03,lg);return lg;});
+    const legs=[-1,1].map(s=>{const lg=new THREE.Group();lg.position.set(s*.085,hipY,0);lg.rotation.order='YXZ';body.add(lg);add(new THREE.CapsuleGeometry(.058,.264,4,8),oc.bottom,0,-.19,0,lg);add(shoeGeometry(),'#2a2320',0,-.405,.03,lg);return lg;});
     if(oc.skirt||oc.robe)add(new THREE.CylinderGeometry(.17,oc.robe?.3:.27,oc.robe?.66:.42,16),oc.robe?oc.top:oc.bottom,0,oc.robe?.36:.42,0,body);
     const upper=new THREE.Group();upper.position.y=hipY;body.add(upper);const sh=fem?.16:.19;
-    add(new THREE.CylinderGeometry(sh,fem?.155:.17,.48,16),oc.top,0,.24,0,upper);
+    add(torsoGeometry(sh),oc.top,0,.24,0,upper);
     if(oc.vest)add(new THREE.CylinderGeometry(sh*.62,.12,.08,12),'#f4f1ea',0,.47,0,upper);
     if(oc.hood){const hd=add(new THREE.TorusGeometry(.12,.05,8,16),oc.top,0,.5,-.07,upper);hd.rotation.x=Math.PI/2;}
     if(ap.outfit==='hanbok')add(new THREE.BoxGeometry(.05,.18,.02),oc.accent,.06,.34,sh-.01,upper);
     if(oc.kasa){const b=add(new THREE.BoxGeometry(.62,.09,.03),oc.kasa,0,.28,sh+.005,upper);b.rotation.z=-.7;const b2=add(new THREE.BoxGeometry(.62,.09,.03),oc.kasa,0,.28,-sh-.005,upper);b2.rotation.z=.7;}
     if(ap.apron)add(new THREE.BoxGeometry(.26,.34,.02),'#e9dcc4',0,.18,(fem?.155:.17)+.012,upper);
-    const arms=[-1,1].map(s=>{const a=new THREE.Group();a.position.set(s*(sh+.045),.44,0);upper.add(a);add(new THREE.CylinderGeometry(.052,.046,.4,10),oc.sleeve,0,-.2,0,a);add(new THREE.SphereGeometry(.05,10,8),sk,0,-.43,0,a);return a;});
+    const arms=[-1,1].map(s=>{const a=new THREE.Group();a.position.set(s*(sh+.045),.44,0);upper.add(a);add(new THREE.CylinderGeometry(.052,.046,.4,10),oc.sleeve,0,-.2,0,a);add(handGeometry(s),sk,0,-.43,0,a);return a;});
     add(new THREE.CylinderGeometry(.06,.07,.08,10),sk,0,.51,0,upper);
     const head=new THREE.Group();head.position.y=.66;upper.add(head);add(new THREE.SphereGeometry(.19,18,14),sk,0,0,0,head);
     const eye=M('#2b1d14');[-.068,.068].forEach(x=>add(new THREE.SphereGeometry(fem?.027:.024,8,6),eye,x,0,.172,head));
     if(fem)[-.068,.068].forEach(x=>add(new THREE.BoxGeometry(.05,.012,.01),eye,x+(x>0?.01:-.01),.035,.175,head));
-    add(new THREE.BoxGeometry(.06,.014,.01),fem?'#c8606a':'#a0604a',0,-.08,.18,head);
+    finishCharacter({head,upper,skin:sk,dark:eye,cloth:oc.vest?M(oc.top):eye,vest:!!oc.vest,mesh:add});
     buildHair(head,ap.hair,ap.hairColor||'#1e1612');
     root.userData={body,upper,legs,arms,head};scene.add(root);return root;}
   function applyPose(m,p,phase,walking){const u=m.userData;const sw=walking?Math.sin(phase*11):0;
@@ -660,7 +674,7 @@ function init3D(){
   const orbitGuide=new THREE.Mesh(new THREE.RingGeometry(GUIDED_RADIUS-.04,GUIDED_RADIUS+.04,96),M('#d9a531',{transparent:true,opacity:.65,side:THREE.DoubleSide,depthWrite:false}));
   orbitGuide.rotation.x=-Math.PI/2;orbitGuide.position.set(PAGODA.x,.025,PAGODA.z);orbitGuide.visible=false;scene.add(orbitGuide);
   let carry=null;
-  function updateCarry(){if(carry){scene.remove(carry);carry.material.dispose();carry=null;}if(state.stage>=1){carry=lanternSprite(state.craft,{lit:state.stage>=4,paper:state.stage>=2?1:0},.75);scene.add(carry);}}
+  function updateCarry(){if(carry){scene.remove(carry);carry.material.dispose();carry=null;}if(state.stage>=1){carry=lanternSprite(state.craft,{lit:state.stage>=4,paper:state.stage>=3?1:0},.75);scene.add(carry);}}
   const marker=mesh(new THREE.ConeGeometry(.2,.4,4),M('#f2c037',{emissive:'#a8741a',emissiveIntensity:.6}),0,0,0,scene);marker.rotation.x=Math.PI;marker.castShadow=false;
   const PN=90,pPos=new Float32Array(PN*3),pData=[];for(let i=0;i<PN;i++)pData.push({age:99,life:1});
   const pGeo=new THREE.BufferGeometry();pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
@@ -724,6 +738,7 @@ function init3D(){
     if(NPCS.some(n=>Math.hypot(x-n.x,y-n.y)<.45))return false
     return (inWorkshop(x,y)&&tileFree(x,y))||canStandCampus(x,y)
   };
+  routeCanStand=canStand;
   const toScreen=(v)=>{const p=v.clone().project(camera);return{x:(p.x+1)/2*window.innerWidth,y:(1-p.y)/2*window.innerHeight,ok:p.z<1&&p.z>-1&&p.x>-1.1&&p.x<1.1&&p.y>-1.1&&p.y<1.1};};
   const angLerp=(a,b,k)=>{let d=b-a;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;return a+d*k;};
   const safeFrame=()=>{
@@ -743,19 +758,23 @@ function init3D(){
     if(keys.has('q')||keys.has('r'))manualCamera();if(keys.has('q'))yaw+=dt*1.6;if(keys.has('r'))yaw-=dt*1.6;
     let mx=0,my=0;const busy=dialog||modalOpen||ritual||seq||creatorOpen;
     if(started&&!busy){if(keys.has('arrowleft')||keys.has('a'))mx-=1;if(keys.has('arrowright')||keys.has('d'))mx+=1;if(keys.has('arrowup')||keys.has('w'))my-=1;if(keys.has('arrowdown')||keys.has('s'))my+=1;mx+=joy.x;my+=joy.y;}
-    const l=Math.hypot(mx,my);if(tap?.guided&&l>.15){stopTap('직접 이동해 자동 탑돌이를 멈췄어요.');}if(l>1){mx/=l;my/=l;}player.moving=l>.05;
+    const l=Math.hypot(mx,my);if(guidedWalk.active&&l>.15)cancelGuide();if(tap?.guided&&l>.15){stopTap('직접 이동해 자동 탑돌이를 멈췄어요.');}if(l>1){mx/=l;my/=l;}player.moving=l>.05;
     if(player.moving){leaveOverview();const moveYaw=viewYaw,dx=mx*Math.cos(moveYaw)+my*Math.sin(moveYaw),dz=-mx*Math.sin(moveYaw)+my*Math.cos(moveYaw);const sp=(tap?2.8:4.3)*dt;const nx=player.x+dx*sp,ny=player.y+dz*sp;if(canStand(nx,player.y))player.x=nx;if(canStand(player.x,ny))player.y=ny;player.walk+=dt;player.face=angLerp(player.face,Math.atan2(dx,dz),Math.min(1,dt*12));}
+    if(guidedWalk.active&&!busy){const q=guidedWalk.step({x:player.x,z:player.y},dt,canStand);player.x=q.x;player.y=q.z;player.moving=q.moving;if(q.moving){player.face=q.face;player.walk+=dt}if(q.blocked){cancelGuide();toast('길이 막혀 이동을 멈췄어요.')}if(q.arrived){const arrive=guideArrival;cancelGuide();arrive?.()}}
+    if(player.moving||modalOpen||creatorOpen||ritual)arrivalPanel.hidden=true;
+    paintGuidance();
     guideTap(dt,canStand);
-    if(seq)stepSeq(dt);else{const tg=tap?POSE.hap:POSE.stand;player.pose=lerpPose(player.pose,tg,Math.min(1,dt*8));}
+    if(seq)stepSeq(dt);else{const tg=tap?POSE.hap:state.stage>0?POSE.hold:POSE.stand;player.pose=lerpPose(player.pose,tg,Math.min(1,dt*8));}
     if(ritual&&ritual.update)ritual.update(dt);
     updateTap();
     if(hallWalkIn.sample({x:player.x,z:player.y,moving:player.moving,enabled:!busy&&!tap&&!hallTraveling}))enterHall();
     if(creatorOpen)player.face=creatorYaw+Math.sin(t*.7)*.5;
-    playerContact.position.set(player.x,.035,player.y);pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?POSE.stand:player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
+    playerContact.position.set(player.x,.035,player.y);pMesh.position.set(player.x,0,player.y);pMesh.rotation.y=player.face;applyPose(pMesh,reducedMotion?(state.stage>0&&!ritual?POSE.hold:POSE.stand):player.pose,player.walk,!reducedMotion&&player.moving&&!seq);
     const inside=inWorkshop(player.x,player.y);workshopRoot.visible=true;campusRoot.visible=true;
     npcMeshes.forEach(m=>m.visible=true);walkerMeshes.forEach(m=>m.visible=true);pts.visible=state.night&&inside&&!reducedMotion;
     updateOnline(dt,canStand);visiblePeers.clear();for(const[id,p]of onlinePeers)visiblePeers.set(id,p);remoteLayer.sync(visiblePeers,reducedMotion,player);orbitGuide.visible=!!tap;
-    if(carry){carry.visible=!ritual&&!creatorOpen;carry.position.set(player.x,1.85+Math.sin(t*3)*.03,player.y);}
+    if(carry){carry.visible=!ritual&&!creatorOpen;carry.position.set(player.x+Math.sin(player.face)*.36,.98+(reducedMotion?0:Math.sin(t*3)*.008),player.y+Math.cos(player.face)*.36);}
+    pMesh.userData.head.rotation.x=carry&&carry.visible ? .12 : 0;
     WALKERS.forEach((w,i)=>{if(!reducedMotion)w.a+=w.sp*dt;const m=walkerMeshes[i];m.position.set(PAGODA.x+Math.cos(w.a)*w.r,0,PAGODA.z+Math.sin(w.a)*w.r);m.rotation.y=Math.atan2(-Math.sin(w.a),Math.cos(w.a));applyPose(m,POSE.hap,t+i,!reducedMotion);});
     // 자동 시점은 모양 선택·전체 보기·수동 탐방·의식보다 우선하지 않는다.
     const hallDistance=Math.min(...HALL_POLYGONS.map(p=>pointInPolygon(player.x,player.y,p)?0:distanceToPolygon(player.x,player.y,p)));
@@ -779,6 +798,7 @@ function init3D(){
     document.body.classList.toggle('overview-mode',overview);
     scene.fog.near=overview?180:workshopAuto?100:(state.night?20:38);scene.fog.far=overview?350:workshopAuto?180:(state.night?70:95);
     if(workshopAuto&&isTouch){yT=0;dT=11.5;pT=.8;}
+    if(tap){focusX=PAGODA.x;focusZ=PAGODA.z;yT=tap.cameraYaw;dT=isTouch?22:18;pT=.65;lyT=2.2;}
     if(creatorOpen){leaveOverview();yT=creatorYaw;dT=window.innerWidth<700?4.6:3.2;pT=.2;lyT=window.innerWidth<700?-.45:.82;side=window.innerWidth<700?0:.75;}
     else if(ritual){leaveOverview();yT=player.face+1.0;dT=6;pT=.42;lyT=.6;}
     const k=snapCam?1:1-Math.exp(-dt*6);camYaw=angLerp(camYaw,yT,k);camDist+=(dT-camDist)*k;camPitch+=(pT-camPitch)*k;camLookY+=(lyT-camLookY)*k;
@@ -846,26 +866,26 @@ function init3D(){
 
 /* ================= character creator ================= */
 const creatorEl=document.getElementById('creator');
-creatorEl.addEventListener('keydown',e=>{if(e.key!=='Tab'||!creatorOpen)return;const items=[...creatorEl.querySelectorAll('button:not([disabled]),input')].filter(n=>n.getClientRects().length),first=items[0],last=items.at(-1);if((e.shiftKey&&document.activeElement===first)||(!e.shiftKey&&document.activeElement===last)){e.preventDefault();(e.shiftKey?last:first)?.focus()}});
-function openCreator(first){if(first){player.x=15.5+WORKSHOP_OFFSET.x;player.y=6.4;creatorYaw=0;snapCam=true;}else creatorYaw=yaw;creatorOpen=true;document.body.classList.add('creating');closeDialog();
-  let ap={...(state.ap||DEFAULT_AP.m)};const apply=()=>{state.ap={...ap};rebuildPlayer();};
+creatorEl.addEventListener('keydown',e=>{if(e.key!=='Tab'||!creatorOpen)return;const items=[...creatorEl.querySelectorAll('button:not([disabled]),input:not([disabled]),summary')].filter(n=>n.getClientRects().length),first=items[0],last=items.at(-1);if(document.activeElement===creatorEl||(e.shiftKey&&document.activeElement===first)||(!e.shiftKey&&document.activeElement===last)){e.preventDefault();(e.shiftKey?last:first)?.focus()}});
+function openCreator(first){if(first){player.x=18+WORKSHOP_OFFSET.x;player.y=24.4;creatorYaw=0;snapCam=true;}else creatorYaw=yaw;creatorOpen=true;document.body.classList.add('creating');closeDialog();
+  let ap={...(state.ap||DEFAULT_AP.m)};let groupTarget=creatorEl;const apply=()=>{state.ap={...ap};rebuildPlayer();};
   creatorEl.innerHTML='';creatorEl.style.display='block';syncEntryAccess();
-  creatorEl.append(Object.assign(el('h2',null,first?'나의 모습 고르기':'옷 갈아입기'),{id:'creator-title'}),el('p','sub',first?'등불사장에 들어갈 내 모습을 골라요. 나중에 👕 버튼으로 바꿀 수 있어요.':'마음에 드는 모습으로 바꿔요.'));
-  const group=(title,node)=>{creatorEl.append(el('h3',null,title),node);};
+  creatorEl.append(Object.assign(el('h2',null,first?'도량에 들어갈 모습':'옷 갈아입기'),{id:'creator-title'}),el('p','sub',first?'이름과 기본 모습을 골라 주세요. 머리와 옷은 나중에도 바꿀 수 있어요.':'마음에 드는 모습으로 바꿔요.'));
+  const group=(title,node)=>{groupTarget.append(el('h3',null,title),node);};
   const chips=(items,get,set,big)=>{const w=el('div','chips');const bs=items.map(([v,n])=>{const b=el('button','chip'+(big?' big':''),n);b.onclick=()=>{set(v);refresh();apply();};w.append(b);return[b,v];});w.refresh=()=>bs.forEach(([b,v])=>(b.classList.toggle('sel',get()===v),b.setAttribute('aria-pressed',String(get()===v))));return w;};
   const swatches=(cols,get,set)=>{const w=el('div','swatches');const bs=cols.map(c=>{const b=el('button','swatch');b.style.background=c;b.setAttribute('aria-label','색상 '+c);b.onclick=()=>{set(c);refresh();apply();};w.append(b);return[b,c];});w.refresh=()=>bs.forEach(([b,c])=>(b.classList.toggle('sel',get()===c),b.setAttribute('aria-pressed',String(get()===c))));return w;};
   const nameLabel=el('label',null,'이름 또는 별명 (12자 이내)'),nameInput=el('input');nameInput.id='creator-nickname';nameLabel.htmlFor=nameInput.id;nameInput.autocomplete='nickname';nameInput.maxLength=12;nameInput.value=nick;nameInput.setAttribute('aria-label','이름 또는 별명');creatorEl.append(nameLabel,nameInput);
-  const g1=chips([['m','남'],['f','여']],()=>ap.gender,v=>{if(ap.gender!==v){const keep={outfit:ap.outfit,color:ap.color,hairColor:ap.hairColor};ap={...DEFAULT_AP[v],...keep};}},true);
+  const g1=chips([['m','남성형'],['f','여성형']],()=>ap.gender,v=>{if(ap.gender!==v){const keep={outfit:ap.outfit,color:ap.color,hairColor:ap.hairColor};ap={...DEFAULT_AP[v],...keep};}},true);
   const g2=chips(HAIRS,()=>ap.hair,v=>ap.hair=v);
   const g3=swatches(HAIRCOL.map(h=>h[0]),()=>ap.hairColor,v=>ap.hairColor=v);
   const g4=chips(OUTFITS,()=>ap.outfit,v=>ap.outfit=v);
   const g5=swatches(CLOTHCOL,()=>ap.color,v=>ap.color=v);const g5wrap=el('div');g5wrap.append(g5);
-  group('성별',g1);group('머리 모양',g2);group('머리색',g3);group('옷',g4);const h5=el('h3',null,'옷 색');creatorEl.append(h5,g5wrap);
+  group('기본 모습',g1);const extra=el('details','appearance-details');extra.open=!first;extra.append(el('summary',null,'머리와 옷 더 꾸미기'));creatorEl.append(extra);groupTarget=extra;group('머리 모양',g2);group('머리색',g3);group('옷',g4);const h5=el('h3',null,'옷 색');extra.append(h5,g5wrap);
   const go=el('button','btn',first?'이 모습으로 들어가기':'다 골랐어요');creatorEl.append(go);
   function refresh(){[g1,g2,g3,g4,g5].forEach(g=>g.refresh());const hide=ap.outfit==='practice';h5.style.display=g5wrap.style.display=hide?'none':'block';}
   go.onclick=()=>{if(!nameInput.value.trim()){nameInput.focus();return}nick=nameInput.value.trim().slice(0,12);writeStore('hanmaum-deungbul-nick',nick);writeStore('hanmaum-deungbul-sex',ap.gender);state.ap={...ap};save();creatorOpen=false;document.body.classList.remove('creating');creatorEl.style.display='none';syncEntryAccess();cv.focus({preventScroll:true});yaw=creatorYaw;
-    if(first&&!state.talked)setTimeout(()=>say('등불사장',['한마음선원 등불사장에 오신 걸 환영해요.','안쪽에 계신 반장 법우에게 먼저 인사해 볼까요? (금색 ▼ 표시)']),400);};
-  refresh();apply();nameInput.focus({preventScroll:true});}
+    if(first)arriveAtWorkshop(entryNewVisitor);};
+  refresh();apply();creatorEl.focus({preventScroll:true});}
 document.getElementById('dressb').onclick=()=>{if(!started||ritual||seq||creatorOpen||modalOpen)return;if(tap)stopTap();openCreator(false);};
 
 
@@ -874,6 +894,31 @@ const onlinePeers=new Map(),onlineLabels=new Map();
 let campusYard=null,identityKey='',onlineAt=0,lastOnlinePose='',onlineLast=null;
 const sharing=craftHost.sharing=createCampusSharing({onLanterns:(rows,total)=>{sharedLanterns=rows;sharedTotal=total;state.hasHung=state.hasHung||rows.some(L=>L.owner===OWNER);updateHUD();onChanged()},status:setConnection});
 const community=createCampusCommunity({shell:modalShell,el,getNick:()=>nick||'법우',say:text=>campusYard?.sendSay(text,nick)});
+const visitButton=el('button','iconbtn','🧭');visitButton.type='button';visitButton.id='visit-guide';visitButton.setAttribute('aria-label','작업과 참배 안내');document.getElementById('topbtns').append(visitButton);
+visitButton.onclick=()=>{
+ if(!started||creatorOpen||ritual||seq)return
+ if(tap)stopTap()
+ const panel=modalShell('어디로 갈까요?','선택하면 그 앞까지 함께 걸어요. 방향 조작이나 멈추기로 언제든 중단할 수 있어요.')
+ for(const [key,label]of[['next','등 만들기 · 다음 작업대'],['tower','구정탑 · 자동 탑돌이'],['statue','대행선사 동상 · 참배'],['hallDoor','법당 · 입장 안내'],['guestbook','방명록 게시판']]){
+  const b=el('button','btn ghost',label);b.onclick=()=>goToInteraction(INTERACT.find(it=>it.key===(key==='next'?['frame','light','paper','paint','sign'][state.stage]:key)));panel.append(b)
+ }
+}
+const guideBar=el('div','guided-actions'),guideText=el('span'),guideNext=el('button','btn'),guideStop=el('button','btn ghost','멈추기');guideBar.id='guided-actions';guideBar.append(guideText,guideNext,guideStop);document.getElementById('campus-app').append(guideBar);
+guideStop.onclick=()=>{cancelGuide();toast('이동을 멈췄어요.')};guideNext.onclick=()=>goToInteraction(INTERACT.find(it=>it.key===['frame','light','paper','paint','sign'][state.stage]));
+function paintGuidance(){
+ const active=guidedWalk.active,visible=started&&!creatorOpen&&!modalOpen&&!dialog&&!ritual&&!seq&&!tap&&!overview
+ guideBar.hidden=!visible;guideStop.hidden=!active;guideNext.hidden=active||!inWorkshop(player.x,player.y)
+ guideText.textContent=active?guideName+'로 이동 중':'';guideBar.hidden=guideBar.hidden||(!active&&guideNext.hidden)
+ guideNext.textContent=(state.stage===4?'등 걸러 가기':NEXT_NAME[state.stage]+'로 이동')
+}
+const arrivalPanel=el('aside','arrival-guide');arrivalPanel.hidden=true;arrivalPanel.setAttribute('aria-label','첫 방문 안내');arrivalPanel.append(el('h2',null,'어서 오세요, 법우님'),el('p',null,'하고 싶은 일을 골라 보세요. 바로 걸어가셔도 좋아요.'));
+for(const [key,label]of[['next','등 만들기'],['tower','자동 탑돌이'],['hallDoor','법당 참배']]){const b=el('button','btn ghost',label);b.onclick=()=>{arrivalPanel.hidden=true;goToInteraction(INTERACT.find(it=>it.key===(key==='next'?['frame','light','paper','paint','sign'][state.stage]:key)))};arrivalPanel.append(b)}
+const freely=el('button','entry-free','자유롭게 둘러보기');freely.onclick=()=>arrivalPanel.hidden=true;arrivalPanel.append(freely);document.getElementById('campus-app').append(arrivalPanel);
+let entryNewVisitor=false;
+function arriveAtWorkshop(showGuide=false){
+ player.x=WORKSHOP_OFFSET.x+18;player.y=24.4;player.face=Math.PI;yaw=0;lowView=false;leaveOverview();snapCam=true;keys.clear();joy.reset();
+ if(showGuide)setTimeout(()=>{if(started&&!creatorOpen&&!modalOpen&&!player.moving)arrivalPanel.hidden=false},500)
+}
 document.getElementById('communityb').onclick=()=>{if(started&&!creatorOpen&&!ritual)community.open()};
 function connectOnline(force=false){
   if(!started||creatorOpen||!nick)return;
@@ -926,10 +971,10 @@ function paintOnlineLabels(layer,toScreen){
   for(const[id,d]of onlineLabels)if(!wanted.has(id)){d.remove();onlineLabels.delete(id)}
 }
 addEventListener('lantern-connection',event=>setConnection(event.detail==='full'?'지금은 접속 인원이 가득 찼어요.':'법우 연결을 다시 확인 중이에요.'));
-addEventListener('pagehide',()=>{campusYard?.leave();campusYard=null;sharing.stop()});
+addEventListener('pagehide',()=>{cancelGuide();campusYard?.leave();campusYard=null;sharing.stop()});
 addEventListener('pageshow',event=>{if(event.persisted){hallTraveling=false;hallWalkIn.reset();keys.clear();joy.reset();sharing.start();connectOnline(true)}});
 addEventListener('online',()=>{sharing.refresh();if(!campusYard?.joined){campusYard?.leave();campusYard=null;connectOnline()}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();onlineAt=0;lastOnlinePose=''}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelGuide();if(tap)stopTap();keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();onlineAt=0;lastOnlinePose=''}});
 
 /* ================= boot ================= */
 const startb=document.getElementById('startb');
@@ -941,8 +986,12 @@ fontsReady.then(()=>{try{init3D();sharing.start();
     syncEntryAccess();state.ap=state.ap||{...DEFAULT_AP[readStore('hanmaum-deungbul-sex')==='f'?'f':'m']};rebuildPlayer();
     if(from==='beopdang'){state.hallDone=true;changed()}
   }
-  startb.disabled=false;startb.textContent='들어가기';}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
+  startb.disabled=false;const returning=!!(nick&&state.ap&&readStore('hanmaum-deungbul-sex'));startb.textContent=returning?'이어서 들어가기':'들어가기';document.getElementById('entry-status').textContent='준비됐어요. 편하게 들어오세요.';const note=document.getElementById('entry-return');note.hidden=!returning;if(returning)note.textContent=nick+' 법우님, 다시 오셨군요.';document.getElementById('entry-profile').hidden=!returning;}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.moving=false;onlineAt=0;lastOnlinePose='';snapCam=true;};
-if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,lowView,hallAuto,hallTraveling,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
-startb.onclick=()=>{ac();tok();started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');openCreator(true);};
+if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,lowView,hallAuto,hallTraveling,stage:state.stage,craft:{...state.craft},guided:guidedWalk.active,tap:tap?{laps:tap.orbit.laps,goal:tap.goal}:null,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
+function enterCampus(edit=false){
+ if(startb.disabled)return;ac();tok();entryNewVisitor=!(nick&&readStore('hanmaum-deungbul-sex'));started=true;document.getElementById('title').classList.add('hide');document.body.classList.remove('prestart');
+ if(!edit&&nick&&state.ap&&readStore('hanmaum-deungbul-sex')){syncEntryAccess();rebuildPlayer();arriveAtWorkshop(false);cv.focus({preventScroll:true})}else openCreator(true)
+}
+startb.onclick=()=>enterCampus();document.getElementById('entry-profile').onclick=()=>enterCampus(true);
 })();

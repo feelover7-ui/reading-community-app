@@ -48,3 +48,14 @@ test('멀리서 볼 때도 눈높이가 천장 아래에 머문다',()=>{
     }
   }
 })
+test('느린 렌더에서도 자동 보행에 실제 사용한 시간으로 한 바퀴를 센다',()=>{
+ const counter=createOrbitProgress({x:PAGODA_CENTER.x,z:PAGODA_CENTER.z,laps:1})
+ let p={x:PAGODA_CENTER.x+GUIDED_RADIUS,z:PAGODA_CENTER.z,angle:0},elapsed=0
+ counter.sample(p.x,p.z,elapsed)
+ for(let i=0;i<1000&&!counter.done;i++){
+  p=advanceGuidedOrbit({...p,dt:.05,canStand:()=>true})
+  assert.equal(p.elapsedMs,50)
+  elapsed+=p.elapsedMs;counter.sample(p.x,p.z,elapsed)
+ }
+ assert.equal(counter.done,true)
+})
