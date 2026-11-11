@@ -1,7 +1,7 @@
 import {PAGODA_POSITION,STATUE_POSITION,SEVEN_POSITION} from './classicPlacement.js'
 // 공식 도량 설명을 바탕으로 직접 요약했다. 원문/사진 전체를 복제하지 않는다.
 export const LANDMARK_GUIDES=Object.freeze({
- pagoda:{id:'pagoda',title:'구정탑 · 도량탑',anchor:{...PAGODA_POSITION,y:6.8},radius:8,source:'https://hanmaum.org/content/one_tour_07',paragraphs:[
+ pagoda:{id:'pagoda',title:'구정탑 · 도량탑',anchor:{...PAGODA_POSITION,y:3.6},radius:8,source:'https://hanmaum.org/content/one_tour_07',paragraphs:[
   '도량에 세워진 구정탑은 아홉 개의 둥근 백색 돌과 여러 색의 석재로 구성됩니다. 공식 안내는 칠보탑과 서로 통하며 작용하는 탑으로 설명합니다.',
   '각 면의 조각은 공생·공심·공용·공체·공식의 원리를 나타내며, 여러 색의 돌은 지수화풍을 상징합니다. 탑과 탑돌이의 뜻은 공식 원문에서 더 읽을 수 있습니다.']},
  seven:{id:'seven',title:'칠보탑 · 우주탑',anchor:{...SEVEN_POSITION,y:12.8},radius:19,source:'https://hanmaum.org/content/one_tour_06',paragraphs:[

@@ -17,7 +17,7 @@ function plantedBank(parent,polygon,material,lowerY){
  const m=new THREE.Mesh(geo,material);m.name='supported-east-planting-bank';m.receiveShadow=true;parent.add(m)
 }
 
-// 共有された配置だけを描く。新しい光源・写真テクスチャ・歩行ルートは作らない。
+// 승인된 배치만 그린다. 새 광원·사진 텍스처·보행 경로는 만들지 않는다.
 export function addLandscapeFinish(parent,layout,{fadeables,lowerY=-4.4,coarse=false}={}){
  const group=new THREE.Group();group.name='approved-courtyard-landscape';parent.add(group)
  const {surface}=createSurfaceLibrary(),soil=surface('soil','#75825c'),grass=surface('lawn','#829b58'),bank=surface('lawn','#697e4d');bank.side=THREE.DoubleSide
