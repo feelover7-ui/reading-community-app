@@ -736,3 +736,9 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 법당 빈 방석 선택은 도착 후 참배 선택창을 연다. 점유 변경 시 중단하고 실제 보행 속도를 presence에 전달한다. 기존 문턱 출입·수동 조작은 유지한다.
 - 작업장 남문 서쪽 게시판에서 기존 방명록을 연다. 게시글은 작성 한국시간 날짜·분(time 요소)을 표시한다. 기존 DB/API와 삭제 비밀번호·초안 보존 규칙을 유지한다.
 - 상세 검증/한계는 docs/GUIDED_VISIT_GUESTBOOK_2026-11-11.md. 병합/운영 배포는 하지 않는다.
+
+## 삼배 관절·방석 접지 (2026-11-11)
+
+- bowMotion.js가 합장/무릎/발목/팔꿈치/엎드림과 한 배6.4초·접지 보정을 공유한다. quiet에서는 합장 유지. 원래 단일 다리 회전으로 되돌리지 않는다.
+- CUSHION_TOP=.23과 cushionSupportAt을 좌복과 사람 높이에 공유한다. stepPerson의 접지 보정 뒤 외부 terrain 높이를 덮어쓰지 말고 더한다. 먼 상대도 방석 높이를 반영한다.
+- docs/NATURAL_BOW_2026-11-11.md에 동작/검증/실기기 한계를 기록한다. 첫 접속 화면은 docs/FIRST_ENTRY_DESIGN_2026-11-11.md의 기획만 있으며 운영 UI는 아직 변경하지 않았다.

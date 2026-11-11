@@ -1,3 +1,4 @@
+import {BOW_CYCLE_SECONDS} from './bowMotion.js'
 import {restoreOrderedCraft} from './craftProgress.js'
 import {buildNorthGround,buildYardFrame} from './northScene.js'
 import {buildTerraceArchitecture} from './terraceArchitecture.js'
@@ -454,17 +455,17 @@ function stepRite(dt){
     rite.laps=rite.counter.laps
     status.textContent='탑돌이 '+rite.laps.toFixed(1)+' / 3바퀴 · 탑을 오른쪽에 두고 돕니다.'
     stepPerson(person,player.x,player.z,player.face,true,player.walk,quiet)
-    person.position.y=groundHeight(player.x,player.z)
+    person.position.y+=groundHeight(player.x,player.z)
     if(rite.counter.done){stopRite('탑돌이 세 바퀴를 마쳤어요.');state.tapdoriDone=true;changed();chime()}
     return true
   }
   // 삼배
   player.moving=false;player.vx=player.vz=0
-  rite.u+=dt/(quiet?1.1:2.2)
+  rite.u+=dt/(quiet?1.1:BOW_CYCLE_SECONDS)
   if(rite.u>=1){rite.u=0;rite.done++
     if(rite.done>=rite.goal){stopRite('삼배를 올렸어요.');state.statueDone=true;changed();chime();return true}}
   stepPerson(person,player.x,player.z,player.face,false,player.walk,quiet,bowPose(rite.u,quiet))
-  person.position.y=groundHeight(player.x,player.z)
+  person.position.y+=groundHeight(player.x,player.z)
   status.textContent='삼배 '+Math.min(rite.done+1,rite.goal)+' / '+rite.goal
   return true
 }
@@ -584,7 +585,7 @@ function tick(t){
         player.vx=player.moving?dx*2.4:0;player.vz=player.moving?dz*2.4:0
         if(player.moving)player.dir=Math.abs(dx)>Math.abs(dz)?(dx<0?'left':'right'):(dz<0?'up':'down')
         stepPerson(person,player.x,player.z,player.face,n>.05,player.walk,quiet)
-        person.position.y=groundHeight(player.x,player.z)
+        person.position.y+=groundHeight(player.x,player.z)
         stepWalkers(dt,quiet)
       }
       peers.update(dt);peers.send();syncPeers(quiet)

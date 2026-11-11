@@ -1,3 +1,5 @@
+import {POSE,lerpPose,bowPose,poseGroundOffset,BOW_CYCLE_SECONDS} from './bowMotion.js'
+export {POSE,lerpPose,bowPose} from './bowMotion.js'
 import {bindCameraGestures,mountCameraButtons} from './mobileUi.js'
 /* 세 화면이 같이 쓰는 3D 바탕.
    좌표는 2D 때와 같은 칸(x, y)을 그대로 씁니다. 3D 에서는 y 가 z 로 갑니다.
@@ -303,20 +305,6 @@ export function createLabelLayer (camera, parent = document.body) {
    도트 캐릭터 대신 쓰는 간단한 3D 인형. 외부 모델을 받지 않습니다. */
 /* 자세표. 원본 HTML(buildPerson/applyPose)의 값을 그대로 가져왔습니다.
    절은 몸 전체를 누르지 않고 합장 → 무릎 → 엎드림 → 일어섬으로 관절을 움직입니다. */
-export const POSE = {
-  stand: { y: 0, bend: 0, legX: 0, legY: 0, armX: 0, armZ: -.08, swing: 1 },
-  hap:   { y: 0, bend: 0, legX: 0, legY: 0, armX: -1.2, armZ: .62, swing: 0 },
-  bow:   { y: 0, bend: .95, legX: 0, legY: 0, armX: -1.2, armZ: .62, swing: 0 },
-  kneel: { y: -.3, bend: .05, legX: 1.45, legY: 0, armX: -1.2, armZ: .62, swing: 0 },
-  prost: { y: -.3, bend: 1.32, legX: 1.45, legY: 0, armX: -.3, armZ: .12, swing: 0 },
-  sit:   { y: -.33, bend: .06, legX: -1.45, legY: .95, armX: -.62, armZ: .5, swing: 0 }
-}
-export function lerpPose (a, b, k) {
-  const o = {}
-  for (const key in POSE.stand) o[key] = a[key] + (b[key] - a[key]) * k
-  return o
-}
-
 /* 사람 인형. 원본과 같은 뼈대(다리·상체·팔·머리 그룹)라 자세를 줄 수 있습니다. */
 export function makePerson (world, o = {}) {
   const g = new THREE.Group()
@@ -328,13 +316,17 @@ export function makePerson (world, o = {}) {
   const fem = !!o.long
   const sh = fem ? .16 : .19
 
+  const knees=[],ankles=[]
   const legs = [-1, 1].map(sgn => {
     const lg = new THREE.Group()
     lg.position.set(sgn * .085, hipY, 0)
     lg.rotation.order = 'YXZ'
     body.add(lg)
-    world.box(.12, .38, .13, pants, 0, -.19, 0, lg)
-    world.box(.13, .07, .2, '#2a2320', 0, -.41, .03, lg)
+    world.box(.12,.19,.13,pants,0,-.095,0,lg)
+    const knee=new THREE.Group();knee.position.y=-.19;lg.add(knee);knees.push(knee)
+    world.box(.12,.19,.13,pants,0,-.095,0,knee)
+    const ankle=new THREE.Group();ankle.position.set(0,-.215,.03);knee.add(ankle);ankles.push(ankle)
+    world.box(.13,.07,.2,'#2a2320',0,0,0,ankle)
     return lg
   })
 
@@ -348,13 +340,16 @@ export function makePerson (world, o = {}) {
     if (o.apron) world.box(.26, .34, .02, o.apron, 0, .18, (fem ? .155 : .17) + .012, upper)
   }
 
+  const elbows=[]
   const arms = [-1, 1].map(sgn => {
     const a = new THREE.Group()
     a.position.set(sgn * (sh + .045), .44, 0)
     a.rotation.order = 'YXZ'
     upper.add(a)
-    world.mesh(new THREE.CylinderGeometry(.052, .046, .4, 10), world.M(o.sleeve || bodyColor), 0, -.2, 0, a)
-    world.mesh(new THREE.SphereGeometry(.05, 10, 8), skin, 0, -.43, 0, a)
+    world.mesh(new THREE.CylinderGeometry(.052,.048,.2,10),world.M(o.sleeve||bodyColor),0,-.1,0,a)
+    const elbow=new THREE.Group();elbow.position.y=-.2;a.add(elbow);elbows.push(elbow)
+    world.mesh(new THREE.CylinderGeometry(.048,.046,.2,10),world.M(o.sleeve||bodyColor),0,-.1,0,elbow)
+    world.mesh(new THREE.SphereGeometry(.05,10,8),skin,0,-.23,0,elbow)
     return a
   })
   world.mesh(new THREE.CylinderGeometry(.06, .07, .08, 10), skin, 0, .51, 0, upper)
@@ -371,7 +366,7 @@ export function makePerson (world, o = {}) {
   for (const x of [-.068, .068]) world.mesh(new THREE.SphereGeometry(fem ? .027 : .024, 8, 6), eye, x, .01, .172, head)
 
   // legL/legR 은 예전 이름입니다. 남겨 두면 옛 코드가 그대로 돕니다.
-  g.userData.parts = { body, upper, legs, arms, head, legL: legs[0], legR: legs[1] }
+  g.userData.parts = { body, upper, legs, knees, ankles, arms, elbows, head, legL: legs[0], legR: legs[1] }
   world.scene.add(g)
   return g
 }
@@ -387,6 +382,7 @@ export function applyPose (g, pose, walkPhase = 0, walking = false) {
   u.legs[1].rotation.x = pose.legX - sw * .55
   u.legs[0].rotation.y = pose.legY
   u.legs[1].rotation.y = -pose.legY
+  u.knees?.forEach(j=>{j.rotation.x=pose.kneeX||0});u.ankles?.forEach(j=>{j.rotation.x=pose.ankleX||0});u.elbows?.forEach(j=>{j.rotation.x=pose.elbowX||0})
   const as = sw * .5 * pose.swing
   u.arms[0].rotation.x = pose.armX - as
   u.arms[1].rotation.x = pose.armX + as
@@ -394,21 +390,9 @@ export function applyPose (g, pose, walkPhase = 0, walking = false) {
   u.arms[1].rotation.z = -pose.armZ
 }
 
-/* 절 한 배의 진행도(0~1)를 자세로 바꿉니다.
-   합장 → 무릎 → 엎드림 → 무릎 → 합장. 동작 줄이기에서는 합장으로 고정합니다. */
-export function bowPose (u, quiet) {
-  if (quiet) return POSE.hap
-  const t = ((u % 1) + 1) % 1
-  if (t < .18) return POSE.hap
-  if (t < .40) return lerpPose(POSE.hap, POSE.kneel, (t - .18) / .22)
-  if (t < .62) return lerpPose(POSE.kneel, POSE.prost, (t - .40) / .22)
-  if (t < .84) return lerpPose(POSE.prost, POSE.kneel, (t - .62) / .22)
-  return lerpPose(POSE.kneel, POSE.hap, (t - .84) / .16)
-}
-
 export function stepPerson (g, x, z, face, moving, walk, quiet, pose) {
   if (!g) return
-  g.position.set(x, 0, z)
+  g.position.set(x,poseGroundOffset(pose||POSE.stand),z)
   g.rotation.y = face
   applyPose(g, pose || POSE.stand, walk, !!(moving && !quiet))
 }
@@ -524,8 +508,9 @@ export function createPeerLayer (world, opt = {}) {
           body = makePerson(world, { body: p.color, hair: '#2b1d14', pants: '#3b3b48', long: p.sex === 'f' })
           body.userData.lookKey = key; bodies.set(p.id, body)
         }
-        const pose = bowing && p.bow ? bowPose(Date.now() / 2400, quiet) : null
+        const pose = bowing && p.bow ? bowPose(Date.now() / (BOW_CYCLE_SECONDS*1000), quiet) : null
         stepPerson(body, p.x, p.y, bowing && p.bow ? Math.PI : faceOf(p), p.moving, p.walk, quiet, pose)
+        body.position.y+=opt.floorHeight?.(p.x,p.y)||0
       }
       stats.detailed = bodies.size
 
@@ -533,16 +518,16 @@ export function createPeerLayer (world, opt = {}) {
       let n = 0
       for (const { p } of shown) {
         if (nearSet.has(p.id)) continue
-        const crouch = crouchOf(p, quiet)
+        const crouch = crouchOf(p, quiet),floor=opt.floorHeight?.(p.x,p.y)||0
         const yaw = bowing && p.bow ? Math.PI : faceOf(p)
         tint.set(/^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#e3a83f')
         dummy.rotation.set(0, yaw, 0)
         dummy.scale.set(1, 1, 1)
-        dummy.position.set(p.x, .21 * crouch, p.y); dummy.scale.set(1, crouch, 1)
+        dummy.position.set(p.x, floor+.21 * crouch, p.y); dummy.scale.set(1, crouch, 1)
         dummy.updateMatrix(); iLeg.setMatrixAt(n, dummy.matrix)
-        dummy.position.set(p.x, .65 * crouch, p.y)
+        dummy.position.set(p.x, floor+.65 * crouch, p.y)
         dummy.updateMatrix(); iBody.setMatrixAt(n, dummy.matrix); iBody.setColorAt(n, tint)
-        dummy.position.set(p.x, 1.07 * crouch, p.y); dummy.scale.set(1, 1, 1)
+        dummy.position.set(p.x, floor+1.07 * crouch, p.y); dummy.scale.set(1, 1, 1)
         dummy.updateMatrix(); iHead.setMatrixAt(n, dummy.matrix)
         n++
       }

@@ -1,3 +1,4 @@
+import {BOW_CYCLE_SECONDS} from './bowMotion.js'
 import {findWalkPath,createGuidedWalk} from './guidedWalk.js'
 import {mountSceneQuality} from './realismMaterials.js'
 import {hallReturnUrl} from './mapChoiceRoutes.js'
@@ -6,13 +7,13 @@ import { fitHallView } from './hallCamera.js'
 /* 대법당 안.
    칸 크기·걷는 속도·화면 배율은 등불사장·도량과 같은 값(sceneKit)을 씁니다.
    좌복 위에서 절을 할 수 있고, 같이 들어온 법우들도 서로 보입니다. */
-import { T, W, H, structures, spots, cushions, MAT, DOOR, startPosition, canStand, atDoor, cushionAt, SOURCE, createHallExitGate }
+import { T, W, H, structures, spots, cushions, MAT, DOOR, startPosition, canStand, atDoor, cushionAt, SOURCE, createHallExitGate,cushionSupportAt }
   from './beopdangData.js'
 import {
   bindKeys, bindJoystick, stepPlayer, createPeers, createModal, readIdentity,
   readStore, writeStore, createChat, SAY_MS, releaseFocus
 } from './sceneKit.js'
-import { createWorld, createFollower, createLabelLayer, makePerson, stepPerson, bowPose, V3 } from './three3d.js'
+import { createWorld, createFollower, createLabelLayer, makePerson, stepPerson, bowPose,lerpPose,POSE, V3 } from './three3d.js'
 import { buildHall, createHallPeers } from './beopdangScene.js'
 import { createBgm } from './bgm.js'
 
@@ -33,8 +34,9 @@ let traveling = false
 
 /* ---------- 절 ---------- */
 const BOW_KEY = 'hanmaum-deungbul-bow'
-const BOW_CYCLE = 2.4            // 한 배에 걸리는 시간(초)
+const BOW_CYCLE = BOW_CYCLE_SECONDS            // 한 배에 걸리는 시간(초)
 const BOW_CYCLE_QUIET = 1.2      // 동작 줄이기에서는 짧게
+let bowReturn=null
 const bow = { on: false, goal: 0, done: 0, t: 0, spot: null }
 // 본원 기준 오늘은 한국 시간(UTC+9) 자정에 바뀐다.
 const today = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -216,6 +218,7 @@ function openBowPicker (c) {
 function startBow (c, goal) {
   if(seatTaken(c)){setStatus('다른 법우가 있는 자리예요. 다른 방석을 골라 주세요.');return}
   cancelSeatWalk()
+  bowReturn=null
   syncBowDay()
   document.body.classList.add('bow-active')
   bow.on = true; bow.goal = goal; bow.done = 0; bow.t = 0; bow.spot = c
@@ -230,6 +233,7 @@ function startBow (c, goal) {
 }
 function stopBow (why) {
   if (!bow.on) return
+  bowReturn=reducedMotion?null:{from:bowPose(bow.t/BOW_CYCLE,false),t:0}
   const done = bow.done, goal = bow.goal
   document.body.classList.remove('bow-active')
   bow.on = false; bow.t = 0
@@ -375,12 +379,14 @@ function update (dt) {
   seatBar.hidden=!seatWalk.active
 
   if(hallExitGate.sample({x:player.x,z:player.y,moving:player.moving,enabled:!traveling&&!modal.open&&!chat.isOpen&&!bow.on}))travel(hallReturnUrl(location.search))
+  if(bowReturn){if(player.moving)bowReturn=null;else{bowReturn.t+=dt;if(bowReturn.t>=.8)bowReturn=null}}
   // 절할 때는 몸을 낮춘다
   const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
   const u = bow.on ? bow.t / cycle : 0
   // 몸 전체를 누르지 않고 합장·무릎·엎드림 관절로 절합니다.
   stepPerson(meBody, player.x, player.y, bow.on ? Math.PI : player.face, player.moving, player.walk, reducedMotion,
-    bow.on ? bowPose(u, reducedMotion) : null)
+    bow.on ? bowPose(u, reducedMotion) : bowReturn?lerpPose(bowReturn.from,POSE.stand,Math.pow(bowReturn.t/.8,2)*(3-2*bowReturn.t/.8)):null)
+  meBody.position.y+=cushionSupportAt(player.x,player.y)
   peers.update(dt)
   peers.send()
   if(altarDetail&&(player.moving||keys.size||Math.hypot(joy.x,joy.y)>.1)){altarDetail=false;detailButton.setAttribute('aria-pressed','false')}
@@ -463,7 +469,7 @@ if (import.meta.env.DEV) window.__cam = () => ({ pos: world.camera.position.toAr
 if (import.meta.env.DEV) window.__beopdang = () => ({
   x: +player.x.toFixed(2), y: +player.y.toFixed(2), dir: player.dir, dist: +follower.state.dist.toFixed(1),
   traveling, modalOpen: modal.open, nick: me.nick, sex: me.sex,
-  bow: { on: bow.on, goal: bow.goal, done: bow.done }, bowTotal,
+  bow: { on: bow.on, goal: bow.goal, done: bow.done,phase:bow.t/BOW_CYCLE,rootY:meBody.position.y,returning:!!bowReturn }, bowTotal,
   guided:seatWalk.active,onCushion: !!cushionAt(player.x, player.y), atDoor: atDoor(player.x, player.y),
   prompt: (promptNow() || {}).label || '',
   joined: peers.joined,
