@@ -1,3 +1,5 @@
+import {createAreaView,createWorkshopView,fitWorkshopView,fitStatueView} from '../campusFraming.js'
+import {LANDMARK_GUIDES,nearbyLandmark,castLandmarkRay} from '../landmarkGuides.js'
 import {addEaveFinish,addGardenEdges} from '../photoFinish.js'
 import {createWalkInDoor} from '../walkInDoor.js'
 import {addRoofFinish,createGroundContact,foliageGeometry,curvedHipRoof} from '../exteriorFinish.js'
@@ -299,9 +301,11 @@ function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}i
 
 /* ================= input ================= */
 const keys=new Set();
-let yaw=0,dist=9.5,overview=false,lowView=false,hallAuto=false,autoYaw=0,viewYaw=0;
+let yaw=0,dist=9.5,overview=false,lowView=false,hallAuto=false,workshopAuto=false,statueAuto=false,autoYaw=0,viewYaw=0,currentViewDistance=9.5;
+const workshopView=createWorkshopView(),statueView=createAreaView();
+let handleObjectTap=()=>{};
 const hallApproach=createHallApproach();
-const manualCamera=()=>{if(hallAuto){yaw=viewYaw;hallAuto=false;}hallApproach.manual();leaveOverview()};
+const manualCamera=()=>{if(hallAuto||workshopAuto||statueAuto){yaw=viewYaw;dist=currentViewDistance;}hallAuto=false;workshopAuto=false;statueAuto=false;hallApproach.manual();workshopView.manual();statueView.manual();leaveOverview();if(reducedMotion)snapCam=true;};
 function leaveOverview(){overview=false;document.getElementById('overviewb')?.setAttribute('aria-pressed','false');document.getElementById('overviewb')?.setAttribute('aria-label','전체 배치 보기');}
 addEventListener('keydown',e=>{
   if(e.isComposing||e.keyCode===229||e.ctrlKey||e.altKey||e.metaKey)return;
@@ -320,12 +324,22 @@ const bgm=createBgm();muted=!bgm.on;
 const syncSound=()=>{const b=document.getElementById('snd');b.textContent=bgm.on?'🔊':'🔇';b.setAttribute('aria-pressed',String(bgm.on));b.setAttribute('aria-label',bgm.on?'배경음악과 소리 끄기':'배경음악과 소리 켜기');};syncSound();
 document.getElementById('snd').onclick=()=>{muted=!bgm.toggle();if(AC){(muted?AC.suspend():AC.resume()).catch(()=>{})}syncSound();};
 const cv=document.getElementById('game');
-const cameraInput=bindCameraGestures(cv,{getYaw:()=>hallAuto?viewYaw:yaw,setYaw:v=>{manualCamera();yaw=v},getDistance:()=>dist,setDistance:v=>{manualCamera();dist=v},min:5,max:18});
-const cameraButtons=mountCameraButtons({getDistance:()=>dist,setDistance:v=>{manualCamera();dist=v},min:5,max:18});
+const cameraInput=bindCameraGestures(cv,{getYaw:()=>hallAuto||workshopAuto||statueAuto?viewYaw:yaw,setYaw:v=>{manualCamera();yaw=v},getDistance:()=>hallAuto||workshopAuto||statueAuto?currentViewDistance:dist,setDistance:v=>{manualCamera();dist=v},min:5,max:100,onTap:p=>handleObjectTap(p)});
+const cameraButtons=mountCameraButtons({getDistance:()=>hallAuto||workshopAuto||statueAuto?currentViewDistance:dist,setDistance:v=>{manualCamera();dist=v},min:5,max:100});
 document.getElementById('campus-app').append(cameraButtons);
+const guideHint=el('button','nearby-guide');guideHint.type='button';guideHint.id='nearby-guide';guideHint.hidden=true;let nearbyGuideId=null;
+guideHint.onclick=()=>openLandmark(nearbyGuideId);document.getElementById('campus-app').append(guideHint);
+function openLandmark(id){
+ const guide=LANDMARK_GUIDES[id];if(!guide||!started||creatorOpen||dialog||modalOpen||ritual||seq||tap)return;
+ const card=modalShell(guide.title,'한마음선원 공식 도량 안내를 바탕으로 정리한 설명입니다.');
+ const body=el('div','help');for(const paragraph of guide.paragraphs)body.append(el('p',null,paragraph));
+ const source=el('a','btn ghost','공식 원문 보기');source.href=guide.source;source.target='_blank';source.rel='noopener noreferrer';
+ const close=el('button','btn','닫기');close.onclick=closeModal;card.append(body,source,close);
+}
+
 function syncEntryAccess(){
   const entry=!started||creatorOpen;
-  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,.camera-tools').forEach(n=>n.inert=entry);
+  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#nearby-guide,.camera-tools').forEach(n=>n.inert=entry);
   document.getElementById('title').inert=started;
   document.getElementById('creator').inert=!creatorOpen;
 }
@@ -336,6 +350,8 @@ const overviewButton=el('button','iconbtn','⌖');overviewButton.id='overviewb';
 overviewButton.onclick=()=>{if(!started||creatorOpen||ritual||modalOpen)return;if(tap)stopTap();overview=!overview;overviewButton.setAttribute('aria-pressed',String(overview));overviewButton.setAttribute('aria-label',overview?'걷는 시점으로 돌아가기':'전체 배치 보기');if(overview)toast('전체 배치예요. 이동하거나 다시 누르면 걷는 시점으로 돌아와요.');keys.clear();joy.reset();snapCam=true;};
 const eyeButton=el('button','iconbtn','◉');eyeButton.id='eyeb';eyeButton.type='button';eyeButton.title='눈높이 탐방 시점';eyeButton.setAttribute('aria-label','눈높이 탐방 시점');eyeButton.setAttribute('aria-pressed','false');cameraButtons.append(eyeButton);
 eyeButton.onclick=()=>{if(!started||creatorOpen||modalOpen||ritual)return;manualCamera();lowView=!lowView;eyeButton.setAttribute('aria-pressed',String(lowView));eyeButton.setAttribute('aria-label',lowView?'기본 시점으로 돌아가기':'눈높이 탐방 시점');snapCam=true;};
+const workshopButton=el('button','iconbtn','작업장');workshopButton.type='button';workshopButton.id='workshopviewb';workshopButton.title='작업장 정면 보기';workshopButton.setAttribute('aria-label','작업장 정면 보기');workshopButton.hidden=true;cameraButtons.append(workshopButton);
+workshopButton.onclick=()=>{if(!started||creatorOpen||modalOpen||ritual||!inWorkshop(player.x,player.y))return;workshopView.restore();lowView=false;eyeButton.setAttribute('aria-pressed','false');eyeButton.setAttribute('aria-label','눈높이 탐방 시점');leaveOverview();keys.clear();joy.reset();snapCam=true;};
 const mmEl=document.getElementById('minimap');
 function toggleMap(){mmEl.classList.toggle('hide');document.getElementById('mapb').setAttribute('aria-pressed',String(!mmEl.classList.contains('hide')));}
 if(window.innerWidth<700){mmEl.classList.add('hide');document.getElementById('mapb').setAttribute('aria-pressed','false');}
@@ -350,7 +366,7 @@ function appendSourceRefs(parent,kind){
 document.getElementById('helpb').onclick=()=>{
   if(!started||creatorOpen)return;
   const m=modalShell('도움말',null),h=el('div','help');
-  h.innerHTML='<p>이동: 방향키·WASD 또는 조이스틱. 작업·살펴보기: Space·E 또는 작업 버튼.</p><p>작업장 밖 건물은 탑 오른편 법당 하나입니다. 구정탑 앞에서 <b>자동 탑돌이 시작</b>을 누르면 세 바퀴 돕니다. 멈추기 버튼이나 방향 입력으로 중단합니다.</p><p>대행선사 동상 앞에서는 서서 삼배를 올릴 수 있습니다. 법당 입구는 탑 쪽을 향합니다. 문 안으로 걸어가면 별도 버튼 없이 기존 법당 내부로 들어갑니다. 작업 버튼이나 Space로도 입장할 수 있습니다.</p><p>게임용 배치이며 실제 본원의 건물 위치나 출입 동선을 나타내지 않습니다. 구정탑과 동상은 공식 설명의 구조를 반영한 간략 조형 시안입니다.</p>';
+  h.innerHTML='<p>이동: 방향키·WASD 또는 조이스틱. 작업·살펴보기: Space·E 또는 작업 버튼.</p><p>작업장 밖 건물은 탑 오른편 법당 하나입니다. 구정탑 앞에서 <b>자동 탑돌이 시작</b>을 누르면 세 바퀴 돕니다. 멈추기 버튼이나 방향 입력으로 중단합니다.</p><p>대행선사 동상 앞에서는 서서 삼배를 올릴 수 있습니다. 법당 입구는 탑 쪽을 향합니다. 문 안으로 걸어가면 별도 버튼 없이 기존 법당 내부로 들어갑니다. 작업 버튼이나 Space로도 입장할 수 있습니다.</p><p>PC 작업장에서는 네 작업대를 함께 보는 정면 구도를 사용합니다. 직접 회전·확대 뒤에는 작업장 버튼으로 복원할 수 있습니다. 조형물은 직접 클릭하거나 가까이의 설명 안내를 선택해 공식 뜻을 읽습니다.</p><p>게임용 배치이며 실제 본원의 건물 위치나 출입 동선을 나타내지 않습니다. 구정탑과 동상은 공식 설명의 구조를 반영한 간략 조형 시안입니다.</p>';
   const close=el('button','btn','닫기');close.onclick=closeModal;m.append(h);appendSourceRefs(m);m.append(close);
 };
 
@@ -577,6 +593,7 @@ function init3D(){
   for(const [x,z]of CTREES)tree(x+.5,z+.5,.85+hash(x,z)*.3);
   for(const p of[PAGODA,STATUE_CENTER]){const shadow=createGroundContact(1.8,.16);shadow.position.set(p.x,.035,p.z);campusRoot.add(shadow);}
   const pagodaModel=buildPagoda({scene:campusRoot,M,mesh}),pagodaGoldM=pagodaModel.accentMaterial;
+  pagodaModel.group.userData.guideId='pagoda';seven.userData.guideId='seven';
   const pagodaLight=new THREE.PointLight('#ffb560',0*LIGHT,14,1.6);pagodaLight.position.set(PAGODA.x,3.4,PAGODA.z+1.5);campusRoot.add(pagodaLight);
   let flashT=0;pagodaFlash=()=>{flashT=3;};
   const stringLanterns=[];
@@ -589,7 +606,7 @@ function init3D(){
       sp.position.set(x,2.55,z);g.position.set(x,2.55,z);g.visible=state.night;campusRoot.add(sp,g);stringLanterns.push({sp,g,L});
     }
   }
-  const statueModel=buildStatue({scene:campusRoot,M,mesh,box});statueModel.rotation.y=STATUE_FACING;
+  const statueModel=buildStatue({scene:campusRoot,M,mesh,box});statueModel.rotation.y=STATUE_FACING;statueModel.userData.guideId='statue';
   staticRoot=workshopRoot;
   // 원본의 별도 법당 내부는 생성하지 않습니다. 기존 법당으로 연결합니다.
   /* ================= people ================= */
@@ -637,6 +654,8 @@ function init3D(){
   const walkerMeshes=WALKERS.map(w=>buildPerson(w.ap));
   const labels=NPCS.map(n=>{const d=el('div','label3d',n.name);document.getElementById('campus-app').append(d);return d;});
   const LANDMARKS=[['등불사장',WORKSHOP_GATE.x,3.4,WORKSHOP_GATE.z],['구정탑',PAGODA.x,6.8,PAGODA.z],['대행선사 동상',STATUE_CENTER.x,4,STATUE_CENTER.z],['법당 입구',HALL_DOOR.x,4,HALL_DOOR.z]].map(([n,x,y,z])=>{const d=el('div','label3d lm'+(n==='법당 입구'?' entrance':''),n);document.getElementById('campus-app').append(d);return{n,x,y,z,d};});
+  const guideCenters=Object.fromEntries([['pagoda',pagodaModel.group],['statue',statueModel],['seven',seven]].map(([id,root])=>{root.updateWorldMatrix(true,true);return[id,new THREE.Box3().setFromObject(root).getCenter(new THREE.Vector3())]}));let guideVisibility={id:null,at:0,visible:false};
+  const stationLabels=STATIONS.map((station,i)=>{const node=el('div','label3d station-label');node.dataset.station=station.id;document.getElementById('campus-app').append(node);return{station,node,index:i}});
   const visiblePeers=new Map();
   const remoteLayer=createPeerLayer({scene,camera,M,mesh,box},{bowing:true,radius:Infinity});
   const orbitGuide=new THREE.Mesh(new THREE.RingGeometry(GUIDED_RADIUS-.04,GUIDED_RADIUS+.04,96),M('#d9a531',{transparent:true,opacity:.65,side:THREE.DoubleSide,depthWrite:false}));
@@ -708,6 +727,18 @@ function init3D(){
   };
   const toScreen=(v)=>{const p=v.clone().project(camera);return{x:(p.x+1)/2*window.innerWidth,y:(1-p.y)/2*window.innerHeight,ok:p.z<1&&p.z>-1&&p.x>-1.1&&p.x<1.1&&p.y>-1.1&&p.y<1.1};};
   const angLerp=(a,b,k)=>{let d=b-a;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;return a+d*k;};
+  const safeFrame=()=>{
+    const width=innerWidth,height=innerHeight,h=hwRect(),r=mmEl.getBoundingClientRect();
+    let left=width>=1000&&!hud.classList.contains('collapsed')?h.right+16:18,right=width>=1000&&!mmEl.classList.contains('hide')?r.left-16:width-18;
+    if(right-left<300)right=width-18;
+    return{left,top:Math.min(132,height*.25),right,bottom:height-(isTouch?170:82)};
+  };
+  function hwRect(){return hud.getBoundingClientRect()}
+  handleObjectTap=({clientX,clientY})=>{
+    if(!started||creatorOpen||dialog||modalOpen||ritual||seq||tap)return;
+    const r=cv.getBoundingClientRect();ray.setFromCamera(new THREE.Vector2((clientX-r.left)/r.width*2-1,1-(clientY-r.top)/r.height*2),camera);ray.far=camera.far;
+    const id=castLandmarkRay(ray,scene.children,camera);if(id)openLandmark(id);
+  };
   let last=performance.now(),t=0;
   function loop(now){const frameMs=now-last;const dt=Math.min(.05,frameMs/1000);last=now;if(document.hidden||!started){requestAnimationFrame(loop);return}quality.sample(frameMs);t+=dt;
     if(keys.has('q')||keys.has('r'))manualCamera();if(keys.has('q'))yaw+=dt*1.6;if(keys.has('r'))yaw-=dt*1.6;
@@ -729,16 +760,26 @@ function init3D(){
     WALKERS.forEach((w,i)=>{if(!reducedMotion)w.a+=w.sp*dt;const m=walkerMeshes[i];m.position.set(PAGODA.x+Math.cos(w.a)*w.r,0,PAGODA.z+Math.sin(w.a)*w.r);m.rotation.y=Math.atan2(-Math.sin(w.a),Math.cos(w.a));applyPose(m,POSE.hap,t+i,!reducedMotion);});
     // 自動 시점은 모양 선택·전체 보기·수동 탐방·의식보다 우선하지 않는다.
     const hallDistance=Math.min(...HALL_POLYGONS.map(p=>pointInPolygon(player.x,player.y,p)?0:distanceToPolygon(player.x,player.y,p)));
-    const wasAuto=hallAuto;
+    const wasAuto=hallAuto,wasWorkshop=workshopAuto,wasStatue=statueAuto;
     hallAuto=hallApproach.update(hallDistance,{suspended:overview||creatorOpen||!!ritual||!!tap||lowView||inside});
     if(wasAuto&&!hallAuto){yaw=viewYaw;camYaw=viewYaw;}
-    if(reducedMotion&&wasAuto!==hallAuto)snapCam=true;
+    const blockedView=overview||creatorOpen||!!ritual||!!tap||!!dialog||modalOpen||!!seq;const suspended=blockedView||lowView;
+    const workshopMode=workshopView.update({inside,distance:distanceToPolygon(player.x,player.y,WORKSHOP_POLYGON),suspended:blockedView,lowView});workshopAuto=workshopMode.active;
+    if(workshopMode.resetEye){lowView=false;eyeButton.setAttribute('aria-pressed','false');eyeButton.setAttribute('aria-label','눈높이 탐방 시점');}
+    const statueDistance=Math.hypot(player.x-STATUE_STAND.x,player.y-STATUE_STAND.z),inStatueFront=(player.x-STATUE_CENTER.x)*Math.sin(STATUE_FACING)+(player.y-STATUE_CENTER.z)*Math.cos(STATUE_FACING)>1;
+    statueAuto=statueView.update({inside:!inside&&inStatueFront&&statueDistance<4.2,distance:Math.max(0,statueDistance-4.2),suspended:suspended||inside||hallAuto});
+    if(wasWorkshop&&!workshopAuto&&!inside){yaw=viewYaw;camYaw=viewYaw;dist=9.5;}
+    if(wasStatue&&!statueAuto){yaw=viewYaw;camYaw=viewYaw;dist=9.5;}
+    if(reducedMotion&&(wasAuto!==hallAuto||wasWorkshop!==workshopAuto||wasStatue!==statueAuto))snapCam=true;
+    workshopButton.hidden=!inside||creatorOpen;
+
     // camera
     const shadows=quality.shadows&&!overview;if(renderer.shadowMap.enabled!==shadows){renderer.shadowMap.enabled=shadows;renderer.shadowMap.needsUpdate=true;}
     let yT=yaw,dT=dist,pT=lowView?Math.asin(Math.min(.6,1.15/dist)):.72,lyT=lowView?1.35:.9,side=0,focusX=player.x,focusZ=player.y;
     if(overview){focusX=(SCENE_VIEW.minX+SCENE_VIEW.maxX)/2;focusZ=(SCENE_VIEW.minZ+SCENE_VIEW.maxZ)/2;yT=0;pT=1.48;const v=camera.fov*Math.PI/180,h=2*Math.atan(Math.tan(v/2)*camera.aspect);dT=Math.max((SCENE_VIEW.maxX-SCENE_VIEW.minX)/(2*Math.tan(h/2)),(SCENE_VIEW.maxZ-SCENE_VIEW.minZ)/(2*Math.tan(v/2)))*1.1;}
     document.body.classList.toggle('overview-mode',overview);
-    scene.fog.near=overview?180:(state.night?20:38);scene.fog.far=overview?350:(state.night?70:95);
+    scene.fog.near=overview?180:workshopAuto?100:(state.night?20:38);scene.fog.far=overview?350:workshopAuto?180:(state.night?70:95);
+    if(workshopAuto&&isTouch){yT=0;dT=11.5;pT=.8;}
     if(creatorOpen){leaveOverview();yT=creatorYaw;dT=window.innerWidth<700?4.6:3.2;pT=.2;lyT=window.innerWidth<700?-.45:.82;side=window.innerWidth<700?0:.75;}
     else if(ritual){leaveOverview();yT=player.face+1.0;dT=6;pT=.42;lyT=.6;}
     const k=snapCam?1:1-Math.exp(-dt*6);camYaw=angLerp(camYaw,yT,k);camDist+=(dT-camDist)*k;camPitch+=(pT-camPitch)*k;camLookY+=(lyT-camLookY)*k;
@@ -748,7 +789,11 @@ function init3D(){
       const view=fitCampusHallView({player:{x:player.x,z:player.y},door:HALL_DOOR,normal:HALL_ENTRY_NORMAL,seven:SEVEN_POSITION,sevenTop:SEVEN_TOP_Y,aspect:camera.aspect,fov:camera.fov,avoid:{x:PAGODA.x,z:PAGODA.z}});
       want=V3(...view.position);target=V3(...view.target);autoYaw=Math.atan2(want.x-target.x,want.z-target.z);camYaw=autoYaw;camDist=want.distanceTo(target);camPitch=.48;camLookY=target.y;
     }
-    const k2=snapCam?1:1-Math.exp(-dt*7);camPos.lerp(want,k2);camLook.lerp(target,k2);snapCam=false;camera.position.copy(camPos);camera.lookAt(camLook);viewYaw=Math.atan2(camPos.x-camLook.x,camPos.z-camLook.z);
+    if((workshopAuto&&!isTouch)||statueAuto){
+      const view=workshopAuto?fitWorkshopView({player:{x:player.x,z:player.y},offset:WORKSHOP_OFFSET,width:innerWidth,height:innerHeight,rect:safeFrame()}):fitStatueView({player:{x:player.x,z:player.y},statue:STATUE_CENTER,width:innerWidth,height:innerHeight,rect:safeFrame()});
+      want=V3(...view.position);target=V3(...view.target);camYaw=Math.atan2(want.x-target.x,want.z-target.z);camDist=view.distance;camLookY=target.y;
+    }
+    const k2=snapCam?1:1-Math.exp(-dt*7);camPos.lerp(want,k2);camLook.lerp(target,k2);snapCam=false;camera.position.copy(camPos);camera.lookAt(camLook);viewYaw=Math.atan2(camPos.x-camLook.x,camPos.z-camLook.z);currentViewDistance=camPos.distanceTo(camLook);
     sun.position.set(player.x+10,26,player.y+13);sun.target.position.set(player.x,0,player.y);
     // occlusion fade
     const pc=V3(player.x,.9,player.y);const hits=new Set();
@@ -774,7 +819,21 @@ function init3D(){
     // overlays
     const showUI=started&&!creatorOpen;
     NPCS.forEach((n,i)=>{const near=showUI&&!dialog&&!ritual&&Math.hypot(n.x-player.x,n.y-player.y)<3.4;const s=near&&toScreen(V3(n.x,1.55,n.y));if(!s||!s.ok){labels[i].style.display='none';return;}labels[i].style.display='block';labels[i].style.left=s.x+'px';labels[i].style.top=s.y+'px';});
-    LANDMARKS.forEach(L=>{const near=!hallAuto&&L.n!=='법당 입구'&&showUI&&!inside&&!ritual&&!inHall()&&Math.hypot(L.x-player.x,L.z-player.y)<(L.n==='법당 입구'?30:13)&&Math.hypot(L.x-player.x,L.z-player.y)>2.2;const s=near&&toScreen(V3(L.x,L.y,L.z));if(!s||!s.ok){L.d.style.display='none';return;}L.d.style.display='block';L.d.style.left=s.x+'px';L.d.style.top=s.y+'px';});
+    LANDMARKS.forEach(L=>{const near=L.n==='등불사장'&&!hallAuto&&showUI&&!inside&&!ritual&&!inHall()&&Math.hypot(L.x-player.x,L.z-player.y)<(L.n==='법당 입구'?30:13)&&Math.hypot(L.x-player.x,L.z-player.y)>2.2;const s=near&&toScreen(V3(L.x,L.y,L.z));if(!s||!s.ok){L.d.style.display='none';return;}L.d.style.display='block';L.d.style.left=s.x+'px';L.d.style.top=s.y+'px';});
+    stationLabels.forEach(({station,node,index})=>{
+      const local=workshopLocal({x:player.x,z:player.y}),p=showUI&&inside&&!busy&&!overview?toScreen(V3(station.x+station.w/2+WORKSHOP_OFFSET.x,2.35,station.y+station.h+WORKSHOP_OFFSET.z)):null;
+      if(!p?.ok||(isTouch&&Math.hypot(local.x-station.x,local.z-station.y)>10)){node.style.display='none';return}
+      const next=state.talked&&!state.hasHung&&state.stage===index,done=state.hasHung||state.stage>index;
+      node.textContent=`${index+1} ${['골조','한지','채색','전기'][index]}${next?' · 지금':done?' ✓':''}`;node.classList.toggle('current',next);node.style.display='block';node.style.left=p.x+'px';node.style.top=p.y+'px';
+    });
+    const guide=nearbyLandmark({x:player.x,z:player.y},{suspended:!showUI||inside||!!busy||!!tap||overview});
+    let gp=guide&&toScreen(V3(guide.anchor.x,guide.anchor.y,guide.anchor.z));
+    if(gp?.ok){
+      if(guideVisibility.id!==guide.id||now-guideVisibility.at>240){const point=guideCenters[guide.id],direction=point.clone().sub(camera.position);ray.set(camera.position,direction.clone().normalize());ray.far=direction.length()+.1;guideVisibility={id:guide.id,at:now,visible:castLandmarkRay(ray,scene.children,camera)===guide.id};}
+      if(!guideVisibility.visible)gp=null;
+    }
+    nearbyGuideId=guide?.id||null;guideHint.hidden=!gp?.ok;
+    if(gp?.ok){guideHint.textContent=guide.title+' · '+(isTouch?'터치해서 설명':'클릭해서 설명');guideHint.setAttribute('aria-label',guide.title+' 설명 읽기');guideHint.style.left=Math.max(135,Math.min(innerWidth-135,gp.x))+'px';guideHint.style.top=Math.max(150,Math.min(innerHeight-(isTouch?190:105),gp.y))+'px';}
     let shown=false;
     if(showUI&&!dialog&&!modalOpen&&!ritual){for(const o of hungObjs){if(Math.abs(o.x-player.x)<.55&&Math.abs(o.z-player.y)<1.0){const s=toScreen(V3(o.x,o.y+.55,o.z));if(s.ok){wishEl.textContent=o.h.L.wish||'';wishEl.className=state.night?'night':'';wishEl.style.left=s.x+'px';wishEl.style.top=s.y+'px';wishEl.style.display='block';shown=true;}break;}}}
     if(!shown)wishEl.style.display='none';
@@ -782,6 +841,7 @@ function init3D(){
     drawMinimap();
     requestAnimationFrame(loop);}
   if(import.meta.env.DEV)window.__hallView=()=>({active:hallAuto,position:camera.position.toArray(),floor3:0,firstFloor:floorY(1),seven:seven.position.toArray(),viewYaw,manualYaw:yaw,sevenScreen:V3(SEVEN_POSITION.x,SEVEN_TOP_Y,SEVEN_POSITION.z).project(camera).toArray()});
+  if(import.meta.env.DEV)window.__campusView=()=>({position:camera.position.toArray(),target:camLook.toArray(),workshopAuto,statueAuto,viewYaw,distance:currentViewDistance,guide:nearbyGuideId,stations:stationLabels.map(({node,station})=>({id:station.id,text:node.textContent,visible:node.style.display!=='none',screen:[parseFloat(node.style.left),parseFloat(node.style.top)]})),landmarks:Object.fromEntries(Object.entries(LANDMARK_GUIDES).map(([id,g])=>[id,toScreen(guideCenters[id])]))});
   requestAnimationFrame(loop);
 }
 

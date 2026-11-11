@@ -87,3 +87,12 @@ test('전송 대기 중 중복 탭을 막고 새로 쓴 입력은 응답이 지�
     assert.equal(input.value,'새로 쓰는 글');assert.equal(chat.isOpen,true);assert.equal(sendBtn.disabled,false)
   }finally{if(before===undefined)delete globalThis.document;else globalThis.document=before}
 })
+test('개체 설명은 탭에만 열리고 드래그·핀치·취소에는 열리지 않는다',async()=>{
+ const{doc,win}=environment(),canvas=new Node('CANVAS'),taps=[];let yaw=0
+ const input=bindCameraGestures(canvas,{getYaw:()=>yaw,setYaw:v=>yaw=v,getDistance:()=>10,setDistance(){},onTap:p=>taps.push(p),win,doc})
+ await canvas.fire('pointerdown',{pointerId:1,clientX:20,clientY:30});await canvas.fire('pointerup',{pointerId:1,clientX:20,clientY:30});assert.equal(taps.length,0,'모바일 호환 클릭이 도착하기 전에는 설명창을 열지 않는다');await canvas.fire('lostpointercapture',{pointerId:1});await canvas.fire('click',{clientX:20,clientY:30});assert.equal(taps.length,1)
+ await canvas.fire('pointerdown',{pointerId:2,clientX:20,clientY:30});await canvas.fire('pointermove',{pointerId:2,clientX:40,clientY:31});await canvas.fire('pointerup',{pointerId:2});await canvas.fire('click');assert.equal(taps.length,1)
+ await canvas.fire('pointerdown',{pointerId:3,clientX:20,clientY:30});await canvas.fire('pointerdown',{pointerId:4,clientX:80,clientY:30});await canvas.fire('pointerup',{pointerId:4});await canvas.fire('pointerup',{pointerId:3});await canvas.fire('click');assert.equal(taps.length,1)
+ await canvas.fire('pointerdown',{pointerId:5,clientX:20,clientY:30});await canvas.fire('pointercancel',{pointerId:5});await canvas.fire('click');assert.equal(taps.length,1)
+ input.dispose()
+})

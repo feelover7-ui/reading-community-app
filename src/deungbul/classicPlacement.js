@@ -46,7 +46,7 @@ export function roundedRoute(points){
  out.push(points.at(-1));return Object.freeze(out)
 }
 // 문과 원형 마당은 고정한 채 완만한 S 곡선으로 연결한다.
-const connectorStart=workshopPlace({x:18,z:26.8}),connectorEnd={x:PAGODA_POSITION.x,z:PAGODA_POSITION.z-PAGODA_APRON.r+.35}
+const connectorStart=workshopPlace({x:18,z:25.7}),connectorEnd={x:PAGODA_POSITION.x,z:PAGODA_POSITION.z-PAGODA_APRON.r+.35}
 export const CONNECTOR=Object.freeze(Array.from({length:33},(_,i)=>{
  const t=i/32,u=1-t,a=connectorStart,b=connectorEnd
  return{x:a.x+3*u*u*t*2.5-3*u*t*t*2.5,z:a.z+(b.z-a.z)*t}

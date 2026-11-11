@@ -143,6 +143,12 @@ html,body{overscroll-behavior:none;touch-action:auto}
 #minimap{width:238px;height:210px}
 @media(max-width:640px){#topbtns{gap:6px}#topbtns .iconbtn{width:42px;min-width:42px}#minimap{width:170px;height:150px}}
 body.overview-mode #hud,body.overview-mode #minimap,body.overview-mode #connection,body.overview-mode #prompt{display:none!important}
+
+.nearby-guide{position:fixed;transform:translate(-50%,-100%);z-index:6;border:1px solid #b88a3c;border-radius:12px;background:rgba(251,244,228,.96);color:#573b26;padding:10px 14px;min-height:44px;max-width:270px;font:700 12px 'Noto Sans KR',sans-serif;box-shadow:0 2px 9px #0002;cursor:pointer}
+.nearby-guide[hidden],#workshopviewb[hidden]{display:none!important}
+.station-label{background:#fbf4e4f2;color:#5a3b26;border:1px solid #bda98b;font-family:'Noto Sans KR',sans-serif;font-size:12px}
+.station-label.current{background:#fff0bd;border:2px solid #bb7134;color:#6e361b}
+#workshopviewb{font-size:11px;white-space:nowrap}
 </style>
 <link rel="stylesheet" href="/src/deungbul/mobileUi.css">
 </head>
