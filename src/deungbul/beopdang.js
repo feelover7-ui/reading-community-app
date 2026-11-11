@@ -5,7 +5,7 @@ import { fitHallView } from './hallCamera.js'
 /* 대법당 안.
    칸 크기·걷는 속도·화면 배율은 등불사장·도량과 같은 값(sceneKit)을 씁니다.
    좌복 위에서 절을 할 수 있고, 같이 들어온 법우들도 서로 보입니다. */
-import { T, W, H, structures, spots, cushions, MAT, DOOR, startPosition, canStand, atDoor, cushionAt, SOURCE }
+import { T, W, H, structures, spots, cushions, MAT, DOOR, startPosition, canStand, atDoor, cushionAt, SOURCE, createHallExitGate }
   from './beopdangData.js'
 import {
   bindKeys, bindJoystick, stepPlayer, createPeers, createModal, readIdentity,
@@ -121,6 +121,7 @@ function updateHere () {
 }
 
 /* ---------- 화면 전환 ---------- */
+const hallExitGate = createHallExitGate()
 function travel (url) {
   if (traveling) return
   traveling = true
@@ -225,8 +226,8 @@ byId('helpb').onclick = () => {
     '<br><b>살펴보기 · 절하기</b> ' + (isTouch ? '오른쪽 <b>살펴보기</b> 버튼' : '<kbd>Space</kbd> 또는 <kbd>E</kbd>') + '</p>' +
     '<p>바닥에 깔린 <b>좌복</b> 위에 서서 누르면 절을 시작합니다. 한 배·삼배·일곱 배·스물한 배·백팔배 중에 고를 수 있고, 하는 중에 다시 누르면 멈춥니다. 한 만큼 오늘 숫자에 쌓입니다.</p>' +
     '<p>🧭는 부처님과 내 캐릭터를 함께 담습니다. 화면 끌기·Q/R·휠은 자유 시점, 🧭를 누르면 자동 구도로 돌아옵니다.</p>' +
-    '<p>아래쪽 문으로 나가면 원본 외부 맵으로 돌아갑니다.</p>' +
-    '<p style="color:#8a7a66;font-size:13px">공식 안내를 참고해 본존불·세 부분 목탱화·닫집·단청을 구성한 시안입니다. 사진 세부 대조는 아직 하지 못했습니다. 실측 치수가 아니고, 사진을 복제하지 않았습니다. 오늘 숫자는 이 브라우저에만 남습니다.</p>'
+    '<p>아래쪽 문턱을 향해 걸어 나가면 버튼 없이 도량으로 돌아갑니다. 문 앞 살펴보기와 돌아가기 버튼도 사용할 수 있습니다.</p>' +
+    '<p style="color:#8a7a66;font-size:13px">공식 안내를 참고해 본존불·세 부분 목탱화·닫집·단청을 구성한 시안입니다. 공식 사진의 천장·창·목재·불단 특징을 대조해 표현했습니다. 실측 치수가 아니고, 사진을 복제하지 않았습니다. 오늘 숫자는 이 브라우저에만 남습니다.</p>'
   const b = el('button', 'btn', '닫기'); b.onclick = modal.close
   m.append(h, b)
 }
@@ -341,6 +342,7 @@ function update (dt) {
   } else {
     stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open || chat.isOpen, follower.moveVector)
   }
+  if(hallExitGate.sample({x:player.x,z:player.y,moving:player.moving,enabled:!traveling&&!modal.open&&!chat.isOpen&&!bow.on}))travel(hallReturnUrl(location.search))
   // 절할 때는 몸을 낮춘다
   const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
   const u = bow.on ? bow.t / cycle : 0
@@ -388,7 +390,7 @@ function render () {
   if (!modal.open && !bow.on && !chat.isOpen) {
     const p = promptNow()
     if (p) {
-      promptEl.textContent = (isTouch ? '살펴보기 · ' : 'Space · ') + p.label
+      promptEl.textContent = atDoor(player.x,player.y) ? '문 밖으로 걸어가면 도량으로 나가요' : (isTouch ? '살펴보기 · ' : 'Space · ') + p.label
       promptEl.style.display = 'block'
     } else promptEl.style.display = 'none'
   } else promptEl.style.display = 'none'
@@ -407,6 +409,7 @@ addEventListener('pagehide', () => { keys.clear(); joy.reset(); peers.stop(); ha
 addEventListener('pageshow', e => {
   if (!e.persisted) return
   traveling = false
+  hallExitGate.reset();keys.clear();joy.reset()
   if (fadeEl) fadeEl.classList.remove('on')
   peers.start(); peers.send(true)
 })

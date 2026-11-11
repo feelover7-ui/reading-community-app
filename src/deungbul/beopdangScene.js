@@ -1,3 +1,4 @@
+import {addHallPhotoFinish} from './photoFinish.js'
 import {HALL_ROOM} from './hallProportions.js'
 /* 대법당 3D 장면.
    2D 때와 같은 타일 좌표(beopdangData)를 받아 안쪽을 세웁니다.
@@ -12,6 +13,7 @@ function woodTexture (world) {
       g.fillStyle = r % 2 ? '#a8723e' : '#9d6b3c'
       g.fillRect(0, r * 32, 256, 32)
       g.fillStyle = 'rgba(70,40,15,.3)'; g.fillRect(0, r * 32 + 31, 256, 2)
+      for(let i=0;i<100;i++){g.fillStyle='rgba(65,37,19,.055)';g.fillRect((i*43+r*71)%256,r*32+(i*7)%30,18+(i%17),.55)}
       const off = (r * 97) % 256
       g.fillRect(off, r * 32, 2, 32); g.fillRect((off + 128) % 256, r * 32, 2, 32)
     }
@@ -20,10 +22,10 @@ function woodTexture (world) {
 function matTexture (world) {
   return world.canvasTex(256, 256, g => {
     g.fillStyle = '#cfccc0'; g.fillRect(0, 0, 256, 256)
-    g.strokeStyle = 'rgba(150,148,138,.5)'; g.lineWidth = 2
-    for (let i = 0; i < 5; i++) {
-      g.beginPath(); g.ellipse(40 + i * 38, 60 + (i % 3) * 70, 44, 16, 0, 0, 7); g.stroke()
-    }
+    // 淡い織り目と縁取り。写真の広い明色の敷物を参考にする。
+    for(let i=0;i<256;i+=2){g.fillStyle=i%4?'rgba(255,255,250,.12)':'rgba(102,100,90,.08)';g.fillRect(i,0,.6,256);g.fillRect(0,i,256,.6)}
+    g.strokeStyle='rgba(140,137,122,.2)';g.lineWidth=1
+    for(let i=0;i<8;i++){g.beginPath();g.moveTo(0,i*32);g.bezierCurveTo(64,i*32-8,160,i*32+9,256,i*32);g.stroke()}
   })
 }
 const DANCHEONG = ['#326b58', '#ac4938', '#365d78', '#d1ad61', '#e5ddc5']
@@ -78,10 +80,10 @@ export function buildHall (world) {
     wallParts.push({ m, cap: m, axis, at, outside: at < (axis === 'x' ? W / 2 : H / 2) ? -1 : 1 })
     return m
   }
-  // 문틀
-  onWall(box(DOOR.w + .4, 3.6, .3, M('#4a2f1d', { transparent: true }), DOOR.x + DOOR.w / 2, 1.8, H - .85), 'z', H - .85)
-  onWall(box(DOOR.w, 2.4, .2, M('#c99a62', { transparent: true }), DOOR.x + DOOR.w / 2, 1.2, H - .9), 'z', H - .9)
-  onWall(box(.12, 2.4, .22, M('#8a5e3c', { transparent: true }), DOOR.x + DOOR.w / 2, 1.2, H - .95), 'z', H - .95)
+  // 실제로 열린 문: 걸어서 나갈 수 있는 폭을 판으로 막지 않는다.
+  for(const x of[DOOR.x-.08,DOOR.x+DOOR.w+.08])onWall(box(.16,3.1,.3,M('#59402d',{transparent:true}),x,1.55,H-.85),'z',H-.85)
+  onWall(box(DOOR.w+.32,.22,.3,M('#59402d',{transparent:true}),DOOR.x+DOOR.w/2,3.12,H-.85),'z',H-.85)
+  onWall(box(DOOR.w,.06,.45,M('#ac9366',{transparent:true}),DOOR.x+DOOR.w/2,.03,H-.82),'z',H-.85)
   // 단청 띠
   for (let i = 0; i < W; i += 1) {
     onWall(box(.8, .2, .08, M(DANCHEONG[i % 4], { transparent: true }), i + .5, HALL_ROOM.wallBand, 1.05), 'z', 1.05)
@@ -160,6 +162,7 @@ export function buildHall (world) {
     panel.rotation.z=side*.45;ceilParts.push(panel)
     for(const z of[6,9,12,15])ceilParts.push(box(.09,.16,1.4,M('#c1a568',{transparent:true}),side<0?1.15:W-1.15,HALL_ROOM.wall+.05,z))
   }
+  addHallPhotoFinish(world,{W,H,onWall,ceilParts})
   const CEIL_Y = HALL_ROOM.cutaway
 
   /* 안쪽 등. 바깥 햇빛이 닿지 않아 따로 밝힌다. */

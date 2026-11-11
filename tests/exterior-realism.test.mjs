@@ -31,3 +31,12 @@ test('접촉 그림자는 테두리가 투명하고 나무 잎은 기존 크기�
  assert.equal(d[3],0);assert.ok(d[((n>>1)*n+(n>>1))*4+3]>100);assert.equal(m.material.depthWrite,false)
  const g=foliageGeometry(1),p=g.getAttribute('position');for(let i=0;i<p.count;i++)assert.ok(Math.hypot(p.getX(i),p.getY(i),p.getZ(i))<=1.001)
 })
+test('가벼운 지붕도 재질 좌표와 곡면 법선이 있어 기와 결이 보인다',async()=>{
+ const mod=await import('../src/deungbul/exteriorFinish.js')
+ assert.equal(typeof mod.curvedHipRoof,'function','평면 삼각형 지붕에 없는 UV를 가진 곡면을 쓴다')
+ const g=mod.curvedHipRoof(12,8,1.8,.62),p=g.getAttribute('position'),uv=g.getAttribute('uv'),normal=g.getAttribute('normal')
+ assert.equal(uv.count,p.count);assert.equal(normal.count,p.count)
+ g.computeBoundingBox();assert.ok(g.boundingBox.min.x>=-6.001&&g.boundingBox.max.x<=6.001);assert.ok(g.boundingBox.min.z>=-4.001&&g.boundingBox.max.z<=4.001)
+ assert.ok(g.boundingBox.max.y<=1.801&&g.boundingBox.max.y>=1.79)
+ assert.ok(new Set([...normal.array].map(v=>v.toFixed(2))).size>12,'큰 평면 네 장만 만들지 않는다')
+})

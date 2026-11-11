@@ -1,0 +1,26 @@
+[
+  {
+    "file": "one_about_01.jpg",
+    "url": "https://hanmaum.org/Content/img/one/one_about_01.jpg",
+    "page": "https://hanmaum.org/content/one_about",
+    "note": "본원 건물 및 도량 외부 전경",
+    "bytes": 821119,
+    "sha256": "bd77196589e53d89f37f799ea62abb1454ac30899792330f64c52c7f23edd22e"
+  },
+  {
+    "file": "one_status_02.jpg",
+    "url": "https://hanmaum.org/Content/img/one/one_status_02.jpg",
+    "page": "https://hanmaum.org/content/one_status",
+    "note": "본원 건물 및 도량 외부 전경",
+    "bytes": 182815,
+    "sha256": "c7d70f3f4b5176e8f407d32d1af8b1878785fe9dfe5ee635bfe06e0f2a46c17f"
+  },
+  {
+    "file": "one_status_01.jpg",
+    "url": "https://hanmaum.org/Content/img/one/one_status_01.jpg",
+    "page": "https://hanmaum.org/content/one_status",
+    "note": "준공 행사 당시 출입구 사진",
+    "bytes": 168557,
+    "sha256": "940ab7dd4589b15943d2c723eedb7ad7b61398e799027117f8722fa2bfad5e2d"
+  }
+]
