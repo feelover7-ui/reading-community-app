@@ -241,7 +241,7 @@ function setNight(on){
  redrawHung()
 }
 function changed(){updateSoim();saveState();redrawHung()}
-const craft=createCraft({state,say,modalShell,closeModal:closeCraft,toast,tok,chime,bell,changed,
+const craft=createCraft({state,saveDraft:saveState,say,modalShell,closeModal:closeCraft,toast,tok,chime,bell,changed,
  sharing,owner:OWNER,normalizeLantern,setNight,
  outsideLine:'작업장 문으로 나가면 도량이에요. 마당에도 연등이 켜졌어요.',
  lines:{intro:'끝나고 문 밖 도량에서 구정탑 탑돌이랑 대법당 참배도 해 봐요.',

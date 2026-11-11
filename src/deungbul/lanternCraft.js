@@ -106,18 +106,33 @@ export function createCraft(host){
   fin.onclick=()=>{state.craft={...state.craft,wish:ta.value.trim().replace(/\s+/g,' ').slice(0,24)||'모두 평안하기를'};state.stage=4;changed();closeModal();chime();toast('소원등 완성! 다음은 걸이대예요')}
   m.append(pv,ta,fin)
  }
- async function hangSign(){
-   if(state.stage!==4){say('소원등 걸이대',['소원등을 완성해서 걸어요.','💬 메뉴에서 소원등 목록도 볼 수 있어요.']);return}
-   if(hanging)return;hanging=true;
-   try{
-     const L={...normalizeLantern(state.craft),owner:owner},result=await host.sharing.publish(L);
-     state.lanterns.push(result.row||L);state.lanterns=state.lanterns.slice(-120);state.stage=0;state.craft={};state.hasHung=true;changed();chime();
-     say('소원등 걸이대',result.local?['이 기기에 소원등을 보관했어요.',result.uncertain?'서버 저장 여부를 확인하지 못해 자동 재전송하지 않아요.':'현재는 이 브라우저에만 저장돼요.']:['법우들과 함께 보는 소원등을 걸었어요.',L.wish||'마음을 담아 밝혀요.']);
-   }finally{hanging=false}
+ function hangSign(){
+  if(state.stage!==4){say('소원등 걸이대',['소원등을 완성해서 걸어요.','💬 메뉴에서 소원등 목록도 볼 수 있어요.']);return}
+  if(hanging){toast('소원등을 거는 중이에요. 잠시 기다려 주세요.');return}
+  const base=state.craft,m=modalShell('소원등 걸이대','등에 남길 메시지를 확인하거나 수정한 뒤 걸어 주세요. 메시지는 선택이며 24자까지 적을 수 있어요.')
+  const pv=makePreview(150);pv.paint(base,{lit:!!state.night,tassel:true})
+  const ta=el('textarea');ta.rows=2;ta.maxLength=24;ta.value=base.wish||'';ta.placeholder='모두 평안하기를';ta.setAttribute('aria-label','등에 남길 메시지')
+  ta.oninput=()=>{if(!hanging&&state.stage===4&&state.craft===base){base.wish=ta.value.slice(0,24);host.saveDraft?.()}}
+  const go=el('button','btn','메시지 확인하고 등 걸기'),status=el('p','sub');status.setAttribute('role','status')
+  go.onclick=async()=>{
+   if(hanging||state.stage!==4||state.craft!==base)return
+   base.wish=ta.value.trim().replace(/\s+/g,' ').slice(0,24)||'모두 평안하기를';changed()
+   const L={...normalizeLantern(base),owner};let result
+   hanging=true;go.disabled=true;ta.disabled=true;status.textContent='소원등을 걸고 있어요…'
+   try{result=await host.sharing.publish(L)}
+   catch{status.textContent='걸기를 확인하지 못했어요. 메시지를 보관했으니 중복 여부를 먼저 확인해 주세요.';return}
+   finally{hanging=false;go.disabled=false;ta.disabled=false}
+   state.lanterns.push(result.row||L);state.lanterns=state.lanterns.slice(-120);state.stage=0;state.craft={};state.hasHung=true;changed();chime()
+   if(m.contains&&!m.contains(ta)){toast(result.uncertain?'공유 저장 여부를 확인하지 못해 이 기기에 보관했어요.':'소원등을 걸었어요. 창을 닫은 뒤 다음 활동을 이어가세요.');return}
+   closeModal()
+   if(host.onHangComplete)host.onHangComplete({lantern:L,result})
+   else say('소원등 걸이대',[result.local?'이 기기에 소원등을 보관했어요.':'법우들과 함께 보는 소원등을 걸었어요.',L.wish,'이제 장엄등에서 함께 점등하거나 탑돌이·법당 참배를 이어가 보세요.'])
+  }
+  m.append(pv,ta,go,status)
  }
  function bigLantern(){
    if(!state.hasHung){say('청년회 장엄등',['청년회 법우들이 함께 만든 장엄등이에요.','불꽃이 둘러싼 커다란 바퀴 가운데 연꽃이 피어 있어요.','소원등을 먼저 마당 걸이대에 걸고 와서 다 같이 점등해요.']);return;}
-   if(!state.night){state.litOnce=true;setNight(true);host.sendLit?.();changed();bell();say('점등식',['모두 함께… 점등!','장엄등과 소원등이 하나둘 불을 밝혀요.',host.outsideLine||'마당 밖에도 연등이 켜졌어요.']);return;}
+   if(!state.night){state.litOnce=true;setNight(true);host.sendLit?.();changed();bell();if(host.onLitComplete){host.onLitComplete();return}say('점등식',['모두 함께… 점등!','장엄등과 소원등이 하나둘 불을 밝혀요.',host.outsideLine||'마당 밖에도 연등이 켜졌어요.']);return;}
    const m=modalShell('청년회 장엄등','장엄등이 환하게 밝혀져 있어요.');const a=el('button','btn','계속 밝혀 두기');a.onclick=closeModal;const b=el('button','btn ghost','낮으로 돌아가기');b.onclick=()=>{setNight(false);closeModal();toast('날이 밝았어요');};m.append(a,b);}
  function talkBanjang(){
   const first=!state.talked;state.talked=true;changed()

@@ -1,3 +1,4 @@
+import {nextVisitTarget,visitTargetLabel} from '../visitProgress.js'
 import {handGeometry,finishCharacter,addCharacterHair,torsoGeometry,shoeGeometry} from '../characterStyle.js'
 import {findWalkPath,createGuidedWalk} from '../guidedWalk.js'
 import {addLandscapeFinish} from '../landscapeFinish.js'
@@ -36,7 +37,7 @@ import { PAGODA_CENTER,GUIDED_RADIUS,advanceGuidedOrbit } from '../tapdori.js'
    이 운영 파생 파일은 원본 외부 맵을 사용하고 기존 법당/공유 기능에 연결합니다.
    원본 서버가 바뀌면 내용을 추측해 다시 만들지 않고 위 SHA-256 으로 다시 받아 비교합니다. */
 import * as THREE from 'three'
-import {createModal,keyName,readStore,writeStore,bindJoystick} from '../sceneKit.js'
+import {createModal,keyName,readStore,writeStore,bindJoystick,createChat} from '../sceneKit.js'
 import {joinYard} from '../presence.js'
 import {createPeerLayer} from '../three3d.js'
 import {createOrbitProgress} from '../orbitProgress.js'
@@ -149,7 +150,7 @@ function closeDialog(){dialog=null;dlg.style.display='none';}
 dlg.addEventListener('click',advance);
 const modalWrap=document.getElementById('modal'),card=document.getElementById('card');
 const sharedModal=createModal(modalWrap,card,{onClose:()=>{modalOpen=false;keys.clear();joy.reset();try{cv.focus({preventScroll:true})}catch{}}});
-function modalShell(title,sub){cancelGuide();modalOpen=true;keys.clear();joy.reset();return sharedModal.shell(title,sub);}
+function modalShell(title,sub){campusChat?.hide();cancelGuide();modalOpen=true;keys.clear();joy.reset();return sharedModal.shell(title,sub);}
 function closeModal(){sharedModal.close();}
 const fadeEl=document.getElementById('fade');
 function fadeTo(fn){fadeEl.classList.add('on');setTimeout(()=>{fn();snapCam=true;setTimeout(()=>fadeEl.classList.remove('on'),120);},460);}
@@ -157,6 +158,7 @@ function fadeTo(fn){fadeEl.classList.add('on');setTimeout(()=>{fn();snapCam=true
 const guidedWalk=createGuidedWalk();let guideName='',guideArrival=null,routeCanStand=()=>false;
 function cancelGuide(){guidedWalk.cancel();guideArrival=null;document.body.classList.remove('guide-active')}
 function goToInteraction(it){
+ campusChat?.hide();
  if(!it||!started||creatorOpen||ritual||seq)return
  closeDialog();closeModal();if(tap)stopTap();leaveOverview()
  const path=findWalkPath({x:player.x,z:player.y},{x:it.x,z:it.y},routeCanStand)
@@ -174,7 +176,7 @@ function changed(){updateHUD();save();onChanged();}
 updateHUD();
 
 /* 등 만들기는 lanternCraft.js 한 곳에 있고 두 맵이 같이 쓴다. */
-const craftHost={state,say,modalShell,closeModal,toast,tok,chime,bell,changed,sharing:null,owner:OWNER,normalizeLantern,
+const craftHost={state,saveDraft:save,say,modalShell,closeModal,toast,tok,chime,bell,changed,sharing:null,owner:OWNER,normalizeLantern,
  setNight:(v)=>setNight(v),sendLit:()=>campusYard?.sendLit(nick),
  outsideLine:'마당 남쪽 문으로 나가면 본원이에요. 본원 마당에도 연등이 켜졌어요.',
  lines:{intro:'마당 남쪽 문으로 나가면 본원이에요. 끝나고 탑돌이랑 대법당 참배도 해 봐요.',hang:'문 밖 마당으로 나가서 왼쪽 걸이대에 걸어요.',done:'마당 남쪽 문으로 나가면 본원이에요. 구정탑 탑돌이도 하고, 대행선사 동상 앞에서 삼배도 올리고, 5층 대법당에도 올라가 봐요.'}};
@@ -199,7 +201,7 @@ function stepSeq(dt){if(!seq)return;const s=seq;const f=s.frames[s.i];s.t+=dt*SE
   if(k>=1){s.i++;s.t=0;s.from={...player.pose};if(f.cb)f.cb();if(seq===s&&s.i>=s.frames.length){seq=null;s.onDone&&s.onDone();}}}
 const rEl=document.getElementById('ritual'),rTitle=document.getElementById('rtitle'),rCount=document.getElementById('rcount'),rCap=document.getElementById('rcap'),rBar=document.getElementById('rbar'),rBarW=document.getElementById('rbarw'),rSpeed=document.getElementById('rspeed'),rStop=document.getElementById('rstop'),rBreath=document.getElementById('breath'),vign=document.getElementById('vignette');
 let ritual=null;
-function ritualOpen(title,o={}){ritual={title,stop:false,total:o.total||0,update:null,onStop:null};rTitle.textContent=title;rCount.textContent=o.total?`0 / ${o.total}`:'';rCap.textContent=o.cap||'';rBarW.style.display=o.total?'block':'none';rBar.style.width='0%';rSpeed.style.display=o.speed?'inline-block':'none';rSpeed.textContent='빠르게 ×2.5';SEQ.speed=1;rBreath.style.display='none';rEl.style.display='block';document.body.classList.add('ritual-active');closeModal();}
+function ritualOpen(title,o={}){campusChat?.hide();ritual={title,stop:false,total:o.total||0,update:null,onStop:null};rTitle.textContent=title;rCount.textContent=o.total?`0 / ${o.total}`:'';rCap.textContent=o.cap||'';rBarW.style.display=o.total?'block':'none';rBar.style.width='0%';rSpeed.style.display=o.speed?'inline-block':'none';rSpeed.textContent='빠르게 ×2.5';SEQ.speed=1;rBreath.style.display='none';rEl.style.display='block';document.body.classList.add('ritual-active');closeModal();}
 function ritualSet(n,cap){if(!ritual)return;if(ritual.total){rCount.textContent=`${n} / ${ritual.total}`;rBar.style.width=(n/ritual.total*100)+'%';}if(cap!=null)rCap.textContent=cap;}
 function ritualClose(){document.body.classList.remove('ritual-active');ritual=null;rEl.style.display='none';SEQ.speed=1;vign.classList.remove('on');}
 rSpeed.onclick=()=>{SEQ.speed=SEQ.speed>1?1:2.5;rSpeed.textContent=SEQ.speed>1?'보통 속도':'빠르게 ×2.5';};
@@ -309,15 +311,14 @@ const INTERACT=[
   {x:114,y:9.9,name:'가운데 방석 · 참배하기',fn:hallMenu,mark:[114,1.6,9.9],key:'cushion'},
   {x:114,y:19.35,name:'나가기 · 본관 앞마당',fn:exitHall,mark:[114,3,19.9],key:'hallExit'}];
 function nearest(){if(inHallLobby(player.x,player.y))return INTERACT.find(i=>i.key==='hallDoor');let best=null,bd=1;for(const it of INTERACT){const r=it.key==='hallDoor'?2.8:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
-function targetKey(){if(state.stage>0)return['frame','light','paper','paint','sign'][state.stage];if(!state.talked)return'banjang';if(state.hasHung&&!state.litOnce)return'big';if(!state.hasHung)return'frame';
-  if(!state.tapdoriDone)return tap?null:'tower';if(!state.statueDone)return'statue';if(!state.hallDone)return inHall()?'cushion':'hallDoor';return null;}
+function targetKey(){const key=nextVisitTarget(state);return key==='tower'&&tap?null:key;}
 function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}if(modalOpen||ritual||seq)return;const it=nearest();if(it){it.fn();updateHUD();}}
 
 /* ================= input ================= */
 const keys=new Set();
 let yaw=0,dist=9.5,overview=false,lowView=false,hallAuto=false,workshopAuto=false,statueAuto=false,autoYaw=0,viewYaw=0,currentViewDistance=9.5;
 const workshopView=createWorkshopView(),statueView=createAreaView();
-let handleObjectTap=()=>{};
+let handleObjectTap=()=>{},campusChat=null;
 const hallApproach=createHallApproach();
 const manualCamera=()=>{if(hallAuto||workshopAuto||statueAuto){yaw=viewYaw;dist=currentViewDistance;}hallAuto=false;workshopAuto=false;statueAuto=false;hallApproach.manual();workshopView.manual();statueView.manual();leaveOverview();if(reducedMotion)snapCam=true;};
 function leaveOverview(){overview=false;document.getElementById('overviewb')?.setAttribute('aria-pressed','false');document.getElementById('overviewb')?.setAttribute('aria-label','전체 배치 보기');}
@@ -327,7 +328,8 @@ addEventListener('keydown',e=>{
   const k=keyName(e);
   if(modalOpen){if(k==='escape')closeModal();else if((k===' '||k==='e')&&tg!=='BUTTON'&&tg!=='A'){e.preventDefault();if(!e.repeat)sharedModal.runPrimary()}return}
   if((tg==='BUTTON'||tg==='A')&&!['arrowleft','arrowright','arrowup','arrowdown','w','a','s','d','q','r'].includes(k))return;
-  if(k===' '||k==='enter'||k==='e'){e.preventDefault();if(!e.repeat)action();return}
+  if(k==='enter'&&started&&!creatorOpen&&!ritual&&!seq&&!tap){e.preventDefault();if(!e.repeat)campusChat?.toggle();return}
+  if(k===' '||k==='e'){e.preventDefault();if(!e.repeat)action();return}
   if(k==='m'){toggleMap();return}if(k.startsWith('arrow'))e.preventDefault();keys.add(k);
 });
 addEventListener('keyup',e=>keys.delete(keyName(e)));
@@ -354,7 +356,7 @@ function openLandmark(id){
 
 function syncEntryAccess(){
   const entry=!started||creatorOpen;
-  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#nearby-guide,#guided-actions,.arrival-guide,.camera-tools').forEach(n=>n.inert=entry);
+  document.querySelectorAll('#game,#hud,#topbtns,#minimap,#connection,#prompt,#wish,#joy,#act,#nearby-guide,#guided-actions,#campus-chat-toggle,#chatbar,.arrival-guide,.camera-tools').forEach(n=>n.inert=entry);
   document.getElementById('title').inert=started;
   document.getElementById('creator').inert=!creatorOpen;
 }
@@ -754,9 +756,9 @@ function init3D(){
     const id=castLandmarkRay(ray,scene.children,camera);if(id)openLandmark(id);
   };
   let last=performance.now(),t=0;
-  function loop(now){const frameMs=now-last;const dt=Math.min(.05,frameMs/1000);last=now;if(document.hidden||!started){requestAnimationFrame(loop);return}quality.sample(frameMs);t+=dt;
+  function loop(now){const frameMs=now-last;const dt=Math.min(.05,frameMs/1000);last=now;if(document.hidden||!started){requestAnimationFrame(loop);return}quality.sample(frameMs);t+=dt;if(!creatorOpen)community.start();
     if(keys.has('q')||keys.has('r'))manualCamera();if(keys.has('q'))yaw+=dt*1.6;if(keys.has('r'))yaw-=dt*1.6;
-    let mx=0,my=0;const busy=dialog||modalOpen||ritual||seq||creatorOpen;
+    let mx=0,my=0;const busy=dialog||modalOpen||ritual||seq||creatorOpen||campusChat?.isOpen;
     if(started&&!busy){if(keys.has('arrowleft')||keys.has('a'))mx-=1;if(keys.has('arrowright')||keys.has('d'))mx+=1;if(keys.has('arrowup')||keys.has('w'))my-=1;if(keys.has('arrowdown')||keys.has('s'))my+=1;mx+=joy.x;my+=joy.y;}
     const l=Math.hypot(mx,my);if(guidedWalk.active&&l>.15)cancelGuide();if(tap?.guided&&l>.15){stopTap('직접 이동해 자동 탑돌이를 멈췄어요.');}if(l>1){mx/=l;my/=l;}player.moving=l>.05;
     if(player.moving){leaveOverview();const moveYaw=viewYaw,dx=mx*Math.cos(moveYaw)+my*Math.sin(moveYaw),dz=-mx*Math.sin(moveYaw)+my*Math.cos(moveYaw);const sp=(tap?2.8:4.3)*dt;const nx=player.x+dx*sp,ny=player.y+dz*sp;if(canStand(nx,player.y))player.x=nx;if(canStand(player.x,ny))player.y=ny;player.walk+=dt;player.face=angLerp(player.face,Math.atan2(dx,dz),Math.min(1,dt*12));}
@@ -867,7 +869,7 @@ function init3D(){
 /* ================= character creator ================= */
 const creatorEl=document.getElementById('creator');
 creatorEl.addEventListener('keydown',e=>{if(e.key!=='Tab'||!creatorOpen)return;const items=[...creatorEl.querySelectorAll('button:not([disabled]),input:not([disabled]),summary')].filter(n=>n.getClientRects().length),first=items[0],last=items.at(-1);if(document.activeElement===creatorEl||(e.shiftKey&&document.activeElement===first)||(!e.shiftKey&&document.activeElement===last)){e.preventDefault();(e.shiftKey?last:first)?.focus()}});
-function openCreator(first){if(first){player.x=18+WORKSHOP_OFFSET.x;player.y=24.4;creatorYaw=0;snapCam=true;}else creatorYaw=yaw;creatorOpen=true;document.body.classList.add('creating');closeDialog();
+function openCreator(first){campusChat?.hide();if(first){player.x=18+WORKSHOP_OFFSET.x;player.y=24.4;creatorYaw=0;snapCam=true;}else creatorYaw=yaw;creatorOpen=true;document.body.classList.add('creating');closeDialog();
   let ap={...(state.ap||DEFAULT_AP.m)};let groupTarget=creatorEl;const apply=()=>{state.ap={...ap};rebuildPlayer();};
   creatorEl.innerHTML='';creatorEl.style.display='block';syncEntryAccess();
   creatorEl.append(Object.assign(el('h2',null,first?'도량에 들어갈 모습':'옷 갈아입기'),{id:'creator-title'}),el('p','sub',first?'이름과 기본 모습을 골라 주세요. 머리와 옷은 나중에도 바꿀 수 있어요.':'마음에 드는 모습으로 바꿔요.'));
@@ -893,7 +895,11 @@ document.getElementById('dressb').onclick=()=>{if(!started||ritual||seq||creator
 const onlinePeers=new Map(),onlineLabels=new Map();
 let campusYard=null,identityKey='',onlineAt=0,lastOnlinePose='',onlineLast=null;
 const sharing=craftHost.sharing=createCampusSharing({onLanterns:(rows,total)=>{sharedLanterns=rows;sharedTotal=total;state.hasHung=state.hasHung||rows.some(L=>L.owner===OWNER);updateHUD();onChanged()},status:setConnection});
-const community=createCampusCommunity({shell:modalShell,el,getNick:()=>nick||'법우',say:text=>campusYard?.sendSay(text,nick)});
+const community=createCampusCommunity({shell:modalShell,el,getNick:()=>nick||'법우',getLocalLanterns:()=>SEEDS.concat(state.lanterns),getOwner:()=>OWNER,say:text=>campusYard?.sendSay(text,nick)});
+const quickToggle=el('button','campus-chat-toggle','대화');quickToggle.type='button';quickToggle.id='campus-chat-toggle';quickToggle.setAttribute('aria-label','간편 대화 열기');quickToggle.setAttribute('aria-expanded','false')
+const quickBar=el('div'),quickLog=el('div'),quickInput=el('input'),quickSend=el('button',null,'보내기'),quickClose=el('button',null,'닫기');quickBar.id='chatbar';quickLog.id='chatlog';quickLog.setAttribute('role','log');quickLog.setAttribute('aria-label','최근 대화');quickInput.id='chatmsg';quickInput.maxLength=200;quickInput.placeholder='법우들에게 한 줄 남기기';quickInput.setAttribute('aria-label','간편 대화 내용');quickSend.type=quickClose.type='button';quickBar.append(quickInput,quickSend,quickClose);document.getElementById('campus-app').append(quickToggle,quickLog,quickBar)
+campusChat=createChat({bar:quickBar,log:quickLog,input:quickInput,sendBtn:quickSend,send:async text=>{await community.sendQuick(text);return true},onOpenChange:open=>{community.setQuickOpen(open);keys.clear();joy.reset();if(open){cancelGuide();if(tap)stopTap()}else cv.focus({preventScroll:true});quickToggle.setAttribute('aria-expanded',String(open))}})
+quickToggle.onclick=()=>{if(started&&!creatorOpen&&!modalOpen&&!ritual&&!seq&&!tap)campusChat.toggle()};quickClose.onclick=()=>campusChat.hide();community.onMessage(row=>campusChat.push(row.nick,row.body,row.nick===nick))
 const visitButton=el('button','iconbtn','🧭');visitButton.type='button';visitButton.id='visit-guide';visitButton.setAttribute('aria-label','작업과 참배 안내');document.getElementById('topbtns').append(visitButton);
 visitButton.onclick=()=>{
  if(!started||creatorOpen||ritual||seq)return
@@ -904,12 +910,27 @@ visitButton.onclick=()=>{
  }
 }
 const guideBar=el('div','guided-actions'),guideText=el('span'),guideNext=el('button','btn'),guideStop=el('button','btn ghost','멈추기');guideBar.id='guided-actions';guideBar.append(guideText,guideNext,guideStop);document.getElementById('campus-app').append(guideBar);
-guideStop.onclick=()=>{cancelGuide();toast('이동을 멈췄어요.')};guideNext.onclick=()=>goToInteraction(INTERACT.find(it=>it.key===['frame','light','paper','paint','sign'][state.stage]));
+guideStop.onclick=()=>{cancelGuide();toast('이동을 멈췄어요.')};guideNext.onclick=()=>goToInteraction(INTERACT.find(it=>it.key===nextVisitTarget(state)));
 function paintGuidance(){
- const active=guidedWalk.active,visible=started&&!creatorOpen&&!modalOpen&&!dialog&&!ritual&&!seq&&!tap&&!overview
- guideBar.hidden=!visible;guideStop.hidden=!active;guideNext.hidden=active||!inWorkshop(player.x,player.y)
+ const active=guidedWalk.active,visible=started&&!campusChat?.isOpen&&!creatorOpen&&!modalOpen&&!dialog&&!ritual&&!seq&&!tap&&!overview
+ guideBar.hidden=!visible;guideStop.hidden=!active;guideNext.hidden=active||!nextVisitTarget(state)
  guideText.textContent=active?guideName+'로 이동 중':'';guideBar.hidden=guideBar.hidden||(!active&&guideNext.hidden)
- guideNext.textContent=(state.stage===4?'등 걸러 가기':NEXT_NAME[state.stage]+'로 이동')
+ guideNext.textContent=visitTargetLabel(nextVisitTarget(state))
+}
+function appendVisitChoice(panel,key,label,primary=false){
+ const b=el('button',primary?'btn':'btn ghost',label);b.onclick=()=>goToInteraction(INTERACT.find(it=>it.key===key));panel.append(b)
+}
+craftHost.onHangComplete=({lantern,result})=>{
+ const panel=modalShell('소원등을 걸었어요',result.local?(result.uncertain?'공유 저장 여부를 확인하지 못해 이 기기에 보관했어요. 자동 재전송하지 않습니다.':'지금은 이 기기에 소원등을 보관했어요.'):'법우들과 함께 보는 소원등을 걸었어요.')
+ panel.append(el('p','hung-message',lantern.wish))
+ appendVisitChoice(panel,state.night?'tower':'big',state.night?'자동 탑돌이 하러 가기':'장엄등 점등하러 가기',true)
+ appendVisitChoice(panel,'hallDoor','법당 참배하러 가기')
+ const stay=el('button','btn ghost','여기 머물기');stay.onclick=closeModal;panel.append(stay)
+}
+craftHost.onLitComplete=()=>{
+ const panel=modalShell('도량에 등불이 켜졌어요','다음 활동을 골라 이어가거나 자유롭게 둘러보세요.')
+ appendVisitChoice(panel,'tower','자동 탑돌이 하러 가기',true);appendVisitChoice(panel,'statue','동상 참배하러 가기');appendVisitChoice(panel,'hallDoor','법당 참배하러 가기')
+ const stay=el('button','btn ghost','자유롭게 둘러보기');stay.onclick=closeModal;panel.append(stay)
 }
 const arrivalPanel=el('aside','arrival-guide');arrivalPanel.hidden=true;arrivalPanel.setAttribute('aria-label','첫 방문 안내');arrivalPanel.append(el('h2',null,'어서 오세요, 법우님'),el('p',null,'하고 싶은 일을 골라 보세요. 바로 걸어가셔도 좋아요.'));
 for(const [key,label]of[['next','등 만들기'],['tower','자동 탑돌이'],['hallDoor','법당 참배']]){const b=el('button','btn ghost',label);b.onclick=()=>{arrivalPanel.hidden=true;goToInteraction(INTERACT.find(it=>it.key===(key==='next'?['frame','light','paper','paint','sign'][state.stage]:key)))};arrivalPanel.append(b)}
@@ -971,10 +992,10 @@ function paintOnlineLabels(layer,toScreen){
   for(const[id,d]of onlineLabels)if(!wanted.has(id)){d.remove();onlineLabels.delete(id)}
 }
 addEventListener('lantern-connection',event=>setConnection(event.detail==='full'?'지금은 접속 인원이 가득 찼어요.':'법우 연결을 다시 확인 중이에요.'));
-addEventListener('pagehide',()=>{cancelGuide();campusYard?.leave();campusYard=null;sharing.stop()});
-addEventListener('pageshow',event=>{if(event.persisted){hallTraveling=false;hallWalkIn.reset();keys.clear();joy.reset();sharing.start();connectOnline(true)}});
+addEventListener('pagehide',()=>{community.stop();campusChat?.hide();cancelGuide();campusYard?.leave();campusYard=null;sharing.stop()});
+addEventListener('pageshow',event=>{if(event.persisted){hallTraveling=false;hallWalkIn.reset();keys.clear();joy.reset();sharing.start();community.start();connectOnline(true)}});
 addEventListener('online',()=>{sharing.refresh();if(!campusYard?.joined){campusYard?.leave();campusYard=null;connectOnline()}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelGuide();if(tap)stopTap();keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();onlineAt=0;lastOnlinePose=''}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelGuide();if(tap)stopTap();keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();community.refresh();onlineAt=0;lastOnlinePose=''}});
 
 /* ================= boot ================= */
 const startb=document.getElementById('startb');
