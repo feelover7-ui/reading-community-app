@@ -86,8 +86,14 @@ export function buildStatue({scene,M,mesh,box}){
   addStatueDetails({group,mesh,bronze,shade:faceShade})
   group.userData.hasStaff=true
   addHwaeomStones({group,mesh})
-  const border=[]
-  for(let i=0;i<96;i++){const a=i/96*Math.PI*2,r=2.65+.1*Math.sin(a*7);border.push(new THREE.Vector3(Math.cos(a)*r,.05,Math.sin(a)*r))}
-  mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(border,true),96,.075,6,true),M('#c6bda9'),0,0,0,group)
+  // 사진처럼 받침 아래의 낮고 넓은 돌판만 남기고 바깥의 고리 경계는 없앤다.
+  const base=new THREE.Shape()
+  for(let i=0;i<40;i++){
+    const a=i/40*Math.PI*2,r=1.92+.045*Math.sin(a*7),x=Math.cos(a)*r,z=Math.sin(a)*r
+    if(i===0)base.moveTo(x,z);else base.lineTo(x,z)
+  }
+  base.closePath()
+  const slab=mesh(new THREE.ExtrudeGeometry(base,{depth:.08,bevelEnabled:true,bevelSegments:1,steps:1,bevelSize:.025,bevelThickness:.015}),stone,0,.095,0,group)
+  slab.rotation.x=Math.PI/2
   group.userData.hwaeomStoneCount=7;return group
 }

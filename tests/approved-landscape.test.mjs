@@ -27,3 +27,12 @@ test('잔디는 기존 도량 안에 있고 오른쪽 식재는 같은 지원 �
  assert.ok(a.trees.some(p=>p.x>L.PAGODA_POSITION.x+6),'오른쪽은 비워 두지 않는다')
  for(const p of[...a.trees,...a.shrubs,...a.rocks])assert.ok(a.beds.some(b=>L.pointInPolygon(p.x,p.z,b.polygon))||a.lawns.some(poly=>L.pointInPolygon(p.x,p.z,poly)),'식재 지면 없음 '+JSON.stringify(p))
 })
+test('동상 받침 양옆과 화엄석 주변은 잔디이며 참배 자리는 포장을 유지한다',()=>{
+ const a=layout(),bed=a.beds.find(b=>b.id==='statue-back')
+ assert.equal(bed.ground,'lawn')
+ const angle=Math.atan2(L.STATUE_APPROACH.x-L.STATUE_POSITION.x,L.STATUE_APPROACH.z-L.STATUE_POSITION.z)
+ const at=(x,z)=>({x:L.STATUE_POSITION.x+x*Math.cos(angle)+z*Math.sin(angle),z:L.STATUE_POSITION.z-x*Math.sin(angle)+z*Math.cos(angle)})
+ for(const p of[at(-2,0),at(2,0),at(0,-1.5),at(0,2)])assert.ok(L.pointInPolygon(p.x,p.z,bed.polygon),'받침 주변 잔디 '+JSON.stringify(p))
+ assert.equal(L.pointInPolygon(L.STATUE_APPROACH.x,L.STATUE_APPROACH.z,bed.polygon),false)
+ assert.ok(L.canStandCampus(L.STATUE_APPROACH.x,L.STATUE_APPROACH.z),'참배 자리 보행 유지')
+})

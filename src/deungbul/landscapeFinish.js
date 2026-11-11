@@ -20,8 +20,8 @@ function plantedBank(parent,polygon,material,lowerY){
 // 共有された配置だけを描く。新しい光源・写真テクスチャ・歩行ルートは作らない。
 export function addLandscapeFinish(parent,layout,{fadeables,lowerY=-4.4,coarse=false}={}){
  const group=new THREE.Group();group.name='approved-courtyard-landscape';parent.add(group)
- const {surface}=createSurfaceLibrary(),soil=surface('soil','#75825c'),bank=surface('lawn','#697e4d');bank.side=THREE.DoubleSide
- for(const bed of layout.beds){topSurface(group,bed.polygon,soil);if(bed.bank)plantedBank(group,bed.polygon,bank,lowerY)}
+ const {surface}=createSurfaceLibrary(),soil=surface('soil','#75825c'),grass=surface('lawn','#829b58'),bank=surface('lawn','#697e4d');bank.side=THREE.DoubleSide
+ for(const bed of layout.beds){topSurface(group,bed.polygon,bed.ground==='lawn'?grass:soil);if(bed.bank)plantedBank(group,bed.polygon,bank,lowerY)}
  const unitY=new THREE.Vector3(0,1,0),branchGeo=new THREE.CylinderGeometry(1,1,1,7),branches=[],crownGeo=new THREE.SphereGeometry(1,coarse?10:14,coarse?7:10)
  const attribute=crownGeo.getAttribute('position')
  for(let i=0;i<attribute.count;i++){const x=attribute.getX(i),y=attribute.getY(i),z=attribute.getZ(i),k=.93+.07*Math.sin(x*21+y*13+z*17);attribute.setXYZ(i,x*k,y*k,z*k)}crownGeo.computeVertexNormals()
