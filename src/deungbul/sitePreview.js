@@ -1,3 +1,4 @@
+import {restoreOrderedCraft} from './craftProgress.js'
 import {buildNorthGround,buildYardFrame} from './northScene.js'
 import {buildTerraceArchitecture} from './terraceArchitecture.js'
 import {northPlanBounds} from './sitePreviewCamera.js'
@@ -160,8 +161,8 @@ const state={stage:0,craft:{},hasHung:false,litOnce:false,night:false,talked:fal
 try{const d=JSON.parse(localStorage.getItem(KEY)||'null')
  if(d){state.lanterns=Array.isArray(d.lanterns)?d.lanterns.filter(L=>L&&typeof L==='object').map(L=>({...normalizeLantern(L),owner:OWNER})).slice(-120):[]
   for(const k of ['litOnce','talked','tapdoriDone','statueDone','hallDone'])state[k]=!!d[k]
-  state.best108=d.best108|0;state.hasHung=state.lanterns.length>0}}catch(e){}
-function saveState(){try{localStorage.setItem(KEY,JSON.stringify({lanterns:state.lanterns,litOnce:state.litOnce,
+  Object.assign(state,restoreOrderedCraft(d));state.best108=d.best108|0;state.hasHung=state.lanterns.length>0}}catch(e){}
+function saveState(){try{localStorage.setItem(KEY,JSON.stringify({craftVersion:2,stage:state.stage,craft:state.craft,lanterns:state.lanterns,litOnce:state.litOnce,
  talked:state.talked,tapdoriDone:state.tapdoriDone,statueDone:state.statueDone,hallDone:state.hallDone,best108:state.best108}))}catch(e){}}
 
 /* 말풍선. 누르면 다음 줄로 넘어간다. */

@@ -71,3 +71,12 @@ body.keyboard-open #connection{display:none}
 /* PC도 버튼으로 확대·축소/눈높이 시점을 조절한다. */
 body:not(.touch) .camera-tools{position:fixed;right:max(12px,var(--safe-right));bottom:24px;display:flex;gap:6px;z-index:7}
 .camera-tools #qualityb{font-size:11px;line-height:1.2}
+
+.guided-actions{position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:9;display:flex;align-items:center;justify-content:center;gap:8px;max-width:calc(100vw - 24px);padding:7px 10px;background:#fff7e8f2;border:1px solid #b79454;border-radius:16px;color:#523b29;font-size:13px}
+.guided-actions[hidden],.guided-actions button[hidden]{display:none!important}
+.guided-actions .btn{margin:0;white-space:nowrap;font-size:13px;padding:10px 14px}
+.guide-active #prompt,.guide-active #act,.guide-active #nearby-guide{visibility:hidden}
+.community-time{display:block;font-size:12px;color:#75654f;margin:4px 0}
+.touch .guided-actions{bottom:calc(160px + env(safe-area-inset-bottom,0px))}
+body.tap-active #joy,body.tap-active #act,body.tap-active #prompt,body.tap-active #nearby-guide,body.tap-active #hud,body.tap-active #connection,body.tap-active #minimap{display:none!important}
+@media(max-width:380px){#topbtns{flex-wrap:wrap}#connection{top:calc(var(--safe-top) + 112px)}#hud{top:calc(var(--safe-top) + 146px)}}

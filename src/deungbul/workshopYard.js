@@ -16,12 +16,12 @@ const bb=p=>({x0:Math.min(...p.map(v=>v.x)),x1:Math.max(...p.map(v=>v.x)),z0:Mat
 export const WS=bb(WORKSHOP_POLYGON)
 const CX=(WS.x0+WS.x1)/2
 
-/* 작업대. 왼쪽부터 골조 → 한지 → 채색 → 전기 순서다. */
+/* 작업대. 왼쪽부터 골조 → 전기 → 한지 → 채색 순서다. */
 export const STATIONS=Object.freeze([
  {id:'frame',name:'골조 작업대',x:WS.x0+2.0,z:WS.z0+1.9},
- {id:'paper',name:'한지 작업대',x:WS.x0+4.1,z:WS.z0+1.9},
- {id:'paint',name:'채색 작업대',x:WS.x0+6.2,z:WS.z0+1.9},
- {id:'light',name:'전기 작업대',x:WS.x0+8.3,z:WS.z0+1.9}
+ {id:'light',name:'전기 작업대',x:WS.x0+4.1,z:WS.z0+1.9},
+ {id:'paper',name:'한지 작업대',x:WS.x0+6.2,z:WS.z0+1.9},
+ {id:'paint',name:'채색 작업대',x:WS.x0+8.3,z:WS.z0+1.9}
 ].map(Object.freeze))
 export const RACK=Object.freeze({x0:WS.x0+1.4,x1:WS.x0+5.6,z:WS.z1-1.5})
 export const BIG_LANTERN=Object.freeze({x:WS.x1-2.6,z:WS.z1-2.6})

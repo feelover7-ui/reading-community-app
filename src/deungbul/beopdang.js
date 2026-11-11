@@ -1,3 +1,4 @@
+import {findWalkPath,createGuidedWalk} from './guidedWalk.js'
 import {mountSceneQuality} from './realismMaterials.js'
 import {hallReturnUrl} from './mapChoiceRoutes.js'
 import {installMobileViewport} from './mobileUi.js'
@@ -62,12 +63,30 @@ function bowFrame (u) {
   return 3
 }
 
+const seatWalk=createGuidedWalk();let chosenSeat=null
+const seatTaken=c=>[...peers.peers.values()].some(p=>Math.hypot(p.x-c.x,p.y-c.y)<.85)
+function cancelSeatWalk(){seatWalk.cancel();chosenSeat=null;player.vx=0;player.vy=0;document.body.classList.remove('guide-active')}
 /* ---------- 창 ---------- */
 const modal = createModal(byId('modal'), byId('card'), {
   onClose: () => { keys.clear(); joy.reset(); try { cv.focus({ preventScroll: true }) } catch (e) {} }
 })
 const el = modal.el
 
+const seatButton=el('button','iconbtn','좌복');seatButton.type='button';seatButton.id='choose-seat';seatButton.setAttribute('aria-label','참배할 빈 방석 고르기');byId('topbtns').append(seatButton)
+const seatBar=el('div','guided-actions'),seatText=el('span',null,'선택한 방석으로 이동 중'),seatStop=el('button','btn ghost','멈추기');seatBar.hidden=true;seatBar.append(seatText,seatStop);document.body.append(seatBar);seatStop.onclick=cancelSeatWalk
+seatButton.onclick=()=>{
+ if(traveling||bow.on)return
+ cancelSeatWalk()
+ const panel=modal.shell('참배할 자리','빈 방석을 고르면 그 자리까지 걸어갑니다. 도착한 뒤 참배를 선택해 주세요.')
+ const list=el('div','bowpick')
+ cushions.forEach((c,i)=>{const b=el('button','placebtn',`${Math.floor(i/8)+1}열 ${i%8+1}번 · ${seatTaken(c)?'사용 중':'빈 방석'}`);b.disabled=seatTaken(c);b.onclick=()=>{
+  if(seatTaken(c)){setStatus('다른 법우가 있는 자리예요. 다른 방석을 골라 주세요.');return}
+  const path=findWalkPath({x:player.x,z:player.y},{x:c.x,z:c.y},canStand,{maxX:W,maxZ:H})
+  if(!path){setStatus('이 자리로 가는 길을 찾지 못했어요. 다른 방석을 골라 주세요.');return}
+  modal.close();keys.clear();joy.reset();chosenSeat=c;seatWalk.start(path);document.body.classList.add('guide-active')
+ };list.append(b)})
+ panel.append(list)
+}
 /* ---------- 키와 조이스틱 ---------- */
 const keys = bindKeys({
   onAction: () => action(),
@@ -78,8 +97,8 @@ const keys = bindKeys({
 })
 const joy = bindJoystick(byId('joy'))
 installMobileViewport({onInterrupt:()=>{keys.clear();joy.reset()}})
-addEventListener('blur', () => { keys.clear(); joy.reset() })
-document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); joy.reset() } })
+addEventListener('blur', () => { keys.clear(); joy.reset();cancelSeatWalk() })
+document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); joy.reset();cancelSeatWalk() } })
 
 /* ---------- 함께 있는 법우들 ---------- */
 const peers = createPeers({
@@ -152,6 +171,7 @@ function action () {
   if (traveling || modal.open) return
   if (chat.isOpen) { chat.hide(); return }
   if (bow.on) { stopBow('멈췄어요'); return }
+  cancelSeatWalk()
   const p = promptNow()
   if (p) p.run()
 }
@@ -194,6 +214,8 @@ function openBowPicker (c) {
   m.append(close)
 }
 function startBow (c, goal) {
+  if(seatTaken(c)){setStatus('다른 법우가 있는 자리예요. 다른 방석을 골라 주세요.');return}
+  cancelSeatWalk()
   syncBowDay()
   document.body.classList.add('bow-active')
   bow.on = true; bow.goal = goal; bow.done = 0; bow.t = 0; bow.spot = c
@@ -340,8 +362,18 @@ function update (dt) {
       }
     }
   } else {
-    stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open || chat.isOpen, follower.moveVector)
+    const manual=['a','d','w','s','arrowleft','arrowright','arrowup','arrowdown'].some(k=>keys.has(k))||Math.hypot(joy.x,joy.y)>.15
+    if(manual||traveling||modal.open||chat.isOpen)cancelSeatWalk()
+    if(seatWalk.active){
+     if(seatTaken(chosenSeat)){cancelSeatWalk();setStatus('선택한 자리에 다른 법우가 있어요. 다른 방석을 골라 주세요.')}
+     else{const q=seatWalk.step({x:player.x,z:player.y},dt,canStand);player.x=q.x;player.y=q.z;player.moving=q.moving;player.vx=q.vx;player.vy=q.vz;if(q.moving){player.face=q.face;player.walk+=dt}
+      if(q.blocked){cancelSeatWalk();setStatus('길이 막혀 이동을 멈췄어요.')}
+      if(q.arrived){const c=chosenSeat;cancelSeatWalk();faceTowards(c.x,2);openBowPicker(c)}
+     }
+    }else stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open || chat.isOpen, follower.moveVector)
   }
+  seatBar.hidden=!seatWalk.active
+
   if(hallExitGate.sample({x:player.x,z:player.y,moving:player.moving,enabled:!traveling&&!modal.open&&!chat.isOpen&&!bow.on}))travel(hallReturnUrl(location.search))
   // 절할 때는 몸을 낮춘다
   const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
@@ -405,7 +437,7 @@ function loop (now) {
 }
 
 /* ---------- 들어오고 나가기 ---------- */
-addEventListener('pagehide', () => { keys.clear(); joy.reset(); peers.stop(); hallPeers.clear() })
+addEventListener('pagehide', () => { cancelSeatWalk(); keys.clear(); joy.reset(); peers.stop(); hallPeers.clear() })
 addEventListener('pageshow', e => {
   if (!e.persisted) return
   traveling = false
@@ -432,7 +464,7 @@ if (import.meta.env.DEV) window.__beopdang = () => ({
   x: +player.x.toFixed(2), y: +player.y.toFixed(2), dir: player.dir, dist: +follower.state.dist.toFixed(1),
   traveling, modalOpen: modal.open, nick: me.nick, sex: me.sex,
   bow: { on: bow.on, goal: bow.goal, done: bow.done }, bowTotal,
-  onCushion: !!cushionAt(player.x, player.y), atDoor: atDoor(player.x, player.y),
+  guided:seatWalk.active,onCushion: !!cushionAt(player.x, player.y), atDoor: atDoor(player.x, player.y),
   prompt: (promptNow() || {}).label || '',
   joined: peers.joined,
   peers: [...peers.peers.values()].map(p => ({ id: p.id, nick: p.nick, x: +p.x.toFixed(2), y: +p.y.toFixed(2), bow: p.bow }))

@@ -4,7 +4,8 @@ import {readFile} from 'node:fs/promises'
 
 // 실제 서비스 모듈을 읽고 네트워크 의존성만 대체한다. 운영 DB에 쓰지 않는다.
 let write, calls=0
-const deps=`const normalizeLantern=x=>x,isSupabaseConfigured=true,canHash=true;
+const deps=`import {formatCommunityTime} from '${new URL('../src/deungbul/communityTime.js',import.meta.url).href}';
+const normalizeLantern=x=>x,isSupabaseConfigured=true,canHash=true;
 const fetchLanterns=async()=>({rows:[],total:0}),insertLantern=async x=>x;
 const hashPassword=async()=> 'test-hash',fetchPosts=async()=>[],fetchMessages=async()=>[],deletePost=async()=>true;
 const insertPost=globalThis.__campusInsert,insertMessage=insertPost;`
