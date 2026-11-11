@@ -5,6 +5,7 @@ import {createSurfaceLibrary} from '../realismMaterials.js'
 import {PAGODA_CENTER} from '../tapdori.js'
 import {STATUE_CENTER} from '../campusLayout.js'
 import {addStatueDetails} from './statueDetails.js'
+import {addHwaeomStones} from './hwaeomStones.js'
 // 아래→위 지름 비율. 개별 실측값은 공개 안내에 없어 시각 검토용 시안으로 관리한다.
 export const PAGODA_DIAMETER_RATIOS=Object.freeze([1,.82,.68,.56,.46,.38,.31,.25,.20])
 export const PAGODA_REFERENCE_HEIGHT=9.6
@@ -84,14 +85,7 @@ export function buildStatue({scene,M,mesh,box}){
   mesh(new THREE.BoxGeometry(.075,.012,.012),faceShade,0,3.08,.229,group)
   addStatueDetails({group,mesh,bronze,shade:faceShade})
   group.userData.hasStaff=true
-  // 동상 뒤의 화엄석 일곱 기둥. 주변 건물과 구분되는 조형물이다.
-  for(let i=0;i<7;i++){
-    const h=[2.5,2.85,3.1,3.28,3.1,2.85,2.5][i],x=(i-3)*.73,z=-1.25+Math.abs(i-3)*.16
-    const shape=new THREE.Shape();shape.moveTo(-.28,0);shape.lineTo(.28,0);shape.lineTo(.23,h-.12);shape.lineTo(-.04,h);shape.lineTo(-.25,h-.18);shape.closePath()
-    const geo=new THREE.ExtrudeGeometry(shape,{depth:.32,bevelEnabled:true,bevelSegments:1,steps:1,bevelSize:.035,bevelThickness:.035})
-    mesh(geo,surface('stone',i%2?'#c5c0b3':'#b8b4a7'),x,.05,z,group)
-    if(i===3){const ring=mesh(new THREE.TorusGeometry(.53,.018,6,40),surface('stone','#a5a294'),x,2.18,z+.37,group);ring.scale.y=1.4}
-  }
+  addHwaeomStones({group,mesh})
   const border=[]
   for(let i=0;i<96;i++){const a=i/96*Math.PI*2,r=2.65+.1*Math.sin(a*7);border.push(new THREE.Vector3(Math.cos(a)*r,.05,Math.sin(a)*r))}
   mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(border,true),96,.075,6,true),M('#c6bda9'),0,0,0,group)
