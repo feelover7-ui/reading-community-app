@@ -65,7 +65,7 @@ test('작업장과 마당이 한 세계로 이어져 있다',()=>{
 })
 
 test('작업장 연결길의 중앙이 막히지 않고 포장이 탑 앞마당에 이어진다',()=>{
- for(let i=1;i<L.CONNECTOR.length;i++){const a=L.CONNECTOR[i-1],b=L.CONNECTOR[i];for(let t=0;t<=1;t+=.01)assert.ok(L.canStandCampus(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t))}
+ for(let i=1;i<L.CONNECTOR.length;i++){const a=L.CONNECTOR[i-1],b=L.CONNECTOR[i];for(let t=0;t<=1;t+=.01){const x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;assert.ok(L.inWorkshop(x,z)||L.canStandCampus(x,z))}}
  const end=L.CONNECTOR.at(-1);assert.ok(Math.hypot(end.x-PAGODA_CENTER.x,end.z-PAGODA_CENTER.z)<L.PAGODA_APRON.r+1.4)
 })
 
@@ -77,7 +77,7 @@ test('작업장 남문은 탑의 정북쪽이며 짧은 길과 여유 공간을 
  assert.ok(gap>9&&gap<12)
  assert.ok(L.CONNECTOR.at(-1).z>L.CONNECTOR[0].z)
  const length=L.CONNECTOR.slice(1).reduce((n,p,i)=>n+Math.hypot(p.x-L.CONNECTOR[i].x,p.z-L.CONNECTOR[i].z),0)
- assert.ok(length>9&&length<12)
+ assert.ok(length>gap&&length<gap+2,'문 안쪽 겹침을 포함하되 바깥 길을 우회시키지 않는다')
  assert.ok(L.CONNECTOR.some(p=>Math.abs(p.x-PAGODA_CENTER.x)>.4))
  for(const g of L.PATH_DECOR)for(const p of[g.left,g.right]){
   assert.ok(L.distanceToSegment(p.x,p.z,L.CONNECTOR[0],L.CONNECTOR.at(-1))>2)

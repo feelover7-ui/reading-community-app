@@ -14,7 +14,7 @@ test('작업장 연결길은 양쪽으로 완만하게 굽고 모든 중앙점�
  for(let i=1;i<L.CONNECTOR.length;i++){
   const a=L.CONNECTOR[i-1],b=L.CONNECTOR[i]
   assert.ok(b.z>a.z,'길이 뒤로 꺾이지 않는다')
-  for(let t=0;t<=1;t+=.1)assert.ok(L.canStandCampus(a.x+(b.x-a.x)*t,a.z+(b.z-a.z)*t))
+  for(let t=0;t<=1;t+=.1){const x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t;assert.ok(L.inWorkshop(x,z)||L.canStandCampus(x,z))}
  }
 })
 test('법당 별도 안내길과 길 위 장식 기둥은 없고 도량에서 문까지 걸어간다',()=>{

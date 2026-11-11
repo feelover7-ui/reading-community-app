@@ -1,3 +1,4 @@
+import {createApprovedLandscape} from './approvedLandscape.js'
 import {PR22_PLACEMENT as S} from './pr22Placement.js'
 export const PLACEMENT_SCALE=1.2
 /* 승인 스케치: 구정탑·동상은 위성 기준 위치에 고정하고, 법당은 회전 없이
@@ -46,7 +47,7 @@ export function roundedRoute(points){
  out.push(points.at(-1));return Object.freeze(out)
 }
 // 문과 원형 마당은 고정한 채 완만한 S 곡선으로 연결한다.
-const connectorStart=workshopPlace({x:18,z:26.8}),connectorEnd={x:PAGODA_POSITION.x,z:PAGODA_POSITION.z-PAGODA_APRON.r+.35}
+const connectorStart=workshopPlace({x:18,z:25.7}),connectorEnd={x:PAGODA_POSITION.x,z:PAGODA_POSITION.z-PAGODA_APRON.r+.35}
 export const CONNECTOR=Object.freeze(Array.from({length:33},(_,i)=>{
  const t=i/32,u=1-t,a=connectorStart,b=connectorEnd
  return{x:a.x+3*u*u*t*2.5-3*u*t*t*2.5,z:a.z+(b.z-a.z)*t}
@@ -65,7 +66,8 @@ export function distanceToSegment(x,z,a,b){const dx=b.x-a.x,dz=b.z-a.z,t=Math.ma
 export const distanceToPolygon=(x,z,p)=>Math.min(...p.map((a,i)=>distanceToSegment(x,z,a,p[(i+1)%p.length])))
 export const onRoute=(x,z,points,margin=1.6)=>points.slice(1).some((b,i)=>distanceToSegment(x,z,points[i],b)<margin)
 export const onConnector=(x,z,margin=1.6)=>onRoute(x,z,CONNECTOR,margin)
-export const CAMPUS_TREES=Object.freeze(S.trees.map(place).filter(p=>!inWorkshop(p.x,p.z)&&distanceToPolygon(p.x,p.z,WORKSHOP_POLYGON)>.75&&Math.hypot(p.x-PAGODA_POSITION.x,p.z-PAGODA_POSITION.z)>6.2&&Math.hypot(p.x-HALL_ENTRY.x,p.z-HALL_ENTRY.z)>3&&!onConnector(p.x,p.z,3)&&!onRoute(p.x,p.z,HALL_PATH,3)))
+export const APPROVED_LANDSCAPE=createApprovedLandscape({statue:STATUE_POSITION,statueStand:STATUE_APPROACH,pagoda:PAGODA_POSITION,hallDoor:HALL_ENTRY,precinct:CAMPUS_POLYGON})
+export const CAMPUS_TREES=Object.freeze(APPROVED_LANDSCAPE.trees)
 
 export function inHallLobby(x,z){
  const dx=x-HALL_ENTRY.x,dz=z-HALL_ENTRY.z,n=HALL_ENTRY_NORMAL
@@ -81,6 +83,7 @@ export function canStandCampus(x,z){
  if(Math.hypot(x-PAGODA_POSITION.x,z-PAGODA_POSITION.z)<1.35||Math.hypot(x-STATUE_POSITION.x,z-STATUE_POSITION.z)<2)return false
  if(PATH_DECOR.some(g=>[g.left,g.right].some(p=>Math.hypot(x-p.x,z-p.z)<.25)))return false
  if(CAMPUS_TREES.some(p=>Math.hypot(x-p.x,z-p.z)<.45))return false
+ if(APPROVED_LANDSCAPE.rocks.some(p=>Math.hypot(x-p.x,z-p.z)<p.radius+.24))return false
  return true
 }
 

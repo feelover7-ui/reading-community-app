@@ -1,31 +1,31 @@
 /* 실제 브라우저 크기/터치 입력을 공통으로 처리한다. 외부 라이브러리는 쓰지 않는다. */
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n))
 const editable=node=>!!node&&(node.isContentEditable||['INPUT','TEXTAREA','SELECT'].includes(node.tagName))
-export function bindCameraGestures(canvas,{getYaw,setYaw,getDistance,setDistance,min=5,max=18,onChange=()=>{},win=window,doc=document}){
+export function bindCameraGestures(canvas,{getYaw,setYaw,getDistance,setDistance,min=5,max=18,onChange=()=>{},onTap=()=>{},win=window,doc=document}){
   const points=new Map(),listeners=[]
-  let pinch=null
+  let pinch=null,pendingTap=null
   const listen=(node,type,fn,opt)=>{node.addEventListener(type,fn,opt);listeners.push(()=>node.removeEventListener(type,fn,opt))}
-  const reset=()=>{points.clear();pinch=null;canvas.style.cursor='grab'}
+  const reset=()=>{points.clear();pinch=null;pendingTap=null;canvas.style.cursor='grab'}
   const distance=()=>{const p=[...points.values()];return p.length>1?Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y):null}
   const down=event=>{
     if(event.button!==undefined&&event.button!==0)return
-    points.set(event.pointerId,{x:event.clientX,y:event.clientY});pinch=distance()
+    pendingTap=null;points.set(event.pointerId,{x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,moved:false});if(points.size>1)for(const p of points.values())p.moved=true;pinch=distance()
     try{canvas.setPointerCapture(event.pointerId)}catch{}
     canvas.style.cursor='grabbing'
   }
   const move=event=>{
     const previous=points.get(event.pointerId);if(!previous)return
-    points.set(event.pointerId,{x:event.clientX,y:event.clientY})
+    const p={...previous,x:event.clientX,y:event.clientY};p.moved ||= Math.hypot(p.x-p.startX,p.y-p.startY)>6;points.set(event.pointerId,p)
     if(points.size===1){
       const dx=event.clientX-previous.x
-      if(dx){onChange();setYaw(getYaw()-dx*.006)}
+      if(dx&&p.moved){onChange();setYaw(getYaw()-dx*.006)}
     }else{
       const next=distance()
       if(pinch>1&&next>1){const value=clamp(getDistance()*pinch/next,min,max);onChange();setDistance(value)}
       pinch=next
     }
   }
-  const end=event=>{points.delete(event.pointerId);pinch=distance();if(!points.size)canvas.style.cursor='grab'}
+  const end=(event,activate=false)=>{const p=points.get(event.pointerId),single=points.size===1;points.delete(event.pointerId);pinch=distance();if(!points.size)canvas.style.cursor='grab';if(activate)pendingTap=single&&p&&!p.moved?{clientX:p.x,clientY:p.y}:null;else if(p)pendingTap=null}
   const wheel=event=>{
     if(event.ctrlKey||event.metaKey)return
     event.preventDefault()
@@ -33,7 +33,9 @@ export function bindCameraGestures(canvas,{getYaw,setYaw,getDistance,setDistance
     onChange();setDistance(value)
   }
   listen(canvas,'pointerdown',down);listen(canvas,'pointermove',move)
-  for(const type of['pointerup','pointercancel','lostpointercapture'])listen(canvas,type,end)
+  listen(canvas,'pointerup',event=>end(event,true));for(const type of['pointercancel','lostpointercapture'])listen(canvas,type,event=>end(event))
+  // pointerupでモーダルを開くと、続くtouch互換clickが背景に届き閉じてしまう。
+  listen(canvas,'click',()=>{const point=pendingTap;pendingTap=null;if(point)onTap(point)})
   listen(canvas,'wheel',wheel,{passive:false})
   listen(win,'blur',reset);listen(doc,'visibilitychange',()=>{if(doc.hidden)reset()})
   listen(doc,'focusin',event=>{if(editable(event.target))reset()})
