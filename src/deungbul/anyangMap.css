@@ -137,3 +137,17 @@ body.touch #prompt{bottom:150px}
  body.touch #listb{top:auto;bottom:max(16px,env(safe-area-inset-bottom))}
 }
 .webgl-error button{min-height:44px;padding:12px 20px;font:inherit;cursor:pointer}
+
+/* 함께 쌓는 정진 */
+.together{margin:6px 0 0;font-size:13px;line-height:1.6;color:#6c5a3c}
+.together b{color:#a8551f;font-variant-numeric:tabular-nums}
+.together .live{display:inline-flex;align-items:center;gap:5px;color:#2f6f4f;font-weight:700}
+.together .live::before{content:'';width:7px;height:7px;border-radius:50%;background:#2f6f4f}
+@media (prefers-reduced-motion:no-preference){.together .live::before{animation:together-pulse 2.4s ease-in-out infinite}}
+@keyframes together-pulse{0%,100%{opacity:.35}50%{opacity:1}}
+.dedication{display:grid;gap:10px;margin-bottom:12px}
+.dedication textarea{width:100%;min-height:62px;padding:10px;border:1px solid var(--line);border-radius:12px;font:inherit;resize:none}
+.join-together{width:100%;margin-bottom:10px}
+
+/* 소임 상자 아래 줄은 줄바꿈을 살린다(오늘 도량 절 수). */
+#hud .foot{white-space:pre-line}

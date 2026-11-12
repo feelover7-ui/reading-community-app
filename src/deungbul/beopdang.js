@@ -1,5 +1,6 @@
 import {createSeatedPractice,stepSeatedPractice,readBest108,recordBest108,YEBUL_LINES,formatPracticeRemaining} from './hallPractices.js'
 import {hallLookFromAppearance} from './characterStyle.js'
+import {fetchToday,insertPractice,subscribePractice,sharedPhase,crossedCycle,isSupabaseConfigured,kstDay} from './practiceApi.js'
 import {BOW_CYCLE_SECONDS} from './bowMotion.js'
 import {findWalkPath,createGuidedWalk} from './guidedWalk.js'
 import {mountSceneQuality} from './realismMaterials.js'
@@ -40,7 +41,9 @@ const BOW_KEY = 'hanmaum-deungbul-bow'
 const BOW_CYCLE = BOW_CYCLE_SECONDS            // 한 배에 걸리는 시간(초)
 const BOW_CYCLE_QUIET = 1.2      // 동작 줄이기에서는 짧게
 let bowReturn=null
-const bow = { on: false, goal: 0, done: 0, t: 0, spot: null,mode:'bow',speed:1 }
+const bow = { on: false, goal: 0, done: 0, t: 0, spot: null,mode:'bow',speed:1,sync:false,phase:0 }
+/* 오늘 도량에 쌓인 절. shared 는 서버에서 읽은 남들 몫, mine 은 아직 못 올린 내 몫이다. */
+const yardBows={shared:0,mine:0,ready:false,at:0,day:kstDay()};let stopPractice=()=>{}
 let seatedPractice=null,best108=readBest108(readStore('hanmaum-hall-practices'),readStore('hanmaum-campus-v2'))
 // 본원 기준 오늘은 한국 시간(UTC+9) 자정에 바뀐다.
 const today = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -104,7 +107,7 @@ const keys = bindKeys({
 const joy = bindJoystick(byId('joy'))
 installMobileViewport({onInterrupt:()=>{keys.clear();joy.reset()}})
 addEventListener('blur', () => { keys.clear(); joy.reset();cancelSeatWalk() })
-document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); joy.reset();cancelSeatWalk() } })
+document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); joy.reset();cancelSeatWalk() } else refreshYardBows(true) })
 
 /* ---------- 함께 있는 법우들 ---------- */
 const peers = createPeers({
@@ -115,7 +118,7 @@ const peers = createPeers({
   sex: me.sex,
   canStand,
   getSelf: () => ({ x: player.x, y: player.y, vx: player.vx, vy: player.vy, dir: player.dir, moving: player.moving, bow: bow.on }),
-  onChange: () => updateHere(),
+  onChange: () => { updateHere(); countBowing(); paintTogether() },
   isPaused: () => traveling,
   onSay: (id, nick, text) => chat.push(nick, text, false)
 })
@@ -123,8 +126,68 @@ const peers = createPeers({
 const statusEl = byId('status'), countEl = byId('count'), hereEl = byId('here')
 const bowBar = byId('bowbar'), bowNum = byId('bownum')
 function setStatus (text) { if (statusEl) statusEl.textContent = text }
+const togetherEl = byId('together')
+let bowingPeers = 0
+/* 지금 함께 절하는 사람 수는 이미 오가는 접속자 정보(bow)에서 센다. 새로 보내는 것은 없다. */
+function countBowing () {
+  let n = 0
+  for (const p of peers.peers.values()) if (p.bow) n++
+  bowingPeers = n
+  return n
+}
+/* onChange 는 들고 날 때만 온다. 상대가 절을 시작·중단하는 건 위치 broadcast 로 오니 직접 센다. */
+let bowingAt = 0
+function watchBowing () {
+  const now = Date.now()
+  if (now - bowingAt < 500) return
+  bowingAt = now
+  const before = bowingPeers
+  if (countBowing() !== before) paintTogether()
+}
+function paintTogether () {
+  if (!togetherEl) return
+  const live = bowingPeers + (bow.on ? 1 : 0)
+  const total = yardBows.shared + yardBows.mine
+  const parts = []
+  if (yardBows.ready && total > 0) parts.push('오늘 도량에 <b>' + total.toLocaleString('ko-KR') + '배</b>가 쌓였어요')
+  if (live > 1) parts.push('<span class="live">지금 ' + live + '명이 함께 절하고 있어요</span>')
+  else if (live === 1 && !bow.on) parts.push('<span class="live">지금 한 분이 절하고 있어요</span>')
+  togetherEl.innerHTML = parts.join('<br>')
+}
+async function refreshYardBows (force = false) {
+  const now = Date.now()
+  if (!force && now - yardBows.at < 60000) return
+  yardBows.at = now
+  try {
+    const result = await fetchToday()
+    if (!result) return                       // 설정 전에는 이 브라우저 숫자만 쓴다
+    yardBows.shared = result.total
+    yardBows.ready = true
+    paintTogether()
+  } catch (e) {}
+}
+/* 절을 마치면 그만큼만 한 번 올린다. 실패하면 내 몫으로 들고 있다가 다음에 다시 보낸다. */
+let sending = false
+async function sendPractice (bows, kind, dedication) {
+  const count = Math.min(1000, Math.floor(bows))
+  if (!(count > 0)) return
+  if (!isSupabaseConfigured) return          // 설정 전에는 이 브라우저 숫자만 센다
+  // 날짜가 바뀌면 못 올린 어제 몫은 버린다. 어제 절을 오늘 것으로 올리지 않는다.
+  if (yardBows.day !== kstDay()) { yardBows.day = kstDay(); yardBows.mine = 0; yardBows.shared = 0; yardBows.ready = false }
+  yardBows.mine += count
+  paintTogether()
+  if (sending) return
+  sending = true
+  const pending = yardBows.mine
+  try {
+    const row = await insertPractice({ nick: me.nick, bows: pending, kind, dedication })
+    if (row) { yardBows.mine -= pending; yardBows.shared += pending; yardBows.ready = true }
+  } catch (e) {
+  } finally { sending = false; paintTogether() }
+}
 function updateCount () {
   countEl.textContent = (bowTotal > 0 ? '오늘 ' + bowTotal + '배' : '좌복 위에서 절을 할 수 있어요')+(best108?' · 108배 최고 '+best108+'배':'')
+  paintTogether()
 }
 function updateHere () {
   if (!hereEl) return
@@ -215,6 +278,10 @@ function openBowPicker (c) {
     b.onclick = () => { modal.close(); startBow(c, n) }
     wrap.append(b)
   }
+  const live=countBowing()
+  const join=el('button','btn join-together',live>0?'지금 '+live+'명과 함께 절하기':'함께 정진 · 동참하기')
+  join.onclick=()=>{modal.close();startBow(c,108,'together')}
+  m.append(join,el('p','note',live>0?'같은 박자로 이어서 절합니다. 숫자는 오늘 도량에 함께 쌓입니다.':'먼저 시작하면 다른 법우가 이어서 들어올 수 있어요. 108배까지 세고, 언제든 멈출 수 있어요.'))
   const practices=el('div','practice-choices');for(const [label,fn]of[['예불 · 칠정례',()=>{modal.close();startBow(c,7,'yebul')}],['법회 · 함께 읽기',()=>{modal.close();startSeatedPractice(c,'reading')}],['좌선 · 호흡하며 머물기',()=>openMeditationPicker(c)]]){const b=el('button','btn ghost',label);b.onclick=fn;practices.append(b)}
   m.append(practices,wrap)
   if(best108)m.append(el('p','note','108배 최고기록 '+best108+'배'))
@@ -230,19 +297,40 @@ function startBow (c, goal,mode='bow') {
   syncBowDay()
   document.body.classList.add('bow-active')
   bow.on = true; bow.mode=mode;bow.speed=1;bow.goal = goal; bow.done = 0; bow.t = 0; bow.spot = c
+  // 동참은 신호를 주고받지 않고 벽시계로 박자를 맞춘다. 그래서 속도 조절을 쓰지 않는다.
+  bow.sync = mode==='together'; bow.phase = bow.sync?sharedPhase(BOW_CYCLE):0
   player.x = c.x; player.y = c.y; player.dir = 'up'
   player.vx = 0; player.vy = 0; player.moving = false
   faceTowards(c.x, 2)
   keys.clear(); joy.reset()
   bowBar.classList.add('show')
   bowNum.textContent = '0 / ' + goal
-  setStatus(mode==='yebul'?'예불 · 칠정례를 시작했어요.':goal + '배를 시작했어요.');bowSpeed.hidden=goal!==108;bowSpeed.textContent='빠르게 ×2.5';bowText.textContent=mode==='yebul'?YEBUL_LINES[0]:''
+  setStatus(mode==='yebul'?'예불 · 칠정례를 시작했어요.':mode==='together'?'함께 정진에 들어왔어요. 같은 박자로 이어 갑니다.':goal + '배를 시작했어요.');bowSpeed.hidden=goal!==108||bow.sync;bowSpeed.textContent='빠르게 ×2.5';bowText.textContent=mode==='yebul'?YEBUL_LINES[0]:''
   peers.send(true)
 }
+/* 회향. 적어도 되고 안 적어도 된다. 어느 쪽이든 그만큼은 오늘 도량에 올라간다. */
+function openDedication (bows, kind) {
+  const m = modal.shell('회향', bows + '배를 마쳤어요. 이 마음을 누구에게 전할까요? 적지 않아도 됩니다.')
+  const wrap = el('div', 'dedication')
+  const ta = el('textarea'); ta.maxLength = 24; ta.rows = 2
+  ta.placeholder = '예) 어머니 건강하시기를 (24자까지)'
+  ta.setAttribute('aria-label', '회향 한 줄')
+  const go = el('button', 'btn', '회향하고 올리기')
+  const skip = el('button', 'btn ghost', '그냥 올리기')
+  let done = false
+  const finish = text => { if (done) return; done = true; modal.close(); sendPractice(bows, kind, text); setStatus(text ? '회향했어요 · ' + text : bows + '배를 오늘 도량에 올렸어요.') }
+  go.onclick = () => finish(ta.value.trim().replace(/\s+/g, ' ').slice(0, 24))
+  skip.onclick = () => finish('')
+  wrap.append(ta, go, skip)
+  m.append(wrap)
+  modal.primary = go
+  setTimeout(() => { try { ta.focus({ preventScroll: true }) } catch (e) {} }, 60)
+}
+
 function stopBow (why) {
   if (!bow.on) return
   bowReturn=reducedMotion?null:{from:bowPose(bow.t/BOW_CYCLE,false),t:0}
-  const done = bow.done, goal = bow.goal
+  const done = bow.done, goal = bow.goal, kindOf = bow.mode
   if(done>0)markHallPractice()
   document.body.classList.remove('bow-active')
   bow.on = false; bow.t = 0
@@ -250,7 +338,11 @@ function stopBow (why) {
   peers.send(true)
   if (done >= goal && goal > 0) setStatus(goal + '배를 마쳤어요. 오늘 모두 ' + bowTotal + '배.')
   else setStatus((why || '멈췄어요') + ' · ' + done + '배 했어요. 오늘 모두 ' + bowTotal + '배.')
+  bow.sync = false
   updateCount()
+  // 세 번 이상 숙인 때만 묻는다. 한두 번은 조용히 올린다.
+  if (done >= 3 && !traveling) openDedication(done, kindOf)
+  else if (done > 0) sendPractice(done, kindOf, '')
 }
 const bowSpeed=el('button',null,'빠르게 ×2.5'),bowText=el('p','bow-text');bowSpeed.id='bowspeed';bowSpeed.hidden=true;bowBar.append(bowSpeed,bowText)
 bowSpeed.onclick=()=>{if(!bow.on||bow.goal!==108)return;bow.speed=bow.speed===1?2.5:1;bowSpeed.textContent=bow.speed===1?'빠르게 ×2.5':'보통 속도'}
@@ -385,10 +477,18 @@ function update (dt) {
     player.moving = false; player.vx = 0; player.vy = 0
     if (pressed) stopBow('일어섰어요')
     else {
-      bow.t += dt*bow.speed
-      const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
-      while (bow.t >= cycle) {
-        bow.t -= cycle
+      const cycle = bow.sync ? BOW_CYCLE : (reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE)
+      let steps = 0
+      if (bow.sync) {
+        // 벽시계 위상이 한 바퀴 돌면 한 배. 화면이 멈춰 있던 동안은 세지 않는다.
+        const phase = sharedPhase(cycle)
+        if (crossedCycle(bow.phase, phase)) steps = 1
+        bow.phase = phase; bow.t = phase * cycle
+      } else {
+        bow.t += dt*bow.speed
+        while (bow.t >= cycle) { bow.t -= cycle; steps++ }
+      }
+      while (steps-- > 0) {
         bow.done++; bowTotal++;if(bow.goal===108)save108();saveBowTotal(); updateCount();if(bow.mode==='yebul')bowText.textContent=YEBUL_LINES[Math.min(6,bow.done)]
         bowNum.textContent = bow.done + ' / ' + bow.goal
         if (bow.done >= bow.goal) { stopBow(); break }
@@ -406,11 +506,13 @@ function update (dt) {
     }else stepPlayer(player, keys, joy, dt, canStand, traveling || modal.open || chat.isOpen, follower.moveVector)
   }
   seatBar.hidden=!seatWalk.active
+  refreshYardBows()
+  watchBowing()
 
   if(hallExitGate.sample({x:player.x,z:player.y,moving:player.moving,enabled:!traveling&&!modal.open&&!chat.isOpen&&!bow.on&&!seatedPractice}))travel(hallReturnUrl(location.search))
   if(bowReturn){if(player.moving)bowReturn=null;else{bowReturn.t+=dt;if(bowReturn.t>=.8)bowReturn=null}}
   // 절할 때는 몸을 낮춘다
-  const cycle = reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE
+  const cycle = bow.sync ? BOW_CYCLE : (reducedMotion ? BOW_CYCLE_QUIET : BOW_CYCLE)
   const u = bow.on ? bow.t / cycle : 0
   // 몸 전체를 누르지 않고 합장·무릎·엎드림 관절로 절합니다.
   stepPerson(meBody, player.x, player.y, bow.on ? Math.PI : player.face, player.moving, player.walk, reducedMotion,
@@ -472,7 +574,7 @@ function loop (now) {
 }
 
 /* ---------- 들어오고 나가기 ---------- */
-addEventListener('pagehide', () => { cancelSeatWalk(); keys.clear(); joy.reset();if(seatedPractice)stopSeatedPractice();if(bow.on)stopBow('잠시 쉬어요');peers.stop(); hallPeers.clear() })
+addEventListener('pagehide', () => { cancelSeatWalk(); keys.clear(); joy.reset();if(seatedPractice)stopSeatedPractice();if(bow.on)stopBow('잠시 쉬어요');peers.stop(); hallPeers.clear(); stopPractice() })
 addEventListener('pageshow', e => {
   if (!e.persisted) return
   traveling = false
@@ -487,6 +589,14 @@ if (!me.has) location.replace('/deungbul.html')
 
 if (fadeEl) { fadeEl.classList.add('on'); requestAnimationFrame(() => fadeEl.classList.remove('on')) }
 updateCount(); updateHere()
+/* 오늘 도량 숫자: 들어올 때 한 번, 다른 법우가 올리면 바로, 그 밖에는 1분에 한 번만 읽는다. */
+refreshYardBows(true)
+stopPractice = subscribePractice(row => {
+  if (row.nick === me.nick) return          // 내가 올린 건 이미 더해 두었다
+  yardBows.shared += row.bows; yardBows.ready = true
+  paintTogether()
+  if (row.dedication) setStatus(row.nick + ' 법우가 ' + row.bows + '배를 회향했어요 · ' + row.dedication)
+})
 setStatus('좌복 위에 서서 살펴보기를 누르면 절을 합니다.')
 if (me.has) peers.start()
 try { cv.focus({ preventScroll: true }) } catch (e) {}
@@ -499,7 +609,7 @@ if (import.meta.env.DEV) window.__beopdang = () => ({
   x: +player.x.toFixed(2), y: +player.y.toFixed(2), dir: player.dir, dist: +follower.state.dist.toFixed(1),
   traveling, modalOpen: modal.open, nick: me.nick, sex: me.sex,
   bow: { on: bow.on, goal: bow.goal, done: bow.done,phase:bow.t/BOW_CYCLE,speed:bow.speed,mode:bow.mode,rootY:meBody.position.y,returning:!!bowReturn }, bowTotal,best108,practice:seatedPractice?{kind:seatedPractice.kind,index:seatedPractice.index,elapsed:seatedPractice.elapsed,duration:seatedPractice.duration}:null,
-  guided:seatWalk.active,onCushion: !!cushionAt(player.x, player.y), atDoor: atDoor(player.x, player.y),
+  guided:seatWalk.active,yard:{...yardBows,bowing:bowingPeers,sync:bow.sync},onCushion: !!cushionAt(player.x, player.y), atDoor: atDoor(player.x, player.y),
   prompt: (promptNow() || {}).label || '',
   joined: peers.joined,
   peers: [...peers.peers.values()].map(p => ({ id: p.id, nick: p.nick, x: +p.x.toFixed(2), y: +p.y.toFixed(2), bow: p.bow }))

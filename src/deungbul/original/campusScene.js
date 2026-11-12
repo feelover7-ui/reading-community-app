@@ -1,6 +1,7 @@
 import {nextVisitTarget,visitTargetLabel} from '../visitProgress.js'
 import {handGeometry,finishCharacter,addCharacterHair,torsoGeometry,shoeGeometry} from '../characterStyle.js'
 import {findWalkPath,createGuidedWalk} from '../guidedWalk.js'
+import {fetchToday,subscribePractice} from '../practiceApi.js'
 import {addLandscapeFinish} from '../landscapeFinish.js'
 import {createAreaView,createWorkshopView,fitWorkshopView,fitStatueView} from '../campusFraming.js'
 import {LANDMARK_GUIDES,nearbyLandmark,castLandmarkRay} from '../landmarkGuides.js'
@@ -170,7 +171,14 @@ document.getElementById('hudh').onclick=()=>{hud.classList.toggle('collapsed');d
 if(isTouch||window.innerWidth<640){document.getElementById('hudh').setAttribute('aria-expanded','false');hud.classList.add('collapsed');document.querySelector('#hudh small').textContent='펼치기';}
 const questItems=()=>craftQuest(state);
 const questItems2=()=>riteQuest(state);
-function updateHUD(){const a=questItems();fillList(questEl,a,true);fillList(quest2El,questItems2(),a.every(i=>i[1]));const n=SEEDS.length+Math.max(sharedTotal,visibleLanterns().length);hudfoot.textContent=`마당에 걸린 소원등 ${n}개`+(state.lanterns.length?` · 내 등 ${state.lanterns.length}개`:'')+(state.best108?` · 108배 최고 ${state.best108}배`:'');}
+/* 법당에서 쌓이는 오늘의 절을 마당에서도 본다. 쓰기는 법당 쪽에서만 한다. */
+const yardBows={total:0,ready:false,at:0}
+async function refreshYardBows(force=false){
+  const now=Date.now();if(!force&&now-yardBows.at<120000)return
+  yardBows.at=now
+  try{const r=await fetchToday();if(!r)return;yardBows.total=r.total;yardBows.ready=true;updateHUD()}catch(e){}
+}
+function updateHUD(){const a=questItems();fillList(questEl,a,true);fillList(quest2El,questItems2(),a.every(i=>i[1]));const n=SEEDS.length+Math.max(sharedTotal,visibleLanterns().length);hudfoot.textContent=`마당에 걸린 소원등 ${n}개`+(state.lanterns.length?` · 내 등 ${state.lanterns.length}개`:'')+(state.best108?` · 108배 최고 ${state.best108}배`:'')+(yardBows.ready&&yardBows.total>0?`\n오늘 도량에 쌓인 절 ${yardBows.total.toLocaleString('ko-KR')}배`:'');}
 let onChanged=()=>{};
 function changed(){updateHUD();save();onChanged();}
 updateHUD();
@@ -894,6 +902,8 @@ document.getElementById('dressb').onclick=()=>{if(!started||ritual||seq||creator
 /* 기존 공유 기능을 원본 외부 장면에 연결 */
 const onlinePeers=new Map(),onlineLabels=new Map();
 let campusYard=null,identityKey='',onlineAt=0,lastOnlinePose='',onlineLast=null;
+let stopPractice=()=>{}
+addEventListener('pagehide',()=>stopPractice())
 const sharing=craftHost.sharing=createCampusSharing({onLanterns:(rows,total)=>{sharedLanterns=rows;sharedTotal=total;state.hasHung=state.hasHung||rows.some(L=>L.owner===OWNER);updateHUD();onChanged()},status:setConnection});
 const community=createCampusCommunity({shell:modalShell,el,getNick:()=>nick||'법우',getLocalLanterns:()=>SEEDS.concat(state.lanterns),getOwner:()=>OWNER,say:text=>campusYard?.sendSay(text,nick)});
 const quickToggle=el('button','campus-chat-toggle','대화');quickToggle.type='button';quickToggle.id='campus-chat-toggle';quickToggle.setAttribute('aria-label','간편 대화 열기');quickToggle.setAttribute('aria-expanded','false')
@@ -995,7 +1005,7 @@ addEventListener('lantern-connection',event=>setConnection(event.detail==='full'
 addEventListener('pagehide',()=>{community.stop();campusChat?.hide();cancelGuide();campusYard?.leave();campusYard=null;sharing.stop()});
 addEventListener('pageshow',event=>{if(event.persisted){hallTraveling=false;hallWalkIn.reset();keys.clear();joy.reset();sharing.start();community.start();connectOnline(true)}});
 addEventListener('online',()=>{sharing.refresh();if(!campusYard?.joined){campusYard?.leave();campusYard=null;connectOnline()}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelGuide();if(tap)stopTap();keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();community.refresh();onlineAt=0;lastOnlinePose=''}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelGuide();if(tap)stopTap();keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();community.refresh();refreshYardBows(true);onlineAt=0;lastOnlinePose=''}});
 
 /* ================= boot ================= */
 const startb=document.getElementById('startb');
@@ -1007,6 +1017,7 @@ fontsReady.then(()=>{try{init3D();sharing.start();
     syncEntryAccess();state.ap=state.ap||{...DEFAULT_AP[readStore('hanmaum-deungbul-sex')==='f'?'f':'m']};rebuildPlayer();
     if(from==='beopdang'){state.hallDone=true;changed()}
   }
+  refreshYardBows(true);stopPractice=subscribePractice(row=>{yardBows.total+=row.bows;yardBows.ready=true;updateHUD()})
   startb.disabled=false;const returning=!!(nick&&state.ap&&readStore('hanmaum-deungbul-sex'));startb.textContent=returning?'이어서 들어가기':'들어가기';document.getElementById('entry-status').textContent='준비됐어요. 편하게 들어오세요.';const note=document.getElementById('entry-return');note.hidden=!returning;if(returning)note.textContent=nick+' 법우님, 다시 오셨군요.';document.getElementById('entry-profile').hidden=!returning;}catch(e){console.error(e);document.getElementById('err').style.display='block';startb.textContent='불러오기 실패';const retry=el('button','btn','다시 시도');retry.onclick=()=>location.reload();document.getElementById('err').append(retry);retry.focus();}});
 if(import.meta.env.DEV)window.__warp=(x,y)=>{player.x=x;player.y=y;player.moving=false;onlineAt=0;lastOnlinePose='';snapCam=true;};
 if(import.meta.env.DEV)window.__campus=()=>({x:player.x,z:player.y,started,overview,lowView,hallAuto,hallTraveling,stage:state.stage,craft:{...state.craft},guided:guidedWalk.active,tap:tap?{laps:tap.orbit.laps,goal:tap.goal}:null,inside:inWorkshop(player.x,player.y),hall:HALL_DOOR,pagoda:PAGODA,workshop:WORKSHOP_EXIT,action});
