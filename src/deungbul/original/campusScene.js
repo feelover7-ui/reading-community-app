@@ -2,6 +2,8 @@ import {nextVisitTarget,visitTargetLabel} from '../visitProgress.js'
 import {handGeometry,finishCharacter,addCharacterHair,torsoGeometry,shoeGeometry} from '../characterStyle.js'
 import {findWalkPath,createGuidedWalk} from '../guidedWalk.js'
 import {fetchToday,subscribePractice} from '../practiceApi.js'
+import {fetchBlessings,insertBlessing,subscribeBlessings} from '../blessingApi.js'
+import {wickGlow,wickLabel,blessingLabel,canBless} from '../lanternLife.js'
 import {addLandscapeFinish} from '../landscapeFinish.js'
 import {createAreaView,createWorkshopView,fitWorkshopView,fitStatueView} from '../campusFraming.js'
 import {LANDMARK_GUIDES,nearbyLandmark,castLandmarkRay} from '../landmarkGuides.js'
@@ -173,6 +175,16 @@ const questItems=()=>craftQuest(state);
 const questItems2=()=>riteQuest(state);
 /* 법당에서 쌓이는 오늘의 절을 마당에서도 본다. 쓰기는 법당 쪽에서만 한다. */
 const yardBows={total:0,ready:false,at:0}
+/* 등의 심지. counts 는 등마다 밝혀 준 사람 수, mine 은 내가 이미 밝힌 등이다. */
+const blessings={counts:new Map(),mine:new Set(),at:0}
+let stopBlessing=()=>{}
+const blessingsOf=L=>blessings.counts.get(L?.id)||0
+async function refreshBlessings(force=false){
+  const now=Date.now();if(!force&&now-blessings.at<120000)return
+  blessings.at=now
+  try{const r=await fetchBlessings(OWNER);if(!r)return;blessings.counts=r.counts;blessings.mine=r.mine;rebuildHungRef?.()}catch(e){}
+}
+let rebuildHungRef=null
 async function refreshYardBows(force=false){
   const now=Date.now();if(!force&&now-yardBows.at<120000)return
   yardBows.at=now
@@ -318,7 +330,9 @@ const INTERACT=[
     fn:()=>siteInfo(b),mark:[b.x+b.w/2,Math.max(3,b.floors*2.5+1.3),b.z+b.d-.4],key:'site-'+b.id})),
   {x:114,y:9.9,name:'가운데 방석 · 참배하기',fn:hallMenu,mark:[114,1.6,9.9],key:'cushion'},
   {x:114,y:19.35,name:'나가기 · 본관 앞마당',fn:exitHall,mark:[114,3,19.9],key:'hallExit'}];
-function nearest(){if(inHallLobby(player.x,player.y))return INTERACT.find(i=>i.key==='hallDoor');let best=null,bd=1;for(const it of INTERACT){const r=it.key==='hallDoor'?2.8:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
+let hungNear=null
+function nearest(){if(inHallLobby(player.x,player.y))return INTERACT.find(i=>i.key==='hallDoor');
+  if(hungNear)return hungNear;let best=null,bd=1;for(const it of INTERACT){const r=it.key==='hallDoor'?2.8:1.25,d=Math.hypot(it.x-player.x,it.y-player.y)/r;if(d<bd){bd=d;best=it;}}return best;}
 function targetKey(){const key=nextVisitTarget(state);return key==='tower'&&tap?null:key;}
 function action(){if(!started||creatorOpen)return;if(dialog){advance();return;}if(modalOpen||ritual||seq)return;const it=nearest();if(it){it.fn();updateHUD();}}
 
@@ -569,7 +583,9 @@ function init3D(){
   function rebuildHung(){while(hungGroup.children.length){const c=hungGroup.children[0];hungGroup.remove(c);if(c.material&&c.material!==ropeM&&c.material.dispose)c.material.dispose();if(c.isLine)c.geometry.dispose();}hungObjs=[];
     hungList().forEach(h=>{const x=h.slot.x,ry=ropeY(h.slot.r,x),z=h.slot.r.z;const sp=lanternSprite(h.L,{lit:state.night},1.05);sp.position.set(x,ry-.62,z);hungGroup.add(sp);
       hungGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([V3(x,ry,z),V3(x,ry-.22,z)]),ropeM));
-      const g=glowSprite(h.L.color||'#ffcc66',2.4);g.position.set(x,ry-.62,z-.05);g.visible=state.night;g.material.opacity=.55;hungGroup.add(g);hungObjs.push({sp,h,x:x+WORKSHOP_OFFSET.x,y:ry-.62,z:z+WORKSHOP_OFFSET.z});});}
+      const g=glowSprite(h.L.color||'#ffcc66',2.4);g.position.set(x,ry-.62,z-.05);g.visible=state.night;
+      // 심지가 사그라들수록 옅어진다. 다 타도 자리에는 남는다.
+      g.material.opacity=.55*wickGlow({...h.L,blessings:blessingsOf(h.L)});hungGroup.add(g);hungObjs.push({sp,h,x:x+WORKSHOP_OFFSET.x,y:ry-.62,z:z+WORKSHOP_OFFSET.z});});}
 
 
   // 본관 기준은 유지하고 최신 요청의 넓은 탑 앞마당과 돌길을 클로드 표현으로 그린다.
@@ -702,6 +718,9 @@ function init3D(){
     stringLanterns.forEach(s=>{s.sp.material.map=lanternTex(s.L,{lit:n});s.sp.material.needsUpdate=true;s.g.visible=n;});
     rebuildHung();updateCarry();pruneTextures();};
   onChanged=()=>{rebuildHung();updateCarry();pruneTextures();};
+  rebuildHungRef=rebuildHung
+  refreshBlessings(true)
+  stopBlessing=subscribeBlessings((id,owner)=>{blessings.counts.set(id,(blessings.counts.get(id)||0)+1);if(owner===OWNER)blessings.mine.add(id);rebuildHung()})
   rebuildHung();updateCarry();
 
   /* One map per connected room; both use the same north-up world coordinates. */
@@ -863,8 +882,11 @@ function init3D(){
     }
     nearbyGuideId=guide?.id||null;guideHint.hidden=!gp?.ok;
     if(gp?.ok){guideHint.textContent=guide.title+' · '+(isTouch?'터치해서 설명':'클릭해서 설명');guideHint.setAttribute('aria-label',guide.title+' 설명 읽기');guideHint.style.left=Math.max(135,Math.min(innerWidth-135,gp.x))+'px';guideHint.style.top=Math.max(150,Math.min(innerHeight-(isTouch?190:105),gp.y))+'px';}
-    let shown=false;
-    if(showUI&&!dialog&&!modalOpen&&!ritual){for(const o of hungObjs){if(Math.abs(o.x-player.x)<.55&&Math.abs(o.z-player.y)<1.0){const s=toScreen(V3(o.x,o.y+.55,o.z));if(s.ok){wishEl.textContent=o.h.L.wish||'';wishEl.className=state.night?'night':'';wishEl.style.left=s.x+'px';wishEl.style.top=s.y+'px';wishEl.style.display='block';shown=true;}break;}}}
+    let shown=false;hungNear=null;
+    if(showUI&&!dialog&&!modalOpen&&!ritual){for(const o of hungObjs){if(Math.abs(o.x-player.x)<.55&&Math.abs(o.z-player.y)<1.0){
+        if(canBless(o.h.L,OWNER,blessings.mine))hungNear={x:o.x,y:o.z,name:'소원등 밝혀 주기',key:'bless',fn:()=>blessLantern(o.h.L)};const s=toScreen(V3(o.x,o.y+.55,o.z));if(s.ok){const life={...o.h.L,blessings:blessingsOf(o.h.L)}
+        wishEl.textContent=[o.h.L.wish||'',blessingLabel(life.blessings),wickLabel(life)].filter(Boolean).join('\n')
+        wishEl.className=state.night?'night':'';wishEl.style.left=s.x+'px';wishEl.style.top=s.y+'px';wishEl.style.display='block';shown=true;}break;}}}
     if(!shown)wishEl.style.display='none';
     const it=showUI&&!busy?nearest():null;if(it){promptEl.textContent=it.key==='hallDoor'?'문 안으로 걸어가면 입장해요':(isTouch?'작업 버튼 · ':'Space · ')+it.name;promptEl.style.display='block';}else promptEl.style.display='none';
     drawMinimap();
@@ -903,7 +925,22 @@ document.getElementById('dressb').onclick=()=>{if(!started||ritual||seq||creator
 const onlinePeers=new Map(),onlineLabels=new Map();
 let campusYard=null,identityKey='',onlineAt=0,lastOnlinePose='',onlineLast=null;
 let stopPractice=()=>{}
-addEventListener('pagehide',()=>stopPractice())
+addEventListener('pagehide',()=>{stopPractice();stopBlessing()})
+/* 남의 등을 한 번 밝힌다. 올린 뒤에 화면을 고친다. 실패하면 그대로 둔다. */
+let blessing=false
+async function blessLantern(L){
+  if(blessing||!canBless(L,OWNER,blessings.mine))return
+  blessing=true
+  try{
+    const r=await insertBlessing(L.id,OWNER)
+    if(r===null){toast('이 기기에서는 아직 함께 밝힐 수 없어요.');return}
+    blessings.mine.add(L.id)
+    if(!r.already)blessings.counts.set(L.id,(blessings.counts.get(L.id)||0)+1)
+    rebuildHungRef?.();chime()
+    toast(r.already?'이미 밝혀 둔 등이에요.':'등을 밝혔어요. 심지가 이틀 길어졌어요.')
+  }catch(e){toast('지금은 밝힐 수 없어요. 잠시 뒤에 다시 해 주세요.')}
+  finally{blessing=false}
+}
 const sharing=craftHost.sharing=createCampusSharing({onLanterns:(rows,total)=>{sharedLanterns=rows;sharedTotal=total;state.hasHung=state.hasHung||rows.some(L=>L.owner===OWNER);updateHUD();onChanged()},status:setConnection});
 const community=createCampusCommunity({shell:modalShell,el,getNick:()=>nick||'법우',getLocalLanterns:()=>SEEDS.concat(state.lanterns),getOwner:()=>OWNER,say:text=>campusYard?.sendSay(text,nick)});
 const quickToggle=el('button','campus-chat-toggle','대화');quickToggle.type='button';quickToggle.id='campus-chat-toggle';quickToggle.setAttribute('aria-label','간편 대화 열기');quickToggle.setAttribute('aria-expanded','false')
@@ -1005,7 +1042,7 @@ addEventListener('lantern-connection',event=>setConnection(event.detail==='full'
 addEventListener('pagehide',()=>{community.stop();campusChat?.hide();cancelGuide();campusYard?.leave();campusYard=null;sharing.stop()});
 addEventListener('pageshow',event=>{if(event.persisted){hallTraveling=false;hallWalkIn.reset();keys.clear();joy.reset();sharing.start();community.start();connectOnline(true)}});
 addEventListener('online',()=>{sharing.refresh();if(!campusYard?.joined){campusYard?.leave();campusYard=null;connectOnline()}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelGuide();if(tap)stopTap();keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();community.refresh();refreshYardBows(true);onlineAt=0;lastOnlinePose=''}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){cancelGuide();if(tap)stopTap();keys.clear();joy.reset();AC?.suspend().catch(()=>{})}else{sharing.refresh();community.refresh();refreshYardBows(true);refreshBlessings(true);onlineAt=0;lastOnlinePose=''}});
 
 /* ================= boot ================= */
 const startb=document.getElementById('startb');
