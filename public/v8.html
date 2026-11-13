@@ -6739,7 +6739,7 @@ class HanmaumFeatures{
 class HanmaumLocalChat{
  constructor(ctx){
   this.ctx=ctx;this.id=globalThis.crypto?.randomUUID?.()||('guest-'+Date.now()+'-'+Math.random().toString(36).slice(2));
-  this.selfIds=new Set([this.id]);this.messages=[];this.peers=new Map();this.peerHistory=new Map();this.peerSessions=new Map();this.pendingPeers=new Map();this.meshes=new Map();this.unread=0;this.disposed=false;this.channel=null;
+  this.selfIds=new Set([this.id]);this.messages=[];this.peers=new Map();this.peerHistory=new Map();this.peerSessions=new Map();this.pendingPeers=new Map();this.pendingScenes=new Map();this.meshes=new Map();this.unread=0;this.disposed=false;this.channel=null;
   this.network=new HanmaumRelayClient({onMessage:m=>this.receive(m),onStatus:(state,message)=>this.networkStatus(state,message)});
   this.sameOrigin=/^https?:$/.test(location.protocol);
   try{if(this.sameOrigin&&typeof BroadcastChannel!=='undefined'){this.channel=new BroadcastChannel('hanmaum-local-doryang-v6');this.channel.onmessage=e=>{if(!['online','connecting'].includes(this.network.state))this.receive(e.data);};}}catch(_){}
@@ -6763,7 +6763,7 @@ class HanmaumLocalChat{
   return {x:m.position.x+(valid?v.x*t:0),y:m.position.y+(valid?v.y*t:0),z:m.position.z+(valid?v.z*t:0)};
  }
  isSelf(id){return this.selfIds.has(id);}
- clearPeers(){for(const id of this.peers.keys())this.ctx.world.clearSpeech?.(id);for(const id of [...this.meshes.keys()])this.removePeer(id);this.peers.clear();this.peerHistory?.clear();this.peerSessions?.clear();this.pendingPeers?.clear();this.ctx.world.socialPeers=[];}
+ clearPeers(){for(const id of this.peers.keys())this.ctx.world.clearSpeech?.(id);for(const id of [...this.meshes.keys()])this.removePeer(id);this.peers.clear();this.peerHistory?.clear();this.peerSessions?.clear();this.pendingPeers?.clear();this.pendingScenes?.clear();this.ctx.world.socialPeers=[];}
  networkStatus(state,message){
   this.connectionMessage=message;
   if(state==='online'){this.selfIds.add(this.network.id);this.clearPeers();this.announce();}
@@ -6800,14 +6800,16 @@ class HanmaumLocalChat{
  receive(m){
   if(!m||typeof m!=='object'||typeof m.id!=='string'||this.isSelf(m.id)||m.id.length>100)return;
   const history=this.peerHistory||(this.peerHistory=new Map()),remember=record=>{if(m.session)record.session=m.session;history.set(m.id,record);if(history.size>512)history.delete(history.keys().next().value)};
-  const sessions=this.peerSessions||(this.peerSessions=new Map()),pending=this.pendingPeers||(this.pendingPeers=new Map());
+  const sessions=this.peerSessions||(this.peerSessions=new Map()),pending=this.pendingPeers||(this.pendingPeers=new Map()),sceneHistory=this.pendingScenes||(this.pendingScenes=new Map());
+  if(m.type==='scene-change'&&HanmaumStore.SCENES.includes(m.scene)){const key=m.id+'|'+(m.session||''),old=sceneHistory.get(key);if(!old||!Number.isFinite(old.sampleTime)||Number.isFinite(m.sampleTime)&&m.sampleTime>=old.sampleTime)sceneHistory.set(key,m);if(sceneHistory.size>256)sceneHistory.delete(sceneHistory.keys().next().value);}
+  const queuePresence=(packet=m)=>{const group=pending.get(packet.id)||new Map(),prior=group.get(packet.session);if(prior&&Number.isFinite(prior.sampleTime)&&Number.isFinite(packet.sampleTime)&&packet.sampleTime<prior.sampleTime)return;group.set(packet.session,{...packet,type:'presence'});if(group.size>3)group.delete(group.keys().next().value);pending.set(packet.id,group);if(pending.size>128)pending.delete(pending.keys().next().value);};
   if(m.type==='join'){
    const changed=m.session&&sessions.get(m.id)!==m.session;if(m.session)sessions.set(m.id,m.session);
    if(history.get(m.id)?.left||changed&&history.get(m.id)?.session!==m.session&&this.peers.get(m.id)?.session!==m.session){history.delete(m.id);this.peers.delete(m.id);}
-   const queued=pending.get(m.id);pending.delete(m.id);if(queued&&queued.session===m.session)this.receive(queued);this.renderPeers();return;
+   const queued=pending.get(m.id)?.get(m.session),control=sceneHistory.get(m.id+'|'+(m.session||''));pending.delete(m.id);if(control)this.receive(control);if(queued)this.receive(queued);this.renderPeers();return;
   }
   if(sessions.has(m.id)&&m.session&&m.session!==sessions.get(m.id)){
-   if(m.type==='presence'){pending.set(m.id,m);if(pending.size>128)pending.delete(pending.keys().next().value);}
+   if(['presence','chat','gesture'].includes(m.type)&&m.position)queuePresence();
    if(m.type==='chat'&&typeof m.text==='string')this.append({...m,text:HanmaumAvatar.cleanText(m.text)});return;
   }
   if(m.type==='scene-change'){
@@ -6817,11 +6819,12 @@ class HanmaumLocalChat{
    if(this.peers.get(m.id)?.scene!==m.scene){this.ctx.world.clearSpeech?.(m.id);this.peers.delete(m.id);this.renderPeers();}return;
   }
   if(!['presence','chat','gesture','leave'].includes(m.type))return;
-  if(m.type==='leave'){pending.delete(m.id);remember({left:true,sampleTime:this.peers.get(m.id)?.sampleTime});this.ctx.world.clearSpeech?.(m.id);this.peers.delete(m.id);this.renderPeers();return;}
+  if(m.type==='leave'){const latest=this.peers.get(m.id);if(latest)queuePresence(latest);remember({left:true,sampleTime:this.peers.get(m.id)?.sampleTime});this.ctx.world.clearSpeech?.(m.id);this.peers.delete(m.id);this.renderPeers();return;}
   if(typeof m.name!=='string'||!HanmaumStore.SCENES.includes(m.scene))return;
   const p=m.position;if(!p||!['x','y','z'].every(k=>Number.isFinite(p[k])&&Math.abs(p[k])<200))return;
   const known=history.get(m.id);
-  if(known?.left||known?.scene&&known.scene!==m.scene||Number.isFinite(known?.sampleTime)&&Number.isFinite(m.sampleTime)&&m.sampleTime<known.sampleTime){if(m.type==='chat'&&typeof m.text==='string')this.append({...m,text:HanmaumAvatar.cleanText(m.text)});return;}
+  if(known?.left){queuePresence();if(m.type==='chat'&&typeof m.text==='string')this.append({...m,text:HanmaumAvatar.cleanText(m.text)});return;}
+  if(known?.left||known?.scene&&known.scene!==m.scene&&!(Number.isFinite(m.sampleTime)&&Number.isFinite(known.sampleTime)&&m.sampleTime>known.sampleTime)||Number.isFinite(known?.sampleTime)&&Number.isFinite(m.sampleTime)&&m.sampleTime<known.sampleTime){if(m.type==='chat'&&typeof m.text==='string')this.append({...m,text:HanmaumAvatar.cleanText(m.text)});return;}
   const previous=this.peers.get(m.id);
   if(previous&&Number.isFinite(previous.sampleTime)&&Number.isFinite(m.sampleTime)&&m.sampleTime<previous.sampleTime){if(m.type==='chat'&&typeof m.text==='string')this.append({...m,text:HanmaumAvatar.cleanText(m.text)});return;}
   const peer={...m,name:m.name.slice(0,24),seen:Date.now()};
