@@ -39,3 +39,12 @@ test('실제 SDK에서 동일 참가자의 재접속 메타가 겹쳐도 마지�
   assert.equal(messages.filter(m=>m.type==='leave'&&m.id==='other').length,1,'SDK 상태에 남은 이전 메타와 무관하게 최종 퇴장을 전달한다')
   net.disconnect()
 })
+
+test('all nine saved scenes accept presence, chat and gestures',()=>{
+ for(const scene of ['campus','workshop','temple1','lobby2','lobby3','terrace2','terrace3','hall5','seosan']){
+  for(const extra of [{type:'presence'},{type:'chat',text:'평안하세요'},{type:'gesture',gesture:'bow'}]){
+   const normalized=normalizeV8Message({...pose('other',scene),...extra})
+   assert.ok(normalized,scene+' '+extra.type)
+  }
+ }
+})

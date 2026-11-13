@@ -1,5 +1,5 @@
 // v8 전용 통신. 위치·인사·대화는 Broadcast, 참가/퇴장은 Presence만 사용한다.
-const SCENES = new Set(['campus','workshop','temple1','terrace2','terrace3','hall5','seosan'])
+const SCENES = new Set(['campus','workshop','temple1','lobby2','lobby3','terrace2','terrace3','hall5','seosan'])
 const COLOR = /^#[0-9a-f]{6}$/i
 const text = (v, n) => typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, n).trim() : ''
 export function normalizeV8Message(m) {
