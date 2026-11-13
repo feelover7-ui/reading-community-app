@@ -816,3 +816,11 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
   `hanmaum-campus-v2`·`hanmaum-deungbul-nick` 은 **읽기만** 하고 쓰지 않습니다.
 - 같은 출처라 저장소를 공유합니다. v8 이 자기 키(`hanmaum-journey*` 등)에만 쓰는 것은 확인했지만,
   나중에 이 파일을 갈아 끼울 때 **쓰기가 생겼는지 다시 봅니다.** 운영 진행이 덮일 수 있습니다.
+
+## v8 다중접속만 연결 (2026-11-13)
+
+- 사용자 요청은 v8 다중접속까지만이다. 이전 시안의 UI/게임/배치/제작/자동 탑돌이를 이 변경에 섞지 않는다.
+- public/v8.html은 한 파일로 유지하고 multiplayer.js/features.js 통신 경계만 수정한다. src/v8는 기존 Supabase SDK를 독립 Vite entry /v8-network.js로 연결한다. 원래 deungbul 통신 코드와 섞지 않는다.
+- v8:<room> Presence/Broadcast만 사용한다. 기존 DB/환경변수/의존성 변경이 없다. 온라인 참가자는 5초 위치 지연만으로 제거하지 않는다.
+- 기존 함께 접속 UI를 사용한다. 공개 방이며 인증/영구 대화 저장/진행 공유로 표현하지 않는다.
+- 이전 track/송신 콜백 격리, CLOSED 후 수동 재접속, Safari BFCache 복원, 실패 초안 보존을 유지한다. docs/V8_MULTIPLAYER_2026-11-13.md에 검증/한계를 기록했다.

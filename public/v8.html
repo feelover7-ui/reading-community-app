@@ -6636,65 +6636,27 @@ window.HanmaumWorld2D=HanmaumWorld2D;
 
 </script>
 <script data-source="multiplayer.js">
-/* Optional same-origin multiplayer relay. Standalone file mode stays offline. */
+/* v8 전용 Supabase Realtime adapter. 기존 UI/장면과 독립적으로 지연 로드합니다. */
 (function(){'use strict';
 class HanmaumRelayClient {
-  constructor({onMessage,onStatus}) {
-    this.onMessage=onMessage;this.onStatus=onStatus;this.state='offline';this.stream=null;
-    this.id='';this.token='';this.room='hanmaum';this.generation=0;this.pendingPresence=false;this.errors=0;
-  }
-  status(state,message='') {this.state=state;this.message=message;this.onStatus?.(state,message);}
-  async connect(room) {
-    this.disconnect();
-    const generation=++this.generation;
-    this.room=String(room||'hanmaum').trim().toLowerCase();
-    if(!/^https?:$/.test(location.protocol)) {this.status('unavailable','파일 단독 실행 중입니다. 온라인 실행 주소에서 함께 접속할 수 있어요.');return;}
-    if(!/^[a-z0-9_-]{1,32}$/.test(this.room)) {this.status('unavailable','방 이름은 영문·숫자·밑줄·하이픈으로 1~32자 입력해 주세요.');return;}
-    if(typeof EventSource==='undefined'||typeof fetch==='undefined') {this.status('unavailable','이 브라우저에서는 온라인 연결을 사용할 수 없어요.');return;}
-    this.status('connecting','같은 도량에 접속하고 있습니다.');
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4000);
-    try {
-      const r=await fetch('/api/hanmaum/health',{signal:controller.signal,cache:'no-store'});
-      const info=await r.json();
-      if(!r.ok||info.service!=='hanmaum-doryang'||info.protocol!==1)throw new Error('unavailable');
-      if(generation!==this.generation)return;
-      const stream=this.stream=new EventSource('/api/hanmaum/events?room='+encodeURIComponent(this.room));
-      const connectionTimer=setTimeout(()=>{if(this.stream===stream&&this.state!=='online'){this.disconnect();this.status('unavailable','방에 접속하지 못했어요. 실행 상태와 방 인원을 확인해 주세요.');}},5000);
-      stream.onmessage=e=>{
-        let m;try{m=JSON.parse(e.data);}catch(_){return;}
-        if(generation!==this.generation)return;
-        if(m.type==='ready'&&typeof m.id==='string'&&typeof m.token==='string') {
-          clearTimeout(connectionTimer);this.id=m.id;this.token=m.token;this.errors=0;this.status('online','같은 방의 법우들과 연결되었습니다.');
-        } else this.onMessage?.(m);
-      };
-      stream.onerror=()=>{if(this.stream!==stream)return;clearTimeout(connectionTimer);this.disconnect();this.status('unavailable','연결이 끊어졌어요. 다시 함께 접속해 주세요.');};
-    } catch(_) {
-      if(generation===this.generation)this.status('unavailable','온라인 실행을 찾지 못했어요. 지금은 이 브라우저 안에서 이용할 수 있습니다.');
-    } finally {clearTimeout(timer);}
-  }
-  async send(message) {
-    if(this.state!=='online'||!this.id||!this.token)return false;
-    if(message.type==='presence'&&this.pendingPresence)return true;
-    const generation=this.generation,presence=message.type==='presence';
-    if(presence)this.pendingPresence=true;
-    try {
-      const r=await fetch('/api/hanmaum/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:this.id,token:this.token,message}),cache:'no-store'});
-      if(!r.ok)throw new Error('send');
-      if(generation!==this.generation)return false;
-      this.errors=0;return true;
-    } catch(_) {
-      if(generation===this.generation&&++this.errors>=3){this.disconnect();this.status('unavailable','연결이 끊어졌어요. 다시 접속해 주세요.');}
-      return false;
-    } finally {if(presence&&generation===this.generation)this.pendingPresence=false;}
-  }
-  disconnect() {
-    this.generation++;this.stream?.close();this.stream=null;this.id='';this.token='';this.pendingPresence=false;
-    this.status('offline','함께 접속을 마쳤습니다.');
-  }
+ constructor({onMessage,onStatus}){this.onMessage=onMessage;this.onStatus=onStatus;this.state='offline';this.room='hanmaum';this.id=globalThis.crypto?.randomUUID?.()||('v8-'+Date.now()+'-'+Math.random().toString(36).slice(2));this.connection=null;this.generation=0;}
+ status(state,message=''){this.state=state;this.message=message;this.onStatus?.(state,message);}
+ async connect(value){
+  this.disconnect();const gen=this.generation;this.room=String(value||'hanmaum').trim().toLowerCase();
+  if(!/^https?:$/.test(location.protocol)){this.status('unavailable','온라인 실행 주소에서 함께 접속할 수 있어요.');return;}
+  if(!/^[a-z0-9_-]{1,32}$/.test(this.room)){this.status('unavailable','방 이름은 영문·숫자·밑줄·하이픈으로 1~32자 입력해 주세요.');return;}
+  this.status('connecting','같은 도량에 접속하고 있습니다.');
+  try{
+   const {createOnlineClient}=await import('/v8-network.js');if(gen!==this.generation)return;
+   const connection=this.connection=createOnlineClient({id:this.id,onMessage:m=>{if(gen===this.generation)this.onMessage?.(m);},onStatus:(state,message)=>{if(gen===this.generation)this.status(state,message);}});
+   connection.connect(this.room);
+  }catch(_){if(gen===this.generation)this.status('unavailable','함께 접속하지 못했어요. 연결 상태를 확인한 뒤 다시 접속해 주세요.');}
+ }
+ async send(message){return this.state==='online'&&this.connection?this.connection.send(message):false;}
+ disconnect(){this.generation++;const old=this.connection;this.connection=null;old?.disconnect();this.status('offline','함께 접속을 마쳤습니다.');}
 }
 window.HanmaumRelayClient=HanmaumRelayClient;
 })();
-
 </script>
 <script data-source="features.js">
 /* v7: profile, completed greetings, sourced teachings and optional online / local chat. */
@@ -6735,7 +6697,8 @@ class HanmaumLocalChat{
   this.lastFrame=performance.now();
   const frame=time=>{if(this.disposed)return;const dt=Math.min(.06,Math.max(0,(time-this.lastFrame)/1000));this.lastFrame=time;this.animatePeers(dt);this.frame=requestAnimationFrame(frame);};
   this.frame=requestAnimationFrame(frame);
-  window.addEventListener('pagehide',()=>this.dispose());
+  window.addEventListener('pagehide',e=>{if(!e.persisted){this.dispose();return;}this.resumeRoom=['online','connecting'].includes(this.network.state)?this.network.room:null;this.network.disconnect();this.channel?.postMessage({type:'leave',id:this.id});});
+  window.addEventListener('pageshow',e=>{if(e.persisted&&this.resumeRoom&&!this.disposed){const room=this.resumeRoom;this.resumeRoom=null;this.network.connect(room);}});
   document.addEventListener('keydown',e=>{if(e.target.id==='chatInput'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();this.send();}});
  }
  ownInfo(){const s=this.ctx.store.view(),p=this.ctx.world.getPosition?.()||{x:0,y:0,z:0};return {id:this.network.state==='online'?this.network.id:this.id,name:s.name,scene:this.ctx.getScene(),position:{x:p.x||0,y:p.y||0,z:p.z||0},appearance:s.appearance,outfit:s.outfit,rotation:this.ctx.world.player?.rotation?.y||0};}
@@ -6750,7 +6713,7 @@ class HanmaumLocalChat{
  connectOnline(){const room=$('chatRoom')?.value||'hanmaum';this.clearPeers();this.network.connect(room);}
  disconnectOnline(){this.network.disconnect();this.announce();}
  announce(){if(this.disposed)return;const m={type:'presence',...this.ownInfo()};if(this.network.state==='online')this.network.send(m);else if(this.network.state!=='connecting')this.channel?.postMessage(m);this.updateStatus();}
- count(){return [...this.peers.values()].filter(p=>Date.now()-p.seen<5000).length;}
+ count(){return [...this.peers.values()].filter(p=>this.network.state==='online'||Date.now()-p.seen<5000).length;}
  updateStatus(){
   const n=this.count(),online=this.network?.state==='online',connecting=this.network?.state==='connecting',el=$('chatConnection');
   if(el)el.textContent=online?`${this.network.room} 도량 · 다른 법우 ${n}명 연결`:connecting?'도량에 함께 접속하는 중':this.channel?`이 브라우저의 다른 탭 ${n}개 연결`:'혼자 플레이 중 · 다른 이용자 연결 없음';
@@ -6763,19 +6726,21 @@ class HanmaumLocalChat{
   b.innerHTML=`<div class="chat-mode"><span class="local-dot"></span><b id="chatConnection"></b></div><section class="chat-online-panel" aria-label="친구와 함께 접속"><label for="chatRoom">함께 만날 방 이름</label><div class="chat-room-row"><input id="chatRoom" class="text-input" maxlength="32" value="${esc(this.network.room)}" placeholder="hanmaum" autocomplete="off" spellcheck="false"><button id="chatJoin" class="btn secondary" data-ui="onlineConnect">함께 접속</button><button id="chatLeave" class="btn ghost" data-ui="onlineDisconnect" hidden>나가기</button></div><p id="chatNetworkNote" class="chat-scope"></p><small>방 이름은 영문·숫자·밑줄·하이픈 사용 · 같은 이름으로 접속해 주세요.</small></section><div id="chatMessages" class="chat-messages" role="log" aria-live="polite"></div><label class="form-label" for="chatInput">채팅 내용</label><div class="chat-composer"><textarea id="chatInput" class="text-input" maxlength="160" rows="2" placeholder="따뜻한 인사를 남겨보세요" autocomplete="off"></textarea><button class="btn primary" data-ui="chatSend">보내기</button></div><p class="section-note">최대 160자 · Shift+Enter 줄바꿈 · 대화는 머리 위에 10초 동안 표시됩니다. 최근 60개 대화는 이 실행 중에만 남아요.</p>`;
   this.renderMessages();this.updateStatus();setTimeout(()=>$('chatInput')?.focus(),50);
  }
- send(){const input=$('chatInput');if(!input)return;const text=HanmaumAvatar.cleanText(input.value);if(!text)return;
-  const m={type:'chat',messageId:this.id+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),...this.ownInfo(),text,time:Date.now()};this.append(m);
-  if(this.network.state==='online')this.network.send(m).then(ok=>{if(!ok)this.ctx.toast('메시지를 전달하지 못했어요. 연결 상태를 확인하고 다시 보내주세요.');});
-  else if(this.network.state!=='connecting')this.channel?.postMessage(m);
-  else this.ctx.toast('접속 중입니다. 연결된 뒤 메시지를 다시 보내주세요.');
-  input.value='';input.focus();
+ async send(){const input=$('chatInput');if(!input||this.sendPending)return;const draft=input.value,text=HanmaumAvatar.cleanText(draft);if(!text)return;
+  if(this.network.state==='connecting'){this.ctx.toast('접속 중입니다. 연결된 뒤 메시지를 다시 보내주세요.');return;}
+  const m={type:'chat',messageId:this.id+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),...this.ownInfo(),text,time:Date.now()};
+  this.sendPending=true;let ok=false;
+  try{if(this.network.state==='online')ok=await this.network.send(m);else if(this.channel){this.channel.postMessage(m);ok=true;}}
+  catch(_){}finally{this.sendPending=false;}
+  if(!ok){this.ctx.toast('메시지를 전달하지 못했어요. 초안은 남아 있습니다. 연결 상태를 확인하고 다시 보내주세요.');return;}
+  if(this.disposed)return;this.append(m);if(input.value===draft)input.value='';input.focus();
  }
  gesture(kind){const m={type:'gesture',...this.ownInfo(),gesture:kind,time:Date.now()};if(this.network.state==='online')this.network.send(m);else if(this.network.state!=='connecting')this.channel?.postMessage(m);}
  receive(m){
   if(!m||typeof m!=='object'||typeof m.id!=='string'||this.isSelf(m.id)||m.id.length>100)return;
   if(!['presence','chat','gesture','leave'].includes(m.type))return;
   if(m.type==='leave'){this.ctx.world.clearSpeech?.(m.id);this.peers.delete(m.id);this.renderPeers();return;}
-  if(typeof m.name!=='string'||!['campus','workshop','temple1','terrace2','terrace3','hall5'].includes(m.scene))return;
+  if(typeof m.name!=='string'||!['campus','workshop','temple1','terrace2','terrace3','hall5','seosan'].includes(m.scene))return;
   const p=m.position;if(!p||!['x','y','z'].every(k=>Number.isFinite(p[k])&&Math.abs(p[k])<200))return;
   const peer={...m,name:m.name.slice(0,24),seen:Date.now()};
   if(m.type==='gesture'&&['hapjang','bow'].includes(m.gesture))peer.gestureUntil=Date.now()+HanmaumAvatar.duration(m.gesture)*1000;
@@ -6791,7 +6756,7 @@ class HanmaumLocalChat{
  renderPeers(){
   const world=this.ctx.world,visible=[];
   for(const[id,m]of this.peers){
-   if(Date.now()-m.seen>5000){this.peers.delete(id);this.removePeer(id);continue;}
+   if(this.network.state!=='online'&&Date.now()-m.seen>5000){this.peers.delete(id);this.removePeer(id);continue;}
    if(m.scene!==this.ctx.getScene()){this.removePeer(id);continue;}
    visible.push(m);
    let g=this.meshes.get(id);if(g&&(g.parent!==world.content||g.userData.signature!==JSON.stringify([m.name,m.outfit,m.appearance]))){this.removePeer(id,true);g=null;}
