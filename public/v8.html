@@ -6739,7 +6739,7 @@ class HanmaumFeatures{
 class HanmaumLocalChat{
  constructor(ctx){
   this.ctx=ctx;this.id=globalThis.crypto?.randomUUID?.()||('guest-'+Date.now()+'-'+Math.random().toString(36).slice(2));
-  this.selfIds=new Set([this.id]);this.messages=[];this.autoOff=false;this.autoAt=0;try{this.autoOff=this.savedOnline()?.on===false;}catch(_){}this.peers=new Map();this.peerHistory=new Map();this.peerSessions=new Map();this.pendingPeers=new Map();this.pendingScenes=new Map();this.meshes=new Map();this.unread=0;this.disposed=false;this.channel=null;
+  this.selfIds=new Set([this.id]);this.messages=[];this.autoOff=false;this.autoAt=0;this.hiddenAt=0;try{this.autoOff=this.savedOnline()?.on===false;}catch(_){}this.peers=new Map();this.peerHistory=new Map();this.peerSessions=new Map();this.pendingPeers=new Map();this.pendingScenes=new Map();this.meshes=new Map();this.unread=0;this.disposed=false;this.channel=null;
   this.network=new HanmaumRelayClient({onMessage:m=>this.receive(m),onStatus:(state,message)=>this.networkStatus(state,message)});
   this.sameOrigin=/^https?:$/.test(location.protocol);
   try{if(this.sameOrigin&&typeof BroadcastChannel!=='undefined'){this.channel=new BroadcastChannel('hanmaum-local-doryang-v6');this.channel.onmessage=e=>{if(!['online','connecting'].includes(this.network.state))this.receive(e.data);};}}catch(_){}
@@ -6779,6 +6779,7 @@ class HanmaumLocalChat{
  /* 자동 접속. 이름을 정한 뒤에만, 직접 끄지 않았을 때만, 아직 안 붙었을 때만 붙는다. */
  autoConnect(){
   if(this.disposed||this.autoOff)return;
+  if(typeof document!=='undefined'&&document.hidden)return;
   if(typeof location==='undefined'||!/^https?:$/.test(location.protocol))return;
   if(['online','connecting'].includes(this.network?.state))return;
   let name='';try{name=this.ctx?.store?.view?.().name||'';}catch(_){return;}
@@ -6787,10 +6788,21 @@ class HanmaumLocalChat{
   this.autoAt=now;
   this.network.connect(this.savedRoom());
  }
+ idleRelease(){
+  // 보고 있지 않아도 구독은 살아 있어 모두의 전송 비용을 키운다. 오래 숨으면 놓는다.
+  if(this.disposed||typeof document==='undefined')return;
+  if(!document.hidden||this.network?.state!=='online'){this.hiddenAt=0;return;}
+  const now=Date.now();
+  if(!this.hiddenAt){this.hiddenAt=now;return;}
+  if(now-this.hiddenAt<90000)return;
+  this.hiddenAt=0;
+  try{this.network.disconnect();}catch(_){}
+  this.clearPeers();this.updateStatus();
+ }
  savedOnline(){try{const v=JSON.parse(globalThis.localStorage?.getItem('hanmaum-journey-online')||'null');return v&&typeof v==='object'?v:null;}catch(_){return null;}}
  savedRoom(){const r=this.savedOnline()?.room;return /^[a-z0-9_-]{1,32}$/.test(r||'')?r:'hanmaum';}
  saveOnlineChoice(room,on){try{globalThis.localStorage?.setItem('hanmaum-journey-online',JSON.stringify({room:String(room||'hanmaum'),on:!!on}));}catch(_){}}
- announce(){if(this.disposed)return;this.autoConnect();const m={type:'presence',...this.ownInfo()};if(['online','connecting'].includes(this.network.state))this.network.send(m);else this.channel?.postMessage(m);this.updateStatus();}
+ announce(){if(this.disposed)return;this.idleRelease();this.autoConnect();const m={type:'presence',...this.ownInfo()};if(['online','connecting'].includes(this.network.state))this.network.send(m);else this.channel?.postMessage(m);this.updateStatus();}
  count(){if(this.network.state==='online'&&Number.isFinite(this.network.peerCount))return this.network.peerCount;return [...this.peers.values()].filter(p=>this.network.state==='online'||Date.now()-p.seen<5000).length;}
  updateStatus(){
   const n=this.count(),online=this.network?.state==='online',connecting=this.network?.state==='connecting',el=$('chatConnection');

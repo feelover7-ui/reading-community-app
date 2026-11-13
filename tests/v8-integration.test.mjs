@@ -47,3 +47,43 @@ test('reconnect preserves motion in every leave/join ordering across position an
   for(const e of order)chat.receive(events[e]);assert.equal(chat.peers.size,1,order.join(','));assert.ok(chat.peers.get('other').sampleTime>=20,order.join(','))
  }
 })
+
+test('오래 숨은 탭은 연결을 놓고, 돌아오면 다시 붙는다 (사용자가 끈 것은 그대로 둔다)',()=>{
+ const doc={hidden:false,addEventListener(){}}
+ const context=vm.createContext({window:{addEventListener(){}},document:doc,location:{protocol:'https:'},$:()=>null,Date,Math,JSON,Map,Set,Number,Promise,esc:v=>v})
+ vm.runInContext(source+';globalThis.Chat=HanmaumLocalChat',context)
+ const make=()=>{
+  let cleared=0
+  const chat=Object.create(context.Chat.prototype)
+  Object.assign(chat,{disposed:false,autoOff:false,autoAt:0,hiddenAt:0,peers:new Map(),
+   network:{state:'online',room:'hanmaum',disconnect(){this.state='offline'},connect(r){this.room=r;this.state='online'}},
+   ctx:{store:{view:()=>({name:'법우'})}},clearPeers(){cleared++},updateStatus(){}})
+  return {chat,cleared:()=>cleared}
+ }
+
+ // 보고 있으면 그대로 둔다
+ let {chat}=make();doc.hidden=false;chat.idleRelease()
+ assert.equal(chat.network.state,'online');assert.equal(chat.hiddenAt,0)
+
+ // 숨은 직후에는 끊지 않는다
+ doc.hidden=true;chat.idleRelease()
+ assert.equal(chat.network.state,'online');assert.ok(chat.hiddenAt>0)
+
+ // 90초를 넘기면 놓는다. 사용자가 끈 것(autoOff)과는 구분한다.
+ const h=make();chat=h.chat;doc.hidden=true;chat.hiddenAt=Date.now()-91000;chat.idleRelease()
+ assert.equal(chat.network.state,'offline')
+ assert.equal(chat.autoOff,false,'스스로 놓은 것은 사용자의 접속 나가기가 아니다')
+ assert.equal(h.cleared(),1,'놓을 때 남아 있던 인형을 치운다')
+
+ // 숨어 있는 동안에는 다시 붙지 않는다
+ chat.autoAt=0;chat.autoConnect();assert.equal(chat.network.state,'offline')
+
+ // 돌아오면 다시 붙는다
+ doc.hidden=false;chat.autoAt=0;chat.autoConnect()
+ assert.equal(chat.network.state,'online')
+
+ // 사용자가 접속 나가기를 눌렀으면 돌아와도 붙지 않는다
+ const off=make();off.chat.autoOff=true;off.chat.network.state='offline'
+ doc.hidden=false;off.chat.autoAt=0;off.chat.autoConnect()
+ assert.equal(off.chat.network.state,'offline')
+})
