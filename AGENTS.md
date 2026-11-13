@@ -878,9 +878,13 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 
 - Supabase 의 11명 천장을 넘으려고 v8 을 Cloudflare relay 에 붙였습니다. 상세는
   docs/V8_RELAY_2026-11-13.md.
-- **기본값은 그대로 Supabase 입니다.** `src/v8/network.js` 의 `relayUrl()` 이
-  `VITE_LANTERN_RELAY_URL` 또는 `localStorage['hanmaum-deungbul-relay']` 를 볼 때만 relay 로 갑니다.
-  **둘을 동시에 구독하지 않습니다.** 무료 DO 예산이 2시간 행사 한 번치라 평소에는 켜지 않습니다.
+- **2026-11-13 사용자 요청으로 기본이 relay 입니다.** `src/v8/network.js` 의 `DEFAULT_RELAY` 가
+  기본값이고, `localStorage['hanmaum-deungbul-relay']` 에 `off` 를 적으면 Supabase 만 씁니다.
+  **둘을 동시에 구독하지 않습니다.** 무료 DO 예산은 2시간 행사 한 번치입니다.
+- **relay 에 한 번도 못 붙으면 Supabase 로 내려갑니다**(`withSupabaseFallback`, 두 번 실패).
+  배포된 워커가 아직 v8 방을 모르는 동안 다중접속이 끊기지 않게 하려는 것입니다.
+  한 번이라도 붙은 뒤에 끊긴 것은 갈아타지 않고 relay 의 재접속에 맡깁니다.
+  사용자가 누른 `접속 나가기` 는 실패로 세지 않습니다.
 - v1(등불사장·도량·대법당)과 v8 은 **방 이름으로 갈립니다**(`campus-v2` / `v8`).
   v1 은 장면 4개·x,z·`{sex,color}`, v8 은 장면 9개·x,y,z·`{gender,hair,skin,hairColor,robeColor}`
   입니다. `workers/lantern-room/src/profiles.js` 의 프로필로 가르고 **v1 은 고치지 않습니다.**

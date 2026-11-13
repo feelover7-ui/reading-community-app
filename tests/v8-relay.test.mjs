@@ -140,3 +140,80 @@ test('명단 한 줄은 속도까지 그대로 presence 가 된다', () => {
   assert.deepEqual(p.velocity, { x: 1.5, y: 0, z: -2 }, '받는 쪽이 속도로 이어 그린다')
   assert.equal(p.outfit, 'basic')
 })
+
+/* --- relay 가 기본, 안 되면 Supabase 로 --- */
+import { withSupabaseFallback } from '../src/v8/network.js'
+
+function fallbackHarness () {
+  const statuses = [], fallback = {
+    id: 'sb', room: null, state: 'offline', peerCount: 0,
+    connect (r) { fallback.room = r; fallback.state = 'online' },
+    disconnect () { fallback.state = 'offline' }, send: () => true, used: true
+  }
+  let made = 0
+  // 소켓을 못 여는 상황을 그대로 만든다. 타이머를 기다리지 않는다.
+  const c = withSupabaseFallback(
+    { id: 'me', onMessage () {}, onStatus: s => statuses.push(s), socket: () => { throw new Error('no relay') } },
+    'ws://127.0.0.1:9', () => { made++; return fallback }
+  )
+  return { c, statuses, fallback, made: () => made }
+}
+
+test('relay 에 한 번도 못 붙으면 Supabase 로 내려간다 (워커 배포 전에도 안 끊긴다)', () => {
+  const h = fallbackHarness()
+  h.c.connect('v8')
+  assert.equal(h.made(), 0, '한 번 못 붙은 것만으로는 갈아타지 않는다')
+  assert.equal(h.c.usingRelay, true)
+  h.c.connect('v8')                       // 두 번째 실패
+  assert.equal(h.made(), 1, '두 번 못 붙으면 Supabase 로 내려간다')
+  assert.equal(h.c.usingRelay, false)
+  assert.equal(h.fallback.room, 'v8', '같은 방으로 이어 붙인다')
+  assert.equal(h.c.state, 'online')
+  assert.equal(h.c.id, 'sb', '갈아탄 뒤로는 그쪽 id 를 쓴다')
+  assert.ok(h.c.send({ type: 'chat', text: '안녕' }), '갈아탄 뒤에도 보낸다')
+})
+
+test('한 번 붙은 뒤 끊긴 것은 relay 의 재접속에 맡긴다', () => {
+  const statuses = []
+  let made = 0
+  let sock
+  const fake = () => { sock = fakeSocket(); return sock }
+  const c = withSupabaseFallback(
+    { id: 'me', onMessage () {}, onStatus: s => statuses.push(s), socket: fake },
+    'ws://127.0.0.1:8787', () => { made++; return null }
+  )
+  c.connect('v8')
+  sock.openNow()
+  c.send(presence())
+  sock.deliver({ t: 'welcome', participantId: 'p1', snapshot: { t: 'snapshot', serverSeq: 1, records: [], removed: [] } })
+  assert.equal(c.state, 'online')
+  sock.close()                             // 붙었다가 끊긴다
+  c.connect('v8'); sock.close()
+  assert.equal(made, 0, '한 번 붙었으면 relay 를 버리지 않는다')
+  assert.equal(c.usingRelay, true)
+})
+
+test('사용자가 끈 것은 실패로 세지 않는다', () => {
+  const h = fallbackHarness()
+  h.c.connect('v8')
+  h.c.disconnect()
+  h.c.disconnect()
+  assert.equal(h.made(), 0, '접속 나가기를 눌렀을 뿐인데 갈아타면 안 된다')
+  assert.equal(h.c.usingRelay, true)
+})
+
+test('relay 주소는 off 로 끌 수 있고 기본값이 있다', async () => {
+  const { relayUrl, DEFAULT_RELAY } = await import('../src/v8/network.js')
+  const store = new Map()
+  const prev = globalThis.localStorage
+  globalThis.localStorage = { getItem: k => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }
+  try {
+    assert.equal(relayUrl(), DEFAULT_RELAY, '아무것도 안 적으면 relay 가 기본이다')
+    store.set('hanmaum-deungbul-relay', 'off')
+    assert.equal(relayUrl(), '', 'off 로 적으면 예전처럼 Supabase 만 쓴다')
+    store.set('hanmaum-deungbul-relay', 'ws://127.0.0.1:8787/')
+    assert.equal(relayUrl(), 'ws://127.0.0.1:8787', '끝 슬래시는 떼고 쓴다')
+    store.set('hanmaum-deungbul-relay', 'http://evil.example.com')
+    assert.equal(relayUrl(), '', 'ws 가 아니면 무시한다')
+  } finally { globalThis.localStorage = prev }
+})
