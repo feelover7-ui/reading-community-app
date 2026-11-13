@@ -23,3 +23,17 @@ test('뒤로가기로 복원된 페이지는 같은 방으로 다시 연결하�
  listeners.pagehide({persisted:true});assert.equal(chat.disposed,false);assert.equal(chat.network.state,'offline')
  listeners.pageshow({persisted:true});assert.equal(chat.network.state,'online');assert.equal(chat.network.room,'saved-room')
 })
+test('received motion predicts movement, clamps stale extrapolation and ignores older snapshots',()=>{
+ const context=vm.createContext({window:{},document:{},HanmaumStore:{SCENES:['campus','hall5']},HanmaumAvatar:{duration:()=>1,cleanText:v=>v},$:()=>null,Date,Math,JSON,Map,Set,Number,Promise,esc:v=>v})
+ vm.runInContext(source+';globalThis.Chat=HanmaumLocalChat',context)
+ const chat=Object.create(context.Chat.prototype),world={socialPeers:[]};Object.assign(chat,{selfIds:new Set(['self']),peers:new Map(),meshes:new Map(),network:{state:'online'},ctx:{world,getScene:()=> 'campus'},renderPeers(){},append(){}})
+ const m={type:'presence',id:'other',name:'법우',scene:'campus',position:{x:2,y:0,z:0},velocity:{x:2,y:0,z:0},sampleTime:10};chat.receive(m);const first=chat.peers.get('other');assert.equal(chat.predictedPosition(first,first.seen+1000).x,4);assert.equal(chat.predictedPosition(first,first.seen+60000).x,82)
+ chat.receive({...m,position:{x:0,y:0,z:0},sampleTime:5});assert.equal(chat.peers.get('other').position.x,2)
+ chat.receive({type:'scene-change',id:'other',scene:'hall5'});assert.equal(chat.peers.size,0)
+})
+test('local and online announce paths remain valid after motion polling changes',()=>{const{chat}=setup();chat.ownInfo=()=>({id:'self',name:'법우',scene:'campus',position:{x:0,y:0,z:0}});chat.updateStatus=()=>{};chat.announce();chat.network.state='offline';chat.announce()})
+test('departed and scene-switched peers cannot be recreated by delayed snapshots; rejoin works',()=>{
+ const context=vm.createContext({window:{},document:{},HanmaumStore:{SCENES:['campus','hall5']},HanmaumAvatar:{duration:()=>1,cleanText:v=>v},$:()=>null,Date,Math,JSON,Map,Set,Number,Promise,esc:v=>v});vm.runInContext(source+';globalThis.Chat=HanmaumLocalChat',context)
+ const chat=Object.create(context.Chat.prototype);Object.assign(chat,{selfIds:new Set(['self']),peers:new Map(),meshes:new Map(),network:{state:'online'},ctx:{world:{socialPeers:[]},getScene:()=> 'campus'},renderPeers(){},append(){}})
+ const m={type:'presence',id:'other',name:'법우',scene:'campus',position:{x:2,y:0,z:0},sampleTime:10,session:'fresh'};chat.receive(m);chat.receive({type:'join',id:'other',session:'fresh'});assert.equal(chat.peers.size,1);chat.receive({type:'leave',id:'other'});chat.receive({...m,sampleTime:11});assert.equal(chat.peers.size,0);chat.receive({type:'join',id:'other'});chat.receive({...m,sampleTime:12});assert.equal(chat.peers.size,1);chat.receive({type:'scene-change',id:'other',scene:'hall5',sampleTime:20});chat.receive({...m,sampleTime:19});assert.equal(chat.peers.size,0);chat.receive({type:'scene-change',id:'other',scene:'campus',sampleTime:30});chat.receive({...m,sampleTime:29});assert.equal(chat.peers.size,0);chat.receive({...m,sampleTime:31});assert.equal(chat.peers.size,1)
+})

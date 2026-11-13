@@ -1,0 +1,83 @@
+{
+  "verified-turn20.json": {
+    "base": "http://localhost:5198",
+    "duration": 60,
+    "spread": 1,
+    "turn": 10,
+    "stages": [
+      {
+        "n": 20,
+        "rapidOK": true,
+        "durationActual": 60.055,
+        "sampleCalls": 11900,
+        "failedCalls": 0,
+        "wireMotion": 140,
+        "legacyExpected": 3432,
+        "reduction": 0.9592040629423029,
+        "online": 20,
+        "settled": true,
+        "lateOK": true,
+        "leaveOK": true,
+        "errors": [],
+        "controls": [],
+        "pass": true,
+        "joinMs": 17562,
+        "snapshotPosts": 237
+      }
+    ]
+  },
+  "verified-spread40.json": {
+    "base": "http://localhost:5198",
+    "duration": 60,
+    "spread": 4,
+    "turn": 6,
+    "stages": [
+      {
+        "n": 40,
+        "rapidOK": true,
+        "durationActual": 60.094,
+        "sampleCalls": 23400,
+        "failedCalls": 0,
+        "wireMotion": 440,
+        "legacyExpected": 6868,
+        "reduction": 0.9359337038639465,
+        "online": 40,
+        "settled": true,
+        "lateOK": true,
+        "leaveOK": true,
+        "errors": [],
+        "controls": [],
+        "pass": true,
+        "joinMs": 65518,
+        "snapshotPosts": 190
+      }
+    ]
+  },
+  "final-rapid2.json": {
+    "base": "http://localhost:5197",
+    "duration": 3,
+    "spread": 1,
+    "turn": 0,
+    "stages": [
+      {
+        "n": 2,
+        "rapidOK": true,
+        "durationActual": 3.058,
+        "sampleCalls": 60,
+        "failedCalls": 0,
+        "wireMotion": 5,
+        "legacyExpected": 17,
+        "reduction": 0.7138652714192282,
+        "online": 2,
+        "settled": true,
+        "lateOK": true,
+        "leaveOK": true,
+        "errors": [],
+        "controls": [],
+        "pass": true,
+        "joinMs": 2545,
+        "snapshotPosts": 5
+      }
+    ]
+  }
+}
