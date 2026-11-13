@@ -873,3 +873,26 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - `tests/v8-motion.test.mjs` 가 `40명 · 1.5초` 를 계약으로 적고 있었습니다. 지킬 수 없는 약속이라
   인원을 8명으로 고치고 예산 가드 시험을 따로 넣었습니다. 시험의 의도는 그대로입니다.
 - 11명보다 많이 받으려면 relay 로 갑니다. v8 은 아직 relay 에 연결돼 있지 않습니다.
+
+## v8 relay 연결 (2026-11-13)
+
+- Supabase 의 11명 천장을 넘으려고 v8 을 Cloudflare relay 에 붙였습니다. 상세는
+  docs/V8_RELAY_2026-11-13.md.
+- **기본값은 그대로 Supabase 입니다.** `src/v8/network.js` 의 `relayUrl()` 이
+  `VITE_LANTERN_RELAY_URL` 또는 `localStorage['hanmaum-deungbul-relay']` 를 볼 때만 relay 로 갑니다.
+  **둘을 동시에 구독하지 않습니다.** 무료 DO 예산이 2시간 행사 한 번치라 평소에는 켜지 않습니다.
+- v1(등불사장·도량·대법당)과 v8 은 **방 이름으로 갈립니다**(`campus-v2` / `v8`).
+  v1 은 장면 4개·x,z·`{sex,color}`, v8 은 장면 9개·x,y,z·`{gender,hair,skin,hairColor,robeColor}`
+  입니다. `workers/lantern-room/src/profiles.js` 의 프로필로 가르고 **v1 은 고치지 않습니다.**
+  이미 배포돼 돌고 있습니다.
+- 프로필은 DO 저장소에 같이 넣습니다. 최대절전에서 깨어날 때 복원해야 합니다. 예전 저장분에는
+  이 값이 없어 v1 으로 떨어지는데 그게 맞습니다. 사람이 들어 있는 방의 프로필은 바꾸지 않습니다.
+- **hello 는 소켓이 열린 순간과 이름·생김새를 알게 된 순간 둘 다에서 보냅니다.** 한쪽만 두면
+  이미 열린 소켓에 영영 가지 않아 서버가 10초 뒤 끊습니다.
+- **v1 서버는 pose 의 장면이 바뀌면 연결을 끊습니다.** v8 은 아홉 장면을 걸어서 오가므로
+  `profile.allowSceneChange` 로 갈랐습니다.
+- 일부러 나갈 때는 `bye` 를 보냅니다. 그냥 끊으면 45초 동안 멈춘 사람이 남습니다.
+- `wrangler dev --env staging --local` 로 Cloudflare 계정 없이 진짜 DO 를 띄워 확인합니다.
+  시험이 이상하면 `.wrangler/state` 를 지웁니다. 이전 실행의 방이 남아 있습니다.
+- **배포된 워커는 아직 옛 코드라 v8 방을 모릅니다.** `npx wrangler deploy --env staging` 이 필요하고
+  이 컨테이너에는 Cloudflare 자격 증명이 없습니다. 실기기·여러 기기·80명은 재지 않았습니다.

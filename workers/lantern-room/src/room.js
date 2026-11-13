@@ -1,26 +1,18 @@
 /* 방 하나의 상태. Cloudflare API 없이 도는 순수 로직이라 그대로 시험할 수 있습니다.
    DO(index.js)는 WebSocket 과 alarm 만 맡고 판단은 전부 여기서 합니다. */
-import { LIMITS, createSeqGate, createTokenBucket, validatePose, validateEvent } from '../../../src/deungbul/realtime/protocol.js'
+import { LIMITS, createSeqGate, createTokenBucket } from '../../../src/deungbul/realtime/protocol.js'
+import { V1_PROFILE, SCENE_BOUNDS } from './profiles.js'
 
-export const SCENE_BOUNDS = {
-  yard: { w: 36, h: 26, maxSpeed: 8 },
-  grounds: { w: 48, h: 34, maxSpeed: 8 },
-  hall: { w: 26, h: 20, maxSpeed: 8 },
-  campus: { w:126,h:70,maxSpeed:8 }
-}
+export { SCENE_BOUNDS }
 
-export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSessions } = {}) {
+export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSessions, profile = V1_PROFILE } = {}) {
   const sessions = new Map()   // participantId -> session
   const pending = new Map()    // 끊겼지만 유예 중인 사람
   let epoch = crypto.randomUUID()
   let nextId = 1
   let changed = new Set()
 
-  const publicOf = s => ({
-    id: s.id, nick: s.nickname, sex: s.appearance.sex, color: s.appearance.color,
-    scene: s.sceneId, x: s.x, z: s.z, vx: s.vx, vz: s.vz, yaw: s.yaw,
-    motion: s.motion, at: s.at, linkState: s.linkState
-  })
+  const publicOf = s => profile.publicOf(s)
 
   return {
     get epoch () { return epoch },
@@ -44,11 +36,11 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
       // 유령이 남은 방에서 명단이 80을 넘어갑니다(실측 139).
       if (sessions.size + pending.size >= maxSessions) return { ok: false, reason: 'room_full', waiting: true }
       const id = 'p' + (nextId++)
-      const b = SCENE_BOUNDS[hello.sceneId]
+      const b = profile.bounds(hello.sceneId)
       if(!b)return {ok:false,reason:'bad_scene'}
       const s = {
         id, nickname: hello.nickname, appearance: hello.appearance, sceneId: hello.sceneId,
-        x: b.w / 2, z: b.h / 2, vx: 0, vz: 0, yaw: 0, motion: 'stand', at: now(),
+        ...profile.spawn(hello, b), at: now(),
         linkState: 'live', resumeToken: crypto.randomUUID(),
         gate: createSeqGate(),
         poseBucket: createTokenBucket({ capacity: 2, refillPerSec: LIMITS.poseHz, now }),
@@ -61,19 +53,16 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
     pose (id, msg) {
       const s = sessions.get(id)
       if (!s) return { ok: false, reason: 'unknown_session' }
-            const bounds = SCENE_BOUNDS[msg.sceneId]
+            const bounds = profile.bounds(msg.sceneId)
       if (!bounds) return { ok: false, reason: 'bad_scene' }
-      const v = validatePose(msg, bounds)
+      const v = profile.validatePose(msg, bounds)
       if (!v.ok) return v
-      if(s.sceneId!==msg.sceneId)return{ok:false,reason:'bad_scene'}
+      // v1 은 장면이 join 때 고정입니다. v8 은 아홉 장면을 걸어서 오갑니다.
+      if(!profile.allowSceneChange&&s.sceneId!==msg.sceneId)return{ok:false,reason:'bad_scene'}
       if(msg.clientSeq<=s.gate.state.last)return{ok:false,reason:'stale_seq'}
       if (!s.poseBucket.take()) return {ok:false,reason:'rate_limited'}
       if (!s.gate.accept(epoch,msg.clientSeq)) return {ok:false,reason:'stale_seq'}
-      Object.assign(s, {
-        sceneId: v.value.sceneId, x: v.value.x, z: v.value.z,
-        vx: v.value.vx, vz: v.value.vz, yaw: v.value.yaw,
-        motion: v.value.motion, at: now()
-      })
+      profile.apply(s, v.value); s.at = now()
       changed.add(id)
       return { ok: true }
     },
@@ -82,14 +71,14 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
       const s = sessions.get(id)
       if (!s) return { ok: false, reason: 'unknown_session' }
       if (!s.eventBucket.take()) return { ok: false, reason: 'rate_limited' }
-      return validateEvent(msg)
+      return profile.validateEvent(msg)
     },
 
     /* 끊겨도 바로 지우지 않습니다. 45초 동안 '연결 확인 중' 으로 둡니다. */
     drop (id) {
       const s = sessions.get(id)
       if (!s) return false
-      s.linkState = 'checking'; s.droppedAt = now(); s.vx = s.vz = 0
+      s.linkState = 'checking'; s.droppedAt = now(); profile.freeze(s)
       sessions.delete(id); pending.set(id, s); changed.add(id)
       return true
     },

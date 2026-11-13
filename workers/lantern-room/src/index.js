@@ -2,8 +2,9 @@
    판단은 src/room.js 에 있고 여기서는 WebSocket 과 alarm 만 다룹니다.
    배포는 이 저장소에서 하지 않았습니다. README 의 명령을 쓰는 사람이 합니다. */
 import { createRoom } from './room.js'
+import { PROFILES, V1_PROFILE, profileFor } from './profiles.js'
 import {
-  PROTOCOL_VERSION, LIMITS, parseMessage, validateHello
+  PROTOCOL_VERSION, LIMITS, parseMessage
 } from '../../../src/deungbul/realtime/protocol.js'
 
 const json = (o, status = 200) => new Response(JSON.stringify(o), {
@@ -19,13 +20,13 @@ const allowedOrigin = (origin, env) => {
 export default {
   async fetch (request, env) {
     const url = new URL(request.url)
-    if (url.pathname === '/health') return json({ ok: true, protocolVersion: PROTOCOL_VERSION, mapVersion:'campus-v2' })
+    if (url.pathname === '/health') return json({ ok: true, protocolVersion: PROTOCOL_VERSION, mapVersion:'campus-v2', rooms:Object.keys(PROFILES) })
     if (url.pathname !== '/room') return json({ ok: false, reason: 'not_found' }, 404)
     // Origin 검사는 인증이 아닙니다. 토큰 검사와 함께 씁니다.
     if (!allowedOrigin(request.headers.get('Origin'), env)) return json({ ok: false, reason: 'bad_origin' }, 403)
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return json({ ok: false, reason: 'need_websocket' }, 426)
     const name = url.searchParams.get('room') || 'campus-v2'
-    if(!['campus-v2','load-test'].includes(name))return json({ok:false,reason:'bad_room'},400)
+    if(!profileFor(name))return json({ok:false,reason:'bad_room'},400)
     const id = env.LANTERN_ROOM.idFromName(name)
     return env.LANTERN_ROOM.get(id).fetch(request)
   }
@@ -35,10 +36,15 @@ export class LanternRoom {
   constructor (state, env) {
     this.state = state
     this.env = env
+    this.profile = V1_PROFILE
     this.room = createRoom()
     this.serverSeq = 0
     state.blockConcurrencyWhile(async()=>{
       const saved=await state.storage.get('room-v2');
+      // 저장된 방이 어떤 프로필이었는지 먼저 봅니다. 예전에 저장된 방에는 이 값이 없어
+      // v1 로 떨어집니다. 그게 맞습니다. 그때는 v1 뿐이었습니다.
+      this.profile=profileFor(saved?.profile)||V1_PROFILE;
+      this.room=createRoom({profile:this.profile});
       this.room.restore(saved?.room);this.serverSeq=saved?.serverSeq||0;
       const ids=new Set(state.getWebSockets().map(ws=>ws.deserializeAttachment()?.id).filter(Boolean));
       for(const id of this.room.sessions.keys())if(!ids.has(id))this.room.drop(id);
@@ -46,7 +52,16 @@ export class LanternRoom {
       if(this.room.pending.size)await this.wake();
     });
   }
-  async checkpoint(){await this.state.storage.put('room-v2',{room:this.room.exportState(),serverSeq:this.serverSeq});}
+  async checkpoint(){await this.state.storage.put('room-v2',{room:this.room.exportState(),serverSeq:this.serverSeq,profile:this.profile.name});}
+
+  /* 방 이름으로 프로필을 정합니다. 아직 아무도 안 들어온 방에서만 바꿉니다.
+     사람이 들어 있는 방의 프로필을 갈아 끼우면 명단 모양이 섞입니다. */
+  useProfile(name){
+    const next=profileFor(name)
+    if(!next||next===this.profile)return
+    if(this.room.size||this.room.pending.size)return
+    this.profile=next;this.room=createRoom({profile:next})
+  }
   welcome(ws,s){this.send(ws,{t:'welcome',serverTime:Date.now(),epoch:this.room.epoch,participantId:s.id,resumeToken:s.resumeToken,
     roster:this.room.roster(),snapshot:this.room.fullSnapshot(++this.serverSeq),snapshotSeq:this.serverSeq});}
 
@@ -64,6 +79,7 @@ export class LanternRoom {
   }
 
   async fetch (request) {
+    this.useProfile(new URL(request.url).searchParams.get('room')||'campus-v2')
     if(this.state.getWebSockets().length>=80)return json({ok:false,reason:'room_full'},503)
     const pair = new WebSocketPair()
     this.state.acceptWebSocket(pair[1])
@@ -83,9 +99,9 @@ export class LanternRoom {
     const current=this.room.sessions.get(meta.id)
     if(this.needsSync?.delete(meta.id)&&current)this.welcome(ws,current)
     if (msg.t === 'hello') {
-      const v = validateHello(msg)
+      const v = this.profile.validateHello(msg)
       if (!v.ok) return this.reject(ws, v.reason)
-      if(v.value.mapVersion!=='campus-v2')return this.reject(ws,'bad_map')
+      if(v.value.mapVersion!==this.profile.mapVersion)return this.reject(ws,'bad_map')
       if(current){this.welcome(ws,current);return}
       const r = this.room.join(v.value, v.value.resumeToken)
       if (!r.ok) { this.send(ws, { t: 'full', reason: r.reason }); return ws.close(1013, 'room_full') }
@@ -105,7 +121,7 @@ export class LanternRoom {
     if (msg.t === 'event') {
       const r = this.room.event(meta.id, msg)
       if (!r.ok) return this.reject(ws, r.reason)
-      for(const other of this.state.getWebSockets()){const peer=this.room.sessions.get(other.deserializeAttachment()?.id);if(peer?.sceneId===current.sceneId)this.send(other,{t:'event',from:meta.id,nick:current.nickname,scene:current.sceneId,type:r.value.type,payload:r.value.payload})}
+      for(const other of this.state.getWebSockets()){const peer=this.room.sessions.get(other.deserializeAttachment()?.id);if(peer?.sceneId===current.sceneId)this.send(other,{t:'event',from:meta.id,nick:current.nickname,scene:current.sceneId,...r.value,payload:r.value.payload||{}})}
       return
     }
     if (msg.t === 'ping') {this.send(ws,this.room.fullSnapshot(++this.serverSeq));return this.send(ws,{t:'pong',serverTime:Date.now(),clientTime:msg.clientTime})}
