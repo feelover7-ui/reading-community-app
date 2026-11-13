@@ -2,23 +2,53 @@
 
 원본 외부 맵(campus)과 기존 법당(hall)에 연결하는 Cloudflare SQLite DO relay입니다.
 
-## 이번 변경과 배포 순서
+## 배포 순서 (2026-11-13 갱신)
 
-이 PR의 v2 코드는 아직 Cloudflare에 배포하지 않았습니다. 기존 staging 서버의 v1 시험 결과로 v2가 통과했다고 표현하지 않습니다.
+지금 배포돼 있는 워커는 **v8 방을 모르는 옛 코드**입니다. 아래를 해야 v8 이 relay 를 씁니다.
+앱은 이미 relay 가 기본이고, 못 붙으면 Supabase 로 내려가므로 배포 전에도 끊기지는 않습니다.
 
-1. 이 브랜치를 받은 실행 환경에서:
-   `cd workers/lantern-room && npm ci && npm test`
-2. `wrangler.example.toml`을 로컬 `wrangler.toml`로 복사합니다. ALLOWED_ORIGINS에는 실제 앱/preview의 정확한 origin을 넣습니다. 토큰은 환경/secret으로만 넣습니다.
-3. `npm run deploy:staging` 후 `/health`가 `mapVersion: campus-v2`를 반환하는지 확인합니다.
-4. 앱 빌드 변수 `VITE_LANTERN_RELAY_URL=wss://lantern-room-staging.feelover7.workers.dev/room?room=campus-v2`를 설정하고 preview를 빌드합니다. 또는 브라우저에서 `hanmaum-deungbul-relay` localStorage에 같은 URL을 저장하고 새로고침합니다.
-5. 앱은 그 설정이 있을 때만 relay를 선택합니다. 설정 없이 기존 Supabase 경로를 사용합니다. `supabase` 또는 `off`로 되돌리면 기존 경로로 롤백합니다. 두 통신을 동시에 구독하지 않습니다.
-6. 전용 `room=load-test`에서 20/40/80명 시험을 순서대로 실행합니다. 행사 방에는 봇을 넣지 않습니다.
+```sh
+git pull origin main
+cd workers/lantern-room
+npm install
+copy wrangler.example.toml wrangler.toml   # 이미 있으면 건너뜁니다 (gitignore 라 안 받아집니다)
+npx wrangler login                          # lantern-room-staging 을 가진 계정으로
+npm run deploy:staging
+```
+
+`/health` 에 **`"rooms":["campus-v2","load-test","v8"]`** 가 보이면 된 것입니다. `v8` 이 증거입니다.
+
+```sh
+curl https://lantern-room-staging.feelover7.workers.dev/health
+```
+
+되돌리려면 브라우저에서 `localStorage.setItem('hanmaum-deungbul-relay','off')` 로 Supabase 만 씁니다.
+
+- 무료 DO 예산은 80명·2Hz·2시간이 한도의 72% 입니다. **같은 날 두 번은 안 됩니다.**
+- `compatibility date` 경고는 로컬 wrangler 가 옛 런타임이라 뜨는 것이고 배포에는 상관없습니다.
+- 브라우저를 못 여는 환경이면 `wrangler login` 대신 `CLOUDFLARE_API_TOKEN` 환경변수를 씁니다.
+
+## 방 두 가지
+
+| 방 이름 | 쓰는 곳 | 장면 | 좌표 | 생김새 |
+|---|---|---|---|---|
+| `campus-v2` | 등불사장·도량·대법당 | 4개 | x, z | `{sex,color}` |
+| `v8` | `/v8.html` | 9개 | x, **y**, z | 머리·피부·옷 색 + 복장 |
+
+`src/profiles.js` 가 둘을 가릅니다. v1 은 이미 돌고 있으므로 고치지 않습니다.
+상세는 `docs/V8_RELAY_2026-11-13.md`.
+
+## 80명 시험
+
+전용 `room=load-test` 에서만 합니다. 행사 방에는 봇을 넣지 않습니다.
 
 ```sh
 node scripts/ws-load.mjs --n 80 --seconds 120 --url 'wss://lantern-room-staging.feelover7.workers.dev/room?room=load-test' --origin 'http://localhost:5173'
 ```
 
-80명 2시간 시험은 무료 일일 예산을 먼저 확인합니다. 이 도구는 현재 상대 명단을 실제로 유지하고 removed/full을 반영하며 오류가 있으면 exit 1입니다. 서버/client 시계차를 보정하지 않은 지연 값은 별도로 표시합니다. 브라우저 렌더 시험이 아닙니다.
+80명 2시간 시험은 무료 일일 예산을 먼저 확인합니다. 이 도구는 상대 명단을 실제로 유지하고
+removed/full 을 반영하며 오류가 있으면 exit 1 입니다. 서버/client 시계차를 보정하지 않은 지연 값은
+별도로 표시합니다. 브라우저 렌더 시험이 아닙니다.
 
 ## 프로토콜과 상태
 
