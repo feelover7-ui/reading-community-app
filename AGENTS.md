@@ -824,3 +824,5 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - v8:<room> Presence/Broadcast만 사용한다. 기존 DB/환경변수/의존성 변경이 없다. 온라인 참가자는 5초 위치 지연만으로 제거하지 않는다.
 - 기존 함께 접속 UI를 사용한다. 공개 방이며 인증/영구 대화 저장/진행 공유로 표현하지 않는다.
 - 이전 track/송신 콜백 격리, CLOSED 후 수동 재접속, Safari BFCache 복원, 실패 초안 보존을 유지한다. docs/V8_MULTIPLAYER_2026-11-13.md에 검증/한계를 기록했다.
+
+- v8 재접속 때 같은 id의 연결 ref가 겹칠 수 있다. SDK 집계 presenceState에는 이전 메타가 남는 현상을 실제 SDK로 재현했으므로, src/v8/realtime.js의 join/leave presence_ref 집합으로 최종 퇴장을 판단한다. 이전 ref만 떠났을 때 새 연결을 제거하지 않는다. tests/v8-realtime.test.mjs의 실제 SDK 회귀를 유지한다.
