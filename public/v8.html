@@ -6727,7 +6727,7 @@ class HanmaumFeatures{
  showProfile(first=false){const v=this.store.view(),a=v.appearance,b=this.ctx.openModal(first?'onboarding':'profile',first?'도량에서 만날 나를 만들어 주세요':'이름과 외관 바꾸기','이름과 기본 외관은 언제든 다시 바꿀 수 있어요.');$('modalClose').hidden=first;b.innerHTML=`<form id="profileForm" onsubmit="return false"><div class="profile-editor"><div class="profile-preview"><span>나의 첫 걸음</span><div id="profilePreview">${portrait(v.character,v.outfit,false,a)}</div><strong id="profilePreviewName">${esc(v.name==='법우'?'나의 이름':v.name)}</strong><small>능력치는 성별과 관계없이 활동으로 성장합니다.</small></div><div class="profile-fields"><label class="form-label" for="setupName">도량에서 불릴 이름</label><input class="text-input" id="setupName" maxlength="12" autocomplete="nickname" placeholder="1~12자로 입력" value="${esc(first&&v.name==='법우'?'':v.name)}"><div class="profile-field-grid"><label>성별<select id="setupGender"><option value="male" ${a.gender==='male'?'selected':''}>남성</option><option value="female" ${a.gender==='female'?'selected':''}>여성</option><option value="neutral" ${a.gender==='neutral'?'selected':''}>선택하지 않음</option></select></label><label>머리 모양<select id="setupHair">${[['short','짧은 머리'],['bob','단발머리'],['bun','묶은 머리'],['shaved','민머리']].map(([id,t])=>`<option value="${id}" ${id===a.hair?'selected':''}>${t}</option>`).join('')}</select></label></div><div class="profile-colors">${[['skin','피부색',a.skin],['hairColor','머리색',a.hairColor],['robeColor','기본 조끼색',a.robeColor]].map(([id,t,c])=>`<label>${t}<input id="setup-${id}" type="color" value="${c}" aria-label="${t}"></label>`).join('')}</div><p class="section-note">기본 조끼는 자유롭게 색을 바꿀 수 있어요. 수행복과 다른 의상은 무진향에서 마음잎으로 구매합니다.</p>${this.button(first?'이 모습으로 도량에 들어가기':'이름과 외관 저장','saveProfile','','primary wide')}<p id="profileError" class="profile-error" role="status"></p></div></div></form>`;setTimeout(()=>$('setupName')?.focus(),80);}
  formAppearance(){return {gender:$('setupGender')?.value||'neutral',hair:$('setupHair')?.value||'short',skin:$('setup-skin')?.value||'#e9ba91',hairColor:$('setup-hairColor')?.value||'#3b3931',robeColor:$('setup-robeColor')?.value||'#70a994'};}
  previewProfile(){if(!$('profilePreview'))return;const v=this.store.view();$('profilePreview').innerHTML=portrait(v.character,v.outfit,false,this.formAppearance());$('profilePreviewName').textContent=$('setupName').value||'나의 이름';}
- saveProfile(){const r=this.store.setProfile($('setupName')?.value||'',this.formAppearance());if(!r.ok){$('profileError').textContent=r.message;$('setupName')?.focus();return;}this.world.refreshAppearance();this.ctx.updateHUD();this.ctx.closeModal();this.ctx.toast(r.message);this.social.announce();}
+ saveProfile(){const r=this.store.setProfile($('setupName')?.value||'',this.formAppearance());if(!r.ok){$('profileError').textContent=r.message;$('setupName')?.focus();return;}this.world.refreshAppearance();this.ctx.updateHUD();this.ctx.closeModal();this.ctx.toast(r.message);this.social.announce();this.social.autoConnect();}
  showShop(){const v=this.store.view(),b=this.ctx.openModal('shop','무진향','마음잎으로 의상과 공양물을 준비합니다. 실제 결제는 없습니다.');b.innerHTML=`<div class="shop-balance">${this.ctx.icon('leaf')}<span>나의 마음잎</span><b>${v.coins.toLocaleString()}</b><small>Lv. ${v.level}</small></div><h3 class="section-title">입고 싶은 수행복과 의상</h3><div class="outfit-shop">${Object.values(HanmaumStore.OUTFITS).map(o=>{const owned=v.ownedOutfits.includes(o.id),locked=v.level<o.level,worn=v.outfit===o.id;return `<article class="outfit-product ${locked?'level-locked':''}"><div class="outfit-preview">${portrait(v.character,o.id,false,v.appearance)}</div><span class="badge">Lv. ${o.level}</span><h4>${o.name}</h4><p>${owned?(worn?'지금 입고 있어요':'구매한 의상'):`마음잎 ${o.price}`}</p>${this.button(worn?'착용 중':locked?`Lv. ${o.level}부터`:owned?'입기':'구매하고 입기',owned?'equipOutfit':'buyOutfit',o.id,owned?'secondary small':'primary small',locked||worn||(!owned&&v.coins<o.price))}</article>`;}).join('')}</div><h3 class="section-title">공양물과 소장품</h3><div class="shop-grid">${Object.values(HanmaumStore.ITEMS).map(it=>{const n=v.inventory[it.id],owned=!it.consumable&&n>0;return `<article class="shop-item"><div class="item-art">${this.ctx.icon(it.icon)}</div><h3>${it.name}</h3><p>${it.description}</p><div class="row"><span class="price">${this.ctx.icon('leaf')}${HanmaumStore.priceFor(it.id,v.level)}${HanmaumStore.priceFor(it.id,v.level)<it.price?' <small>(10% 할인)</small>':''}</span><span class="spacer"></span><span>소지 ${n}</span></div>${this.button(owned?'소장 중':'구매하기','buy',it.id,owned?'secondary':'primary',owned||v.coins<HanmaumStore.priceFor(it.id,v.level))}</article>`;}).join('')}</div><div class="modal-footer">${this.button('소지품 보기','bag','','secondary')}${this.button('5층 공양대로','offerRoute','','primary')}</div>`;}
  gesture(kind){if(this.ctx.isModal()||!['hapjang','bow'].includes(kind))return;if(this.world.activityLock){this.ctx.toast('진행 중인 수행을 마친 뒤 인사할 수 있어요.');return;}if(this.world.gesture?.practice){this.ctx.toast('진행 중인 인사를 끝까지 마쳐 주세요.');return;}if(!this.world.playGesture?.(kind,{practice:true}))return;this.social.gesture(kind);this.renderGreetingProgress();this.ctx.toast(kind==='hapjang'?'두 손을 모아 합장합니다. 자세를 마칠 때까지 잠시 머물러 주세요.':'합장한 뒤 허리를 숙여 반배합니다. 자세를 마칠 때까지 잠시 머물러 주세요.');}
  renderGreetingProgress(){const host=$('socialActions');if(!host)return;let label=$('greetingProgress');if(!label){label=document.createElement('div');label.id='greetingProgress';label.className='greeting-progress';label.setAttribute('role','status');label.setAttribute('aria-live','polite');host.appendChild(label);}const progress=this.store.data.greetingPractice?.progress||0,active=this.world.gesture?.practice;label.textContent=(active?(this.world.gesture.kind==='bow'?'반배 중':'합장 중')+' · ':'인사 수행 ')+progress+'/3'+(active?'':' · 3회 완료 +15 XP');label.title='합장과 반배를 끝까지 마친 동작을 합산합니다. 걷거나 중단한 동작은 세지 않아요.';host.querySelectorAll('[data-ui="gesture"]').forEach(button=>button.disabled=!!active);}
@@ -6739,7 +6739,7 @@ class HanmaumFeatures{
 class HanmaumLocalChat{
  constructor(ctx){
   this.ctx=ctx;this.id=globalThis.crypto?.randomUUID?.()||('guest-'+Date.now()+'-'+Math.random().toString(36).slice(2));
-  this.selfIds=new Set([this.id]);this.messages=[];this.peers=new Map();this.peerHistory=new Map();this.peerSessions=new Map();this.pendingPeers=new Map();this.pendingScenes=new Map();this.meshes=new Map();this.unread=0;this.disposed=false;this.channel=null;
+  this.selfIds=new Set([this.id]);this.messages=[];this.autoOff=false;this.autoAt=0;try{this.autoOff=this.savedOnline()?.on===false;}catch(_){}this.peers=new Map();this.peerHistory=new Map();this.peerSessions=new Map();this.pendingPeers=new Map();this.pendingScenes=new Map();this.meshes=new Map();this.unread=0;this.disposed=false;this.channel=null;
   this.network=new HanmaumRelayClient({onMessage:m=>this.receive(m),onStatus:(state,message)=>this.networkStatus(state,message)});
   this.sameOrigin=/^https?:$/.test(location.protocol);
   try{if(this.sameOrigin&&typeof BroadcastChannel!=='undefined'){this.channel=new BroadcastChannel('hanmaum-local-doryang-v6');this.channel.onmessage=e=>{if(!['online','connecting'].includes(this.network.state))this.receive(e.data);};}}catch(_){}
@@ -6749,6 +6749,10 @@ class HanmaumLocalChat{
   this.frame=requestAnimationFrame(frame);
   window.addEventListener('pagehide',e=>{if(!e.persisted){this.dispose();return;}this.resumeRoom=['online','connecting'].includes(this.network.state)?this.network.room:null;this.network.disconnect();this.channel?.postMessage({type:'leave',id:this.id});});
   window.addEventListener('pageshow',e=>{if(e.persisted&&this.resumeRoom&&!this.disposed){const room=this.resumeRoom;this.resumeRoom=null;this.network.connect(room);}});
+  // 들어오면 저절로 같은 도량에 붙는다. 붙이는 일은 announce() 가 맡고,
+  // 여기서는 '지금 바로 다시 해 보라' 고 표시만 한다. 새 타이머를 만들지 않는다.
+  window.addEventListener('online',()=>{this.autoAt=0;});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)this.autoAt=0;});
   document.addEventListener('keydown',e=>{if(e.target.id==='chatInput'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();this.send();}});
  }
  ownInfo(){
@@ -6770,9 +6774,23 @@ class HanmaumLocalChat{
   if(['offline','unavailable'].includes(state))this.clearPeers();
   this.updateStatus();
  }
- connectOnline(){const room=$('chatRoom')?.value||'hanmaum';this.clearPeers();this.network.connect(room);}
- disconnectOnline(){this.network.disconnect();this.announce();}
- announce(){if(this.disposed)return;const m={type:'presence',...this.ownInfo()};if(['online','connecting'].includes(this.network.state))this.network.send(m);else this.channel?.postMessage(m);this.updateStatus();}
+ connectOnline(){const room=$('chatRoom')?.value||'hanmaum';this.autoOff=false;this.saveOnlineChoice(room,true);this.clearPeers();this.network.connect(room);}
+ disconnectOnline(){this.autoOff=true;this.saveOnlineChoice(this.network.room,false);this.network.disconnect();this.announce();}
+ /* 자동 접속. 이름을 정한 뒤에만, 직접 끄지 않았을 때만, 아직 안 붙었을 때만 붙는다. */
+ autoConnect(){
+  if(this.disposed||this.autoOff)return;
+  if(typeof location==='undefined'||!/^https?:$/.test(location.protocol))return;
+  if(['online','connecting'].includes(this.network?.state))return;
+  let name='';try{name=this.ctx?.store?.view?.().name||'';}catch(_){return;}
+  if(!name)return;                                            // 이름을 정한 뒤에만 붙는다
+  const now=Date.now();if(now-(this.autoAt||0)<15000)return;   // 실패해도 15초에 한 번만
+  this.autoAt=now;
+  this.network.connect(this.savedRoom());
+ }
+ savedOnline(){try{const v=JSON.parse(globalThis.localStorage?.getItem('hanmaum-journey-online')||'null');return v&&typeof v==='object'?v:null;}catch(_){return null;}}
+ savedRoom(){const r=this.savedOnline()?.room;return /^[a-z0-9_-]{1,32}$/.test(r||'')?r:'hanmaum';}
+ saveOnlineChoice(room,on){try{globalThis.localStorage?.setItem('hanmaum-journey-online',JSON.stringify({room:String(room||'hanmaum'),on:!!on}));}catch(_){}}
+ announce(){if(this.disposed)return;this.autoConnect();const m={type:'presence',...this.ownInfo()};if(['online','connecting'].includes(this.network.state))this.network.send(m);else this.channel?.postMessage(m);this.updateStatus();}
  count(){if(this.network.state==='online'&&Number.isFinite(this.network.peerCount))return this.network.peerCount;return [...this.peers.values()].filter(p=>this.network.state==='online'||Date.now()-p.seen<5000).length;}
  updateStatus(){
   const n=this.count(),online=this.network?.state==='online',connecting=this.network?.state==='connecting',el=$('chatConnection');

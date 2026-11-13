@@ -833,3 +833,16 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - src/v8/motion.js가 전송 판단을, realtime.js가 room/scene/inbox 수명과 targeted HTTP snapshot을 관리한다. 100ms는 로컬 샘플이며 전송 주기가 아니다. 새 DB·환경변수·의존성이 없다.
 - ref 집합·connect 세션·요청 토큰·별도 퇴장 이력·SDK 채널 퇴장 대기·HTTP 실패 직접 재시도를 유지한다. 이전 응답이 인형을 되살리거나 다음 장소 구독을 멈추지 않게 한다.
 - 실제 시험 조건·전송량·실기기 한계는 docs/V8_MOTION_NETWORK_2026-11-13.md에 기록한다. 모든 상황40명 보장으로 표현하지 않는다. 기존 탭은 새로고침해야 새 프로토콜을 쓴다.
+
+## v8 자동 접속 (2026-11-13)
+
+- 이름을 정하고 들어가면 저절로 `hanmaum` 방에 붙습니다. `public/v8.html` 의 `HanmaumLocalChat`
+  네 군데만 고쳤고 통신 어댑터(`src/v8/`)와 게임 규칙은 건드리지 않았습니다.
+- **새 타이머를 만들지 않습니다.** 0.35초마다 도는 `announce()` 안에서 `autoConnect()` 를 부르고,
+  실패해도 15초에 한 번만 다시 시도합니다. 타이머를 또 만들면 시험 환경(`vm`)에서 깨집니다.
+- `autoConnect()` 는 `location`·`localStorage`·`ctx.store` 가 없어도 터지지 않아야 합니다.
+  `tests/v8-integration.test.mjs` 가 그런 환경에서 이 클래스를 직접 돌립니다.
+- `접속 나가기` 는 `hanmaum-journey-online` 에 `{on:false}` 로 남고 **새로고침해도 유지**됩니다.
+  생성자에서 그 값을 읽어 `autoOff` 를 정합니다. 사용자가 끈 것을 다시 켜지 않습니다.
+- 이제 들어오는 사람마다 WebSocket 을 엽니다. 무료 한도에 예전보다 빨리 닿습니다.
+  이를 80명 동시 접속 보장으로 표현하지 않습니다. 상세는 docs/V8_AUTO_CONNECT_2026-11-13.md.
