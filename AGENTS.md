@@ -802,3 +802,17 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
   읽기 확인은 괜찮지만 **쓰기는 하지 않습니다.** 소원등 걸기·방명록·채팅에 더해
   **절 올리기(회향)와 등 밝혀 주기**도 로컬에서 누르지 않습니다. 배포본에서 확인합니다.
 - 브라우저 시험을 짤 때 그 단추들을 누르는 흐름을 넣지 않습니다. 안내 문구가 뜨는지까지만 봅니다.
+
+## 받은 v8 한 파일을 따로 올림 (2026-11-13)
+
+- 사용자가 보낸 `한마음 도량여행 v8 · 함께 밝히는 등불` 한 파일을 **`/v8.html`** 로 따로 올립니다.
+  기존 `/deungbul.html`·`/beopdang.html` 과 코드를 섞지 않습니다. `public/v8.html` 그대로 둡니다.
+- 그 파일은 스크립트가 안에 박혀 있어 `script-src 'self'` 로는 돌지 않습니다. `vercel.json` 에서
+  **그 주소에만** `'unsafe-inline'` 과 `https://api.open-meteo.com`(날씨) 을 허용합니다.
+  바깥 규칙은 `/((?!v8\.html$).*)` 로 그 주소를 비켜 갑니다. CSP 가 두 개 걸리면 교집합이 되어
+  다시 막히므로, 반드시 둘 중 하나만 걸리게 둡니다.
+- 올리기 전에 살펴본 것: eval·new Function·외부 스크립트·iframe·sendBeacon 없음.
+  바깥으로 나가는 곳은 날씨 API 하나. `/api/hanmaum/*` 는 우리 쪽에 없어 404 로 끝납니다.
+  `hanmaum-campus-v2`·`hanmaum-deungbul-nick` 은 **읽기만** 하고 쓰지 않습니다.
+- 같은 출처라 저장소를 공유합니다. v8 이 자기 키(`hanmaum-journey*` 등)에만 쓰는 것은 확인했지만,
+  나중에 이 파일을 갈아 끼울 때 **쓰기가 생겼는지 다시 봅니다.** 운영 진행이 덮일 수 있습니다.
