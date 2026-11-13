@@ -26,13 +26,13 @@ export function normalizeV8Message(m) {
 }
 
 export function createV8RealtimeClient({client,id=globalThis.crypto.randomUUID(),onMessage=()=>{},onStatus=()=>{},now=()=>Date.now()}) {
-  let channel=null,generation=0,state='offline',room='hanmaum',members=new Set(),lastPose=null,lastPoseKey='',lastPoseAt=-Infinity,tracking=false,trackTimer=0,trackAttempt=0,trackGeneration=0
+  let channel=null,generation=0,state='offline',room='hanmaum',members=new Map(),lastPose=null,lastPoseKey='',lastPoseAt=-Infinity,tracking=false,trackTimer=0,trackAttempt=0,trackGeneration=0
   const status=(next,message='')=>{state=next;onStatus(next,message)}
   const current=(c,g)=>channel===c&&generation===g
   const sendRaw=async(c,g,event,payload)=>{
     try { const result=await c.send({type:'broadcast',event,payload});return current(c,g)&&result==='ok' } catch { return false }
   }
-  function clearMembers(){for(const other of members)onMessage({type:'leave',id:other});members.clear()}
+  function clearMembers(){for(const other of members.keys())onMessage({type:'leave',id:other});members.clear()}
   function disconnect(){
     generation++;trackGeneration++;clearTimeout(trackTimer);trackTimer=0;tracking=false;trackAttempt=0
     const old=channel;channel=null;clearMembers();lastPose=null;lastPoseKey='';lastPoseAt=-Infinity
@@ -66,11 +66,22 @@ export function createV8RealtimeClient({client,id=globalThis.crypto.randomUUID()
       if(m&&m.id!==id)onMessage(m)
     }).on('broadcast',{event:'request-presence'},({payload})=>{
       if(current(c,g)&&state==='online'&&lastPose&&typeof payload?.id==='string'&&payload.id!==id)void sendRaw(c,g,'message',lastPose)
-    }).on('presence',{event:'sync'},()=>{
+    }).on('presence',{event:'join'},({newPresences})=>{
       if(!current(c,g))return
-      const next=new Set(Object.values(c.presenceState()).flat().map(m=>m.id).filter(v=>typeof v==='string'&&v!==id))
-      for(const other of members)if(!next.has(other))onMessage({type:'leave',id:other})
-      members=next
+      // 연결이 겹칠 때 SDK의 집계 state에는 이미 떠난 메타가 남을 수 있다.
+      // 서버 join/leave의 연결별 ref만 별도로 보존한다.
+      for(const meta of Array.isArray(newPresences)?newPresences:[]){
+        if(typeof meta?.id!=='string'||!meta.id||meta.id===id||meta.id.length>100||typeof meta.presence_ref!=='string'||!meta.presence_ref||meta.presence_ref.length>200)continue
+        const refs=members.get(meta.id)||new Set()
+        refs.add(meta.presence_ref);members.set(meta.id,refs)
+      }
+    }).on('presence',{event:'leave'},({leftPresences})=>{
+      if(!current(c,g))return
+      for(const meta of Array.isArray(leftPresences)?leftPresences:[]){
+        const refs=members.get(meta?.id)
+        if(!refs||!refs.delete(meta.presence_ref))continue
+        if(!refs.size){members.delete(meta.id);onMessage({type:'leave',id:meta.id})}
+      }
     }).subscribe(next=>{
       if(!current(c,g))return
       if(next==='SUBSCRIBED'){trackGeneration++;tracking=false;void track(c,g)}
