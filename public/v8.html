@@ -6701,7 +6701,8 @@ class HanmaumRelayClient {
    connection.connect(this.room);
   }catch(_){if(gen===this.generation)this.status('unavailable','함께 접속하지 못했어요. 연결 상태를 확인한 뒤 다시 접속해 주세요.');}
  }
- async send(message){return this.state==='online'&&this.connection?this.connection.send(message):false;}
+ get peerCount(){return this.connection?.peerCount;}
+ async send(message){return this.connection&&(this.state==='online'||message.type==='presence')?this.connection.send(message):false;}
  disconnect(){this.generation++;const old=this.connection;this.connection=null;old?.disconnect();this.status('offline','함께 접속을 마쳤습니다.');}
 }
 window.HanmaumRelayClient=HanmaumRelayClient;
@@ -6738,11 +6739,11 @@ class HanmaumFeatures{
 class HanmaumLocalChat{
  constructor(ctx){
   this.ctx=ctx;this.id=globalThis.crypto?.randomUUID?.()||('guest-'+Date.now()+'-'+Math.random().toString(36).slice(2));
-  this.selfIds=new Set([this.id]);this.messages=[];this.peers=new Map();this.meshes=new Map();this.unread=0;this.disposed=false;this.channel=null;
+  this.selfIds=new Set([this.id]);this.messages=[];this.peers=new Map();this.peerHistory=new Map();this.peerSessions=new Map();this.pendingPeers=new Map();this.meshes=new Map();this.unread=0;this.disposed=false;this.channel=null;
   this.network=new HanmaumRelayClient({onMessage:m=>this.receive(m),onStatus:(state,message)=>this.networkStatus(state,message)});
   this.sameOrigin=/^https?:$/.test(location.protocol);
   try{if(this.sameOrigin&&typeof BroadcastChannel!=='undefined'){this.channel=new BroadcastChannel('hanmaum-local-doryang-v6');this.channel.onmessage=e=>{if(!['online','connecting'].includes(this.network.state))this.receive(e.data);};}}catch(_){}
-  this.timer=setInterval(()=>{this.announce();this.renderPeers();},350);
+  this.timer=setInterval(()=>{this.announce();this.renderPeers();},100);
   this.lastFrame=performance.now();
   const frame=time=>{if(this.disposed)return;const dt=Math.min(.06,Math.max(0,(time-this.lastFrame)/1000));this.lastFrame=time;this.animatePeers(dt);this.frame=requestAnimationFrame(frame);};
   this.frame=requestAnimationFrame(frame);
@@ -6750,9 +6751,19 @@ class HanmaumLocalChat{
   window.addEventListener('pageshow',e=>{if(e.persisted&&this.resumeRoom&&!this.disposed){const room=this.resumeRoom;this.resumeRoom=null;this.network.connect(room);}});
   document.addEventListener('keydown',e=>{if(e.target.id==='chatInput'&&e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();this.send();}});
  }
- ownInfo(){const s=this.ctx.store.view(),p=this.ctx.world.getPosition?.()||{x:0,y:0,z:0};return {id:this.network.state==='online'?this.network.id:this.id,name:s.name,scene:this.ctx.getScene(),position:{x:p.x||0,y:p.y||0,z:p.z||0},appearance:s.appearance,outfit:s.outfit,rotation:this.ctx.world.player?.rotation?.y||0};}
+ ownInfo(){
+  const s=this.ctx.store.view(),raw=this.ctx.world.getPosition?.()||{x:0,y:0,z:0},p={x:raw.x||0,y:raw.y||0,z:raw.z||0},scene=this.ctx.getScene(),time=Date.now(),old=this.motionSample,dt=old?(time-old.time)/1000:0;
+  let velocity=old?.scene===scene&&dt<.04?old.velocity:{x:0,y:0,z:0},teleport=false;
+  if(old&&old.scene===scene&&dt>=.04&&dt<2){const v={x:(p.x-old.position.x)/dt,y:(p.y-old.position.y)/dt,z:(p.z-old.position.z)/dt};if(Math.hypot(v.x,v.y,v.z)<=10)velocity=v;else teleport=true;}
+  if(!old||dt>=.04||old.scene!==scene)this.motionSample={scene,position:p,time,velocity};
+  return {id:this.network.state==='online'?this.network.id:this.id,name:s.name,scene,position:p,velocity,teleport,sampleTime:time,appearance:s.appearance,outfit:s.outfit,rotation:this.ctx.world.player?.rotation?.y||0};
+ }
+ predictedPosition(m,time=Date.now()){
+  const v=m.velocity,valid=v&&['x','y','z'].every(k=>Number.isFinite(v[k]))&&Math.hypot(v.x,v.y,v.z)<=10,t=valid?Math.min(40,Math.max(0,(time-m.seen)/1000)):0;
+  return {x:m.position.x+(valid?v.x*t:0),y:m.position.y+(valid?v.y*t:0),z:m.position.z+(valid?v.z*t:0)};
+ }
  isSelf(id){return this.selfIds.has(id);}
- clearPeers(){for(const id of this.peers.keys())this.ctx.world.clearSpeech?.(id);for(const id of [...this.meshes.keys()])this.removePeer(id);this.peers.clear();this.ctx.world.socialPeers=[];}
+ clearPeers(){for(const id of this.peers.keys())this.ctx.world.clearSpeech?.(id);for(const id of [...this.meshes.keys()])this.removePeer(id);this.peers.clear();this.peerHistory?.clear();this.peerSessions?.clear();this.pendingPeers?.clear();this.ctx.world.socialPeers=[];}
  networkStatus(state,message){
   this.connectionMessage=message;
   if(state==='online'){this.selfIds.add(this.network.id);this.clearPeers();this.announce();}
@@ -6761,8 +6772,8 @@ class HanmaumLocalChat{
  }
  connectOnline(){const room=$('chatRoom')?.value||'hanmaum';this.clearPeers();this.network.connect(room);}
  disconnectOnline(){this.network.disconnect();this.announce();}
- announce(){if(this.disposed)return;const m={type:'presence',...this.ownInfo()};if(this.network.state==='online')this.network.send(m);else if(this.network.state!=='connecting')this.channel?.postMessage(m);this.updateStatus();}
- count(){return [...this.peers.values()].filter(p=>this.network.state==='online'||Date.now()-p.seen<5000).length;}
+ announce(){if(this.disposed)return;const m={type:'presence',...this.ownInfo()};if(['online','connecting'].includes(this.network.state))this.network.send(m);else this.channel?.postMessage(m);this.updateStatus();}
+ count(){if(this.network.state==='online'&&Number.isFinite(this.network.peerCount))return this.network.peerCount;return [...this.peers.values()].filter(p=>this.network.state==='online'||Date.now()-p.seen<5000).length;}
  updateStatus(){
   const n=this.count(),online=this.network?.state==='online',connecting=this.network?.state==='connecting',el=$('chatConnection');
   const onlineButton=$('onlineBtn');if(onlineButton){const label=online?String(n+1)+'명 접속':connecting?'접속 중':'함께 접속';if(onlineButton.textContent!==label)onlineButton.textContent=label;onlineButton.title=online?this.network.room+' · 함께 접속과 대화':'다른 기기의 법우와 함께 접속';}
@@ -6785,17 +6796,38 @@ class HanmaumLocalChat{
   if(!ok){this.ctx.toast('메시지를 전달하지 못했어요. 초안은 남아 있습니다. 연결 상태를 확인하고 다시 보내주세요.');return;}
   if(this.disposed)return;this.append(m);if(input.value===draft)input.value='';input.focus();
  }
- gesture(kind){const m={type:'gesture',...this.ownInfo(),gesture:kind,time:Date.now()};if(this.network.state==='online')this.network.send(m);else if(this.network.state!=='connecting')this.channel?.postMessage(m);}
+ gesture(kind){const m={type:'gesture',...this.ownInfo(),gesture:kind,time:Date.now()};if(['online','connecting'].includes(this.network.state))this.network.send(m);else this.channel?.postMessage(m);}
  receive(m){
   if(!m||typeof m!=='object'||typeof m.id!=='string'||this.isSelf(m.id)||m.id.length>100)return;
+  const history=this.peerHistory||(this.peerHistory=new Map()),remember=record=>{if(m.session)record.session=m.session;history.set(m.id,record);if(history.size>512)history.delete(history.keys().next().value)};
+  const sessions=this.peerSessions||(this.peerSessions=new Map()),pending=this.pendingPeers||(this.pendingPeers=new Map());
+  if(m.type==='join'){
+   const changed=m.session&&sessions.get(m.id)!==m.session;if(m.session)sessions.set(m.id,m.session);
+   if(history.get(m.id)?.left||changed&&history.get(m.id)?.session!==m.session&&this.peers.get(m.id)?.session!==m.session){history.delete(m.id);this.peers.delete(m.id);}
+   const queued=pending.get(m.id);pending.delete(m.id);if(queued&&queued.session===m.session)this.receive(queued);this.renderPeers();return;
+  }
+  if(sessions.has(m.id)&&m.session&&m.session!==sessions.get(m.id)){
+   if(m.type==='presence'){pending.set(m.id,m);if(pending.size>128)pending.delete(pending.keys().next().value);}
+   if(m.type==='chat'&&typeof m.text==='string')this.append({...m,text:HanmaumAvatar.cleanText(m.text)});return;
+  }
+  if(m.type==='scene-change'){
+   if(!HanmaumStore.SCENES.includes(m.scene))return;const old=history.get(m.id);
+   if(old?.left||Number.isFinite(old?.sampleTime)&&Number.isFinite(m.sampleTime)&&m.sampleTime<old.sampleTime)return;
+   remember({scene:m.scene,sampleTime:m.sampleTime??old?.sampleTime});
+   if(this.peers.get(m.id)?.scene!==m.scene){this.ctx.world.clearSpeech?.(m.id);this.peers.delete(m.id);this.renderPeers();}return;
+  }
   if(!['presence','chat','gesture','leave'].includes(m.type))return;
-  if(m.type==='leave'){this.ctx.world.clearSpeech?.(m.id);this.peers.delete(m.id);this.renderPeers();return;}
+  if(m.type==='leave'){pending.delete(m.id);remember({left:true,sampleTime:this.peers.get(m.id)?.sampleTime});this.ctx.world.clearSpeech?.(m.id);this.peers.delete(m.id);this.renderPeers();return;}
   if(typeof m.name!=='string'||!HanmaumStore.SCENES.includes(m.scene))return;
   const p=m.position;if(!p||!['x','y','z'].every(k=>Number.isFinite(p[k])&&Math.abs(p[k])<200))return;
+  const known=history.get(m.id);
+  if(known?.left||known?.scene&&known.scene!==m.scene||Number.isFinite(known?.sampleTime)&&Number.isFinite(m.sampleTime)&&m.sampleTime<known.sampleTime){if(m.type==='chat'&&typeof m.text==='string')this.append({...m,text:HanmaumAvatar.cleanText(m.text)});return;}
+  const previous=this.peers.get(m.id);
+  if(previous&&Number.isFinite(previous.sampleTime)&&Number.isFinite(m.sampleTime)&&m.sampleTime<previous.sampleTime){if(m.type==='chat'&&typeof m.text==='string')this.append({...m,text:HanmaumAvatar.cleanText(m.text)});return;}
   const peer={...m,name:m.name.slice(0,24),seen:Date.now()};
   if(m.type==='gesture'&&['hapjang','bow'].includes(m.gesture))peer.gestureUntil=Date.now()+HanmaumAvatar.duration(m.gesture)*1000;
   else if(this.peers.get(m.id)?.gestureUntil){peer.gestureUntil=this.peers.get(m.id).gestureUntil;peer.gesture=this.peers.get(m.id).gesture;}
-  this.peers.set(m.id,peer);
+  remember({scene:m.scene,sampleTime:m.sampleTime});this.peers.set(m.id,peer);
   if(m.type==='chat'&&typeof m.text==='string'&&m.text.trim())this.append({...peer,text:HanmaumAvatar.cleanText(m.text),time:Date.now()});
   this.renderPeers();
  }
@@ -6820,8 +6852,8 @@ class HanmaumLocalChat{
  animatePeers(dt){
   const alpha=1-Math.exp(-Math.max(0,dt)*15),now=Date.now();
   for(const g of this.meshes.values()){
-   const m=g.userData.peer;if(!m)continue;
-   g.position.x+=(m.position.x-g.position.x)*alpha;g.position.y+=(m.position.y-g.position.y)*alpha;g.position.z+=(m.position.z-g.position.z)*alpha;
+   const m=g.userData.peer;if(!m)continue;const p=this.predictedPosition(m,now);
+   g.position.x+=(p.x-g.position.x)*alpha;g.position.y+=(p.y-g.position.y)*alpha;g.position.z+=(p.z-g.position.z)*alpha;
    const angle=Number.isFinite(m.rotation)?m.rotation:0;g.rotation.y+=Math.atan2(Math.sin(angle-g.rotation.y),Math.cos(angle-g.rotation.y))*alpha;
    const duration=HanmaumAvatar.duration(m.gesture),gesture=m.gestureUntil>now?{kind:m.gesture,time:Math.max(0,duration-(m.gestureUntil-now)/1000),duration}:null;
    HanmaumAvatar.poseRig(g.userData.rig,HanmaumAvatar.pose(gesture));
