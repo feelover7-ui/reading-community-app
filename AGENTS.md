@@ -898,5 +898,8 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 일부러 나갈 때는 `bye` 를 보냅니다. 그냥 끊으면 45초 동안 멈춘 사람이 남습니다.
 - `wrangler dev --env staging --local` 로 Cloudflare 계정 없이 진짜 DO 를 띄워 확인합니다.
   시험이 이상하면 `.wrangler/state` 를 지웁니다. 이전 실행의 방이 남아 있습니다.
-- **배포된 워커는 아직 옛 코드라 v8 방을 모릅니다.** `npx wrangler deploy --env staging` 이 필요하고
-  이 컨테이너에는 Cloudflare 자격 증명이 없습니다. 실기기·여러 기기·80명은 재지 않았습니다.
+- **워커는 2026-11-13 배포했습니다.** `/health` 의 `rooms` 에 `v8` 이 있고, 운영 `/v8.html` 두 탭이
+  relay 로만 붙는 것을 확인했습니다(Supabase WebSocket 0개). 여러 기기·실제 지연·80명은 재지 않았습니다.
+- 배포는 사용자가 넣어 준 network secret(`api.cloudflare.com`)으로 합니다. `CLOUDFLARE_API_TOKEN` 에는
+  **자리표시자**를 넣습니다(`CLOUDFLARE_API_TOKEN=proxy-injected npx wrangler deploy --env staging`).
+  없으면 wrangler 가 OAuth 로 가려 합니다. 진짜 토큰을 환경변수나 파일에 쓰지 않습니다.
