@@ -903,3 +903,16 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 배포는 사용자가 넣어 준 network secret(`api.cloudflare.com`)으로 합니다. `CLOUDFLARE_API_TOKEN` 에는
   **자리표시자**를 넣습니다(`CLOUDFLARE_API_TOKEN=proxy-injected npx wrangler deploy --env staging`).
   없으면 wrangler 가 OAuth 로 가려 합니다. 진짜 토큰을 환경변수나 파일에 쓰지 않습니다.
+
+## v8 relay 80명 부하 시험 (2026-11-14)
+
+- 실제 워커에 WS 를 직접 열어 쟀습니다. **20·40·80·81명 모두 PASS**, 80명에서 각자가 나머지
+  79명을 다 봅니다. 전달 지연 p95 93ms, 끊김·오류 0, 81번째는 설계대로 한 명만 거절됩니다.
+  상세는 docs/V8_RELAY_LOAD_2026-11-14.md.
+- 봇은 **전용 방 `v8-load-test`** 에만 넣습니다(`profiles.js` 의 `V8_LOAD_ROOM`).
+  운영 `v8` 방과 `campus-v2` 에는 넣지 않습니다. 도구는 `scripts/v8-load.mjs` 입니다.
+- **1인당 초당 56KB 를 받습니다. 한 시간이면 202MB 입니다.** 서버는 버티지만 휴대폰 데이터로는
+  부담입니다. 스냅샷 기록에 이름·생김새·옷이 매번 다시 실려서 그렇습니다. 고정 값을 join 때
+  한 번만 보내면 기록이 305 → 약 100 바이트가 됩니다. 아직 하지 않았습니다.
+- 이 숫자는 리눅스 한 대에서 WS 80개를 연 것이고 **실기기 80대·한국 지연·브라우저 3D 성능은
+  재지 않았습니다.** 80명 실환경 운영 보장으로 표현하지 않습니다.

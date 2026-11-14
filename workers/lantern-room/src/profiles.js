@@ -57,5 +57,13 @@ export const V8_PROFILE = {
   freeze: s => { s.vx = s.vy = s.vz = 0 }
 }
 
-export const PROFILES = { 'campus-v2': V1_PROFILE, 'load-test': V1_PROFILE, [V8_ROOM]: V8_PROFILE }
+// 'load-test' 는 v1 용, 'v8-load-test' 는 v8 용 전용 시험 방입니다.
+// 봇은 운영 방(campus-v2 · v8)에 넣지 않습니다.
+export const V8_LOAD_ROOM = 'v8-load-test'
+export const PROFILES = {
+  'campus-v2': V1_PROFILE,
+  'load-test': V1_PROFILE,
+  [V8_ROOM]: V8_PROFILE,
+  [V8_LOAD_ROOM]: V8_PROFILE
+}
 export const profileFor = roomName => PROFILES[roomName] || null
