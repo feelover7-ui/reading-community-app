@@ -56,6 +56,28 @@ test('the first journey advances once through craft carry tower hall hang and fi
   assert.equal(state.completedAt, 1700)
 })
 
+test('the primary pilgrimage skips optional craft and completes after pagoda and hall', () => {
+  const journey = loadPilgrimage()
+  let state = journey.createState(1000)
+  state = journey.transition(state, {type: 'start-pilgrimage', id: 'start-pilgrimage-1', at: 1100})
+  assert.equal(state.stage, 'tower')
+  assert.equal(state.lanternId, '')
+  state = journey.transition(state, {type: 'tower-complete', id: 'tower-1', at: 1200})
+  assert.equal(state.stage, 'hall')
+  state = journey.transition(state, {type: 'bow-complete', id: 'bow-1', at: 1300})
+  assert.equal(state.stage, 'finale')
+  state = journey.transition(state, {type: 'finale-close', id: 'done-1', at: 1400})
+  assert.equal(state.stage, 'complete')
+})
+
+test('free exploration is persisted without falsely completing the ritual', () => {
+  const journey = loadPilgrimage()
+  const free = journey.transition(journey.createState(1000), {type: 'explore', id: 'explore-1', at: 1100})
+  assert.equal(free.stage, 'free')
+  assert.equal(journey.normalize(free, {hasLantern: false}).stage, 'free')
+  assert.equal(free.completedAt, 0)
+})
+
 test('duplicate or out-of-order completion events never skip a ritual stage', () => {
   const journey = loadPilgrimage()
   let state = journey.transition(journey.createState(1000), {type: 'start', id: 'start-1', at: 1100})
@@ -69,8 +91,9 @@ test('duplicate or out-of-order completion events never skip a ritual stage', ()
 test('corrupt checkpoints fall back to the nearest safe stage without inventing a lantern', () => {
   const journey = loadPilgrimage()
   assert.equal(journey.normalize({stage: 'made-up'}, {hasLantern: false}).stage, 'arrival')
-  assert.equal(journey.normalize({stage: 'tower', lanternId: ''}, {hasLantern: false}).stage, 'craft')
-  assert.equal(journey.normalize({stage: 'hall', lanternId: 'lost'}, {hasLantern: false}).stage, 'craft')
+  assert.equal(journey.normalize({stage: 'tower', lanternId: ''}, {hasLantern: false}).stage, 'tower')
+  assert.equal(journey.normalize({stage: 'hall', lanternId: 'lost'}, {hasLantern: false}).stage, 'hall')
+  assert.equal(journey.normalize({stage: 'carry', lanternId: ''}, {hasLantern: false}).stage, 'craft')
   assert.equal(journey.normalize({stage: 'hang', lanternId: 'saved'}, {hasLantern: true}).stage, 'hang')
 })
 
@@ -92,8 +115,8 @@ test('refresh resume keeps a valid in-progress stage and bounded handled event i
 test('arrival asks for presentation but defers the visitor name until hanging', () => {
   const journey = loadPilgrimage()
   const model = journey.arrivalModel('female')
-  assert.equal(model.title, '등 하나를 밝히러 가기')
-  assert.equal(model.primary, '도량 들어가기')
+  assert.equal(model.title, '온라인 참배 시작하기')
+  assert.equal(model.primary, '참배 시작')
   assert.equal(model.selected, 'female')
   assert.deepEqual(Array.from(model.choices, choice => choice.id), ['male', 'female'])
   assert.equal(model.fields.includes('name'), false)
