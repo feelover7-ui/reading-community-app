@@ -32,6 +32,8 @@ test('all destinations render as immediate scene controls with the current place
   assert.equal((markup.match(/data-value="/g) || []).length, 9)
   assert.match(markup, /data-value="terrace3"[^>]*aria-current="location"/)
   assert.match(markup, /현재 장소/)
+  assert.match(markup, /destination-map-group outdoor[\s\S]*바깥 공간/)
+  assert.match(markup, /destination-map-group main-building[\s\S]*본원 층별 공간/)
   assert.doesNotMatch(markup, /data-ui="(?:walk|route)"/)
 })
 
@@ -46,5 +48,7 @@ test('the responsive board keeps nine touch targets visible in a desktop or mobi
   assert.match(css, /\.destination-map-board\s*\{[^}]*display:\s*grid/s)
   assert.match(css, /\.destination-map-place[^}]*min-height:\s*44px/s)
   assert.match(css, /@media\(max-width:600px\)[\s\S]*\.destination-map-board\s*\{[^}]*grid-template-columns:\s*repeat\(3,/)
-  assert.match(css, /\.destination-map-board\s*\{[^}]*grid-template-columns:\s*repeat\(3,/)
+  assert.match(css, /\.destination-map-board\s*\{[^}]*grid-template-columns:\s*minmax\(0,1fr\)\s+minmax\(0,2fr\)/)
+  assert.match(css, /\.destination-map-group\.main-building\s*\{[^}]*grid-template-columns:\s*repeat\(3,/)
+  assert.match(css, /@media\(max-width:600px\)[\s\S]*\.destination-map-group\s*\{[^}]*display:\s*contents/)
 })

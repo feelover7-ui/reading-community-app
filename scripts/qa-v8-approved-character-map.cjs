@@ -24,15 +24,35 @@ const assert = require('node:assert/strict')
 
       const actor = await page.evaluate(() => {
         const player = window.__HANMAUM_APP__.world.player
+        const portrait = document.querySelector('#profileCard svg')
         return {
           design: player.userData.directorStyle.design,
           jacket: player.userData.directorStyle.jacket,
-          joints: ['arms', 'elbows', 'wrists', 'hands', 'legs'].map(key => player.userData.rig[key].length)
+          joints: ['arms', 'elbows', 'wrists', 'hands', 'legs'].map(key => player.userData.rig[key].length),
+          portrait: {proportion: portrait?.dataset.proportion, jacket: portrait?.dataset.jacket}
         }
       })
       assert.equal(actor.design, 'approved-youth')
       assert.equal(actor.jacket, mode.gender === 'female' ? 'two-tone' : 'sage-blazer')
       assert.deepEqual(actor.joints, [2, 2, 2, 2, 2])
+      assert.deepEqual(actor.portrait, {proportion: '6-head', jacket: actor.jacket})
+      const grounded = await page.evaluate(() => {
+        const world = window.__HANMAUM_APP__.world
+        return ['bow', 'prostrate'].map(kind => {
+          world.playGesture(kind)
+          world.animateGesture(kind === 'bow' ? 1.4 : 1.8, false)
+          const y = world.player.userData.rig.body.position.y
+          world.playGesture('stand')
+          world.animateGesture(0, false)
+          return {kind, y}
+        })
+      })
+      assert.equal(grounded.every(item => Number.isFinite(item.y) && item.y >= 0), true)
+
+      await page.reload({waitUntil: 'domcontentloaded', timeout: 90000})
+      await page.waitForFunction(() => window.__HANMAUM_APP__?.store.data.profileReady)
+      await page.evaluate(() => cancelAnimationFrame(window.__HANMAUM_APP__.world.raf))
+      assert.equal(await page.evaluate(() => window.__HANMAUM_APP__.world.player.userData.directorStyle.design), 'approved-youth')
 
       if (await page.locator('[data-nav="map"]').isVisible()) {
         await page.click('[data-nav="map"]')
@@ -65,11 +85,17 @@ const assert = require('node:assert/strict')
       assert.equal(board.oneScreen, true)
       await page.screenshot({path: `/tmp/v8-approved-map-${mode.name}.png`, fullPage: true})
 
-      await page.click('.destination-map-place[data-value="seosan"]')
-      await page.waitForFunction(() => window.__HANMAUM_APP__.scene === 'seosan')
-      assert.equal(await page.locator('#modal').isHidden(), true)
+      for (const scene of ['workshop', 'hall5', 'seosan']) {
+        await page.click(`.destination-map-place[data-value="${scene}"]`)
+        await page.waitForFunction(expected => window.__HANMAUM_APP__.scene === expected, scene)
+        assert.equal(await page.locator('#modal').isHidden(), true)
+        if (scene !== 'seosan') {
+          await page.evaluate(() => window.__HANMAUM_APP__.showMap())
+          await page.waitForSelector('.destination-map-board')
+        }
+      }
       assert.deepEqual(errors, [])
-      results.push({mode: mode.name, actor, board, scene: 'seosan', errors})
+      results.push({mode: mode.name, actor, grounded, board, existingProfileReload: true, scenes: ['workshop', 'hall5', 'seosan'], errors})
       await context.close()
     }
   } finally {

@@ -18,6 +18,10 @@ function loadDirector () {
     buildAvatar () {
       this.player = {scale: new THREE.Vector3(1, 1, 1)}
     }
+    animateGesture () {
+      this.player.userData.rig.body.rotation.x = 1.25
+      this.player.userData.rig.body.position.y = -0.5
+    }
     getState () { return this.state }
     mat (color, options = {}) { return new THREE.MeshStandardMaterial({color, ...options}) }
     mesh (geometry, material, parent, x = 0, y = 0, z = 0) {
@@ -105,16 +109,35 @@ test('approved youth portraits and actors share the exact male and female jacket
   const female = window.HanmaumAvatar.portrait('hae', 'basic', false, femaleAppearance)
   const male = window.HanmaumAvatar.portrait('hae', 'basic', false, maleAppearance)
   assert.match(female, /data-design="approved-youth"/)
+  assert.match(female, /data-proportion="6-head"/)
   assert.match(female, /data-jacket="two-tone"/)
+  assert.match(female, /data-part="jacket-lower"[^>]*fill="#f4f1e9"/i)
   assert.match(female, /#819985/i)
   assert.match(female, /#f4f1e9/i)
   assert.match(female, /#3f4748/i)
   assert.match(male, /data-design="approved-youth"/)
+  assert.match(male, /data-proportion="6-head"/)
   assert.match(male, /data-jacket="sage-blazer"/)
   assert.match(male, /#526b62/i)
   assert.equal(window.HanmaumDirector.characterStyle({gender: 'female', outfit: 'basic'}).design, 'approved-youth')
   assert.equal(window.HanmaumAvatar.createActor({outfit: 'basic', appearance: femaleAppearance}).userData.directorStyle.jacket, 'two-tone')
   assert.equal(window.HanmaumAvatar.createActor({outfit: 'basic', appearance: maleAppearance}).userData.directorStyle.jacket, 'sage-blazer')
+  for (const svg of [female, male]) {
+    const head = Number(svg.match(/data-head-height="([\d.]+)"/)?.[1])
+    const figure = Number(svg.match(/data-figure-height="([\d.]+)"/)?.[1])
+    assert.ok(figure / head >= 5.7 && figure / head <= 6.4)
+  }
+})
+
+test('approved actor clamps animated bow and prostration geometry to the floor', () => {
+  const window = loadDirector()
+  const world = new window.HanmaumWorld()
+  world.buildAvatar()
+  world.animateGesture(1.4, false)
+  world.player.updateMatrixWorld(true)
+  const parts = world.player.userData.parts
+  const box = parts.reduce((bounds, part) => bounds.expandByObject(part), new THREE.Box3())
+  assert.ok(box.min.y >= -0.01, `animated actor penetrated floor at ${box.min.y}`)
 })
 
 test('fresh entry asks only for a nickname and presentation before the first lantern route', () => {

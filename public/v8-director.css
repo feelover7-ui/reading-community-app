@@ -25,7 +25,11 @@ body.m-simple #mBack{width:44px;height:44px}
 
 .destination-map-help{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;padding:12px 16px}
 .destination-map-help span{font-size:11px;text-align:right}
-.destination-map-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.destination-map-board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:12px;align-items:start}
+.destination-map-group{display:grid;gap:10px;min-width:0}
+.destination-map-group.outdoor{grid-template-columns:1fr}
+.destination-map-group.main-building{grid-template-columns:repeat(3,minmax(0,1fr))}
+.destination-map-group>h3{grid-column:1/-1;margin:0;padding:0 4px;color:#64775e;font-size:11px;letter-spacing:.3px}
 .destination-map-place{min-width:0;min-height:44px;height:116px;border:1px solid #dce3d3;border-radius:16px;background:#fff;color:#294c38;padding:13px;display:flex;align-items:flex-start;gap:10px;text-align:left;box-shadow:0 3px 0 #e5e9dc;cursor:pointer;font:inherit}
 .destination-map-place:hover,.destination-map-place:focus-visible{border-color:#8daa78;background:#f6f8ed;transform:translateY(-1px)}
 .destination-map-place:focus-visible{outline:3px solid #d89a62;outline-offset:2px}
@@ -55,6 +59,8 @@ body.m-simple #mBack{width:44px;height:44px}
  .destination-map-help{padding:9px 11px;margin-bottom:9px}
  .destination-map-help span{display:none}
  .destination-map-board{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+ .destination-map-group{display:contents}
+ .destination-map-group>h3{display:none}
  .destination-map-place{height:105px;padding:9px 7px;border-radius:12px;display:block;text-align:center}
  .destination-map-place>svg,.destination-map-place>[data-map-icon]{width:23px;height:23px;min-width:23px;margin:0 auto 4px}
  .destination-map-copy{gap:3px}

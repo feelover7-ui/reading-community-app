@@ -56,15 +56,15 @@
     const c = coat({outfit}, a)
     const female = a.gender === 'female'
     const hair = {
-      short: '<path d="M39 39q-5-25 21-25 28 0 22 27l-9-13q-12 11-31 9Z"/><path d="M47 24q12-14 27-4L60 31Z"/>',
-      bob: '<path d="M38 68q-8-52 22-54 32 0 23 55L73 66V33q-18 9-28 0v32Z"/>',
-      bun: '<circle cx="72" cy="13" r="8"/><path d="M39 40q-5-25 21-25 28 0 22 27l-8-12q-18 10-31 7Z"/>',
+      short: '<path d="M45 25q-2-13 15-13 18 0 15 14l-5-7q-8 6-22 5Z"/><path d="M52 17q8-7 16-2l-9 7Z"/>',
+      bob: '<path d="M44 40q-5-28 16-28 22 0 17 29l-6-2V23q-12 6-23 1v15Z"/>',
+      bun: '<circle cx="68" cy="11" r="5"/><path d="M45 25q-2-13 15-13 18 0 15 14l-5-7q-10 6-22 5Z"/>',
       shaved: ''
     }[a.hair]
     const outer = female && outfit === 'basic'
-      ? `<path d="M46 73h28l13 10 7 39-10 3-8-31 2 28H42l2-28-8 31-10-3 7-39Z" fill="${c}"/><path d="M48 76h24v45H48Z" fill="#f4f1e9"/><path d="M40 95h40" stroke="#66776f" stroke-width="2"/><path d="M36 86h8m32 0h8" stroke="#d8d2c7" stroke-width="2"/>`
-      : `<path d="M48 72h24l16 10 8 42-10 3-9-35 3 31H40l3-31-10 35-9-3 8-42Z" fill="${c}"/><path d="M51 75h18v47H51Z" fill="#f4f1e9"/><path d="m49 73 11 10 11-10" fill="none" stroke="#d6d1c6" stroke-width="2"/>`
-    return `<svg viewBox="${small ? '22 8 76 76' : '0 0 120 160'}" data-face="${a.gender}" data-hair="${a.hair}" data-style="modern-youth" data-design="approved-youth" data-jacket="${style.jacket}" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path d="M43 112v35h14v-34m6 0v34h14v-35" fill="#3f4748"/><path d="M40 145h18v7H37m25-7h18l4 7H62" fill="#f2eee4"/>${outer}<path d="M54 60v16q6 5 12 0V60" fill="${a.skin}"/><ellipse cx="38" cy="47" rx="4" ry="6" fill="${a.skin}"/><ellipse cx="82" cy="47" rx="4" ry="6" fill="${a.skin}"/><path d="M40 38q0-20 20-20t20 20v12q-2 19-20 23-18-4-20-23Z" fill="${a.skin}"/><g fill="${a.hairColor}">${hair}</g><g stroke="${a.hairColor}" stroke-width="${female ? 1.4 : 1.8}" stroke-linecap="round"><path d="m46 42 9-1m10 0 9 1"/></g><g fill="#303033"><ellipse cx="51" cy="48" rx="1.8" ry="${female ? 2.2 : 1.8}"/><ellipse cx="69" cy="48" rx="1.8" ry="${female ? 2.2 : 1.8}"/></g><path d="m60 49-1 7h3m-8 5q6 3 12 0" fill="none" stroke="#a47160" stroke-width="1.3" stroke-linecap="round"/>${outfit === 'apron' ? '<path d="M47 88h26v36H47Z" fill="#cfb993"/>' : ''}</svg>`
+      ? `<path d="M43 53h34l9 8 7 42-8 2-8-34 1 12H42l1-12-8 34-8-2 7-42Z" fill="${c}"/><path data-part="jacket-upper" d="M43 53h34l2 30H41Z" fill="${c}"/><path data-part="jacket-lower" d="M41 80h38l2 29H39Z" fill="#f4f1e9"/><path d="M53 53h14v56H53Z" fill="#fffdf6"/><path d="M39 80h42" stroke="#66776f" stroke-width="1.5"/>`
+      : `<path d="M44 52h32l10 9 8 43-9 2-8-35 3 38H40l3-38-8 35-9-2 8-43Z" fill="${c}"/><path d="M53 53h14v55H53Z" fill="#f4f1e9"/><path d="m47 53 13 12 13-12" fill="none" stroke="#d6d1c6" stroke-width="1.6"/><path d="M42 82h36" stroke="#40584f" stroke-width="1.2" opacity=".55"/>`
+    return `<svg viewBox="${small ? '30 7 60 78' : '0 0 120 180'}" data-face="${a.gender}" data-hair="${a.hair}" data-style="modern-youth" data-design="approved-youth" data-proportion="6-head" data-head-height="28" data-figure-height="160" data-jacket="${style.jacket}" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><ellipse cx="60" cy="172" rx="23" ry="3" fill="#244c3b" opacity=".1"/><path data-part="legs" d="M42 106h15v58H43Zm21 0h15l-1 58H63Z" fill="#3f4748"/><path d="M40 162h18v8H37m25-8h17l5 8H62" fill="#f2eee4"/>${outer}<path d="M55 39v15q5 4 10 0V39" fill="${a.skin}"/><ellipse cx="44" cy="28" rx="2.5" ry="3.5" fill="${a.skin}"/><ellipse cx="76" cy="28" rx="2.5" ry="3.5" fill="${a.skin}"/><path data-part="head" d="M45 24q0-11 15-11t15 11v6q-2 11-15 12-13-1-15-12Z" fill="${a.skin}"/><g fill="${a.hairColor}">${hair}</g><g stroke="${a.hairColor}" stroke-width="${female ? 1 : 1.3}" stroke-linecap="round"><path d="m50 26 6-1m8 0 6 1"/></g><g fill="#303033"><ellipse cx="54" cy="29" rx="1.2" ry="${female ? 1.5 : 1.2}"/><ellipse cx="66" cy="29" rx="1.2" ry="${female ? 1.5 : 1.2}"/></g><path d="m60 29-.5 4h1.5m-5 4q4 2 8 0" fill="none" stroke="#a47160" stroke-width="1" stroke-linecap="round"/>${outfit === 'apron' ? '<path d="M47 72h26v37H47Z" fill="#cfb993"/>' : ''}</svg>`
   }
 
   function createActor (state = {}, label = false) {
@@ -243,6 +243,26 @@
   else refreshFirstGuide()
 
   const worldPrototype = window.HanmaumWorld?.prototype
+  if (worldPrototype && typeof worldPrototype.animateGesture === 'function' && !worldPrototype.__directorGroundedGestures) {
+    worldPrototype.__directorGroundedGestures = true
+    const originalAnimateGesture = worldPrototype.animateGesture
+    worldPrototype.animateGesture = function () {
+      const result = originalAnimateGesture.apply(this, arguments)
+      const player = this.player
+      const rig = player?.userData?.rig
+      if (!rig || player.userData?.directorStyle?.design !== 'approved-youth') return result
+      if (!this.gesture) rig.body.position.y = 0
+      player.updateMatrixWorld(true)
+      const floor = player.getWorldPosition(new T.Vector3()).y
+      const bounds = new T.Box3()
+      for (const part of player.userData.parts || []) bounds.expandByObject(part)
+      if (Number.isFinite(bounds.min.y) && bounds.min.y < floor - .005) {
+        rig.body.position.y += floor - bounds.min.y
+        player.updateMatrixWorld(true)
+      }
+      return result
+    }
+  }
   if (worldPrototype && !worldPrototype.__directorAvatarScale) {
     worldPrototype.__directorAvatarScale = true
     worldPrototype.buildAvatar = function () {
