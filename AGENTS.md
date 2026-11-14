@@ -1111,3 +1111,26 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
   **650px 큰 창은 없애고** 방 이름·접속은 설정으로. 말풍선은 같은 장면 사람만.
 - relay 의 `eventBucket` 은 **용량 5 · 초당 1** 입니다. 연타하면 서버가 버리는데 지금은 조용히
   실패합니다. 남은 횟수를 보여 주고 0 이면 잠급니다.
+
+## v8 카메라·UI 기획 — "실제 법당 가는 느낌" (2026-11-14)
+
+사용자가 sansatemple 을 좋아하는 이유를 **"실제 법당 가는 거같은 느낌"** 이라고 말했습니다.
+그 느낌의 정체와 v8 이 그것을 잃는 지점을 `docs/V8_CAMERA_UI_PLAN_2026-11-14.md` 에 적었습니다.
+
+- **가장 큰 것: 도량(campus)이 조감도입니다.** `public/v8.html:8532` 가 `viewMode='explore'` 로
+  강제하고 `:8539` 가 사용자의 변경을 되돌립니다. `explore` 는 **OrthographicCamera** 라
+  **원근이 없습니다.** 그래서 장소가 아니라 **지도**로 보입니다.
+  다른 장면은 이미 `chase`(PerspectiveCamera fov 70)로 돕니다. **campus 만 한 줄로 막혀 있습니다.**
+  `docs/concept/camera-01-now-explore.png` 와 `camera-02-chase.png` 가 같은 장면입니다.
+- 바꿀 값: 기본 `chase`(전체 보기는 단추로 남김) · 눈높이 **4.45 → 2.6~2.8**(캐릭터 키 약 2.2) ·
+  내려다보는 각 낮춰 지평선 보이게 · **fov 70 → 55** · **`scene.fog` 한 줄 + 먼 산 실루엣** ·
+  등불사장에서 나올 때 법당을 마주 보게.
+- UI: v8 campus 에 **동시에 보이는 덩어리 9개**(topbar·profileCard·currencyPill·roomInfo·
+  sceneTools·firstGuide·socialActions·walkHint·bottomNav). sansa 는 5묶음.
+  개수보다 **성격**이 다릅니다 — sansa 의 하단 알약은 **할 일 전부**인데 v8 의 하단 네비는
+  **창 목록**입니다. 같은 정보가 두세 군데 있습니다(장소 이름·할 일).
+- **`이곳의 활동` 목록은 걸어갈 이유를 없앱니다.** 목록에서 고르면 되는데 왜 걷겠습니까.
+  하단은 **장면이 바뀌어도 같은 네 개**로 둡니다. 그게 sansa 가 쉬워 보이는 진짜 이유입니다.
+- **이번 것(카메라·UI)은 "온 사람이 더 좋게 느끼는 것"이고, 앞 기획(마당 소식·등이 산다·
+  등 주소)은 "사람이 오고 다시 오는 것"입니다.** 섞지 않습니다. 카메라를 고친다고 사람이
+  오지는 않습니다.
