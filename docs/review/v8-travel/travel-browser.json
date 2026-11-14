@@ -1,0 +1,298 @@
+{
+  "pc": {
+    "gates": [
+      {
+        "scene": "campus",
+        "gate": "enterTemple",
+        "expected": "temple1",
+        "got": "temple1"
+      },
+      {
+        "scene": "campus",
+        "gate": "sideDoor",
+        "expected": "temple1",
+        "got": "temple1"
+      },
+      {
+        "scene": "campus",
+        "gate": "enterTerrace2",
+        "expected": "terrace2",
+        "got": "terrace2"
+      },
+      {
+        "scene": "campus",
+        "gate": "enterTerrace3",
+        "expected": "terrace3",
+        "got": "terrace3"
+      },
+      {
+        "scene": "campus",
+        "gate": "enterWorkshop",
+        "expected": "workshop",
+        "got": "workshop"
+      },
+      {
+        "scene": "campus",
+        "gate": "enterSeosan",
+        "expected": "seosan",
+        "got": "seosan"
+      },
+      {
+        "scene": "workshop",
+        "gate": "backCampus",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "seosan",
+        "gate": "backCampus",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "temple1",
+        "gate": "elevator",
+        "expected": "floors",
+        "got": "floors"
+      },
+      {
+        "scene": "temple1",
+        "gate": "backCampus",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "lobby2",
+        "gate": "elevator",
+        "expected": "floors",
+        "got": "floors"
+      },
+      {
+        "scene": "lobby2",
+        "gate": "exitOut",
+        "expected": "terrace2",
+        "got": "terrace2"
+      },
+      {
+        "scene": "lobby3",
+        "gate": "elevator",
+        "expected": "floors",
+        "got": "floors"
+      },
+      {
+        "scene": "lobby3",
+        "gate": "exitOut",
+        "expected": "terrace3",
+        "got": "terrace3"
+      },
+      {
+        "scene": "hall5",
+        "gate": "elevator",
+        "expected": "floors",
+        "got": "floors"
+      },
+      {
+        "scene": "hall5",
+        "gate": "backCampus",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "terrace2",
+        "gate": "elevator",
+        "expected": "lobby2",
+        "got": "lobby2"
+      },
+      {
+        "scene": "terrace2",
+        "gate": "enterTerrace3",
+        "expected": "terrace3",
+        "got": "terrace3"
+      },
+      {
+        "scene": "terrace2",
+        "gate": "hillDown",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "terrace3",
+        "gate": "elevator",
+        "expected": "lobby3",
+        "got": "lobby3"
+      },
+      {
+        "scene": "terrace3",
+        "gate": "enterTerrace2",
+        "expected": "terrace2",
+        "got": "terrace2"
+      },
+      {
+        "scene": "terrace3",
+        "gate": "hillDown",
+        "expected": "campus",
+        "got": "campus"
+      }
+    ],
+    "jumps": [
+      "campus",
+      "workshop",
+      "seosan",
+      "temple1",
+      "lobby2",
+      "lobby3",
+      "hall5",
+      "terrace2",
+      "terrace3"
+    ],
+    "errors": []
+  },
+  "mobile": {
+    "gates": [
+      {
+        "scene": "campus",
+        "gate": "enterTemple",
+        "expected": "temple1",
+        "got": "temple1"
+      },
+      {
+        "scene": "campus",
+        "gate": "sideDoor",
+        "expected": "temple1",
+        "got": "temple1"
+      },
+      {
+        "scene": "campus",
+        "gate": "enterTerrace2",
+        "expected": "terrace2",
+        "got": "terrace2"
+      },
+      {
+        "scene": "campus",
+        "gate": "enterTerrace3",
+        "expected": "terrace3",
+        "got": "terrace3"
+      },
+      {
+        "scene": "campus",
+        "gate": "enterWorkshop",
+        "expected": "workshop",
+        "got": "workshop"
+      },
+      {
+        "scene": "campus",
+        "gate": "enterSeosan",
+        "expected": "seosan",
+        "got": "seosan"
+      },
+      {
+        "scene": "workshop",
+        "gate": "backCampus",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "seosan",
+        "gate": "backCampus",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "temple1",
+        "gate": "elevator",
+        "expected": "floors",
+        "got": "floors"
+      },
+      {
+        "scene": "temple1",
+        "gate": "backCampus",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "lobby2",
+        "gate": "elevator",
+        "expected": "floors",
+        "got": "floors"
+      },
+      {
+        "scene": "lobby2",
+        "gate": "exitOut",
+        "expected": "terrace2",
+        "got": "terrace2"
+      },
+      {
+        "scene": "lobby3",
+        "gate": "elevator",
+        "expected": "floors",
+        "got": "floors"
+      },
+      {
+        "scene": "lobby3",
+        "gate": "exitOut",
+        "expected": "terrace3",
+        "got": "terrace3"
+      },
+      {
+        "scene": "hall5",
+        "gate": "elevator",
+        "expected": "floors",
+        "got": "floors"
+      },
+      {
+        "scene": "hall5",
+        "gate": "backCampus",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "terrace2",
+        "gate": "elevator",
+        "expected": "lobby2",
+        "got": "lobby2"
+      },
+      {
+        "scene": "terrace2",
+        "gate": "enterTerrace3",
+        "expected": "terrace3",
+        "got": "terrace3"
+      },
+      {
+        "scene": "terrace2",
+        "gate": "hillDown",
+        "expected": "campus",
+        "got": "campus"
+      },
+      {
+        "scene": "terrace3",
+        "gate": "elevator",
+        "expected": "lobby3",
+        "got": "lobby3"
+      },
+      {
+        "scene": "terrace3",
+        "gate": "enterTerrace2",
+        "expected": "terrace2",
+        "got": "terrace2"
+      },
+      {
+        "scene": "terrace3",
+        "gate": "hillDown",
+        "expected": "campus",
+        "got": "campus"
+      }
+    ],
+    "jumps": [
+      "campus",
+      "workshop",
+      "seosan",
+      "temple1",
+      "lobby2",
+      "lobby3",
+      "hall5",
+      "terrace2",
+      "terrace3"
+    ],
+    "errors": []
+  }
+}
