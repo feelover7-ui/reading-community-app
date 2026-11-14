@@ -128,6 +128,16 @@
     return name || '방문자'
   }
 
+  function participantCount (social) {
+    const peers = social?.peers
+    const size = Number.isFinite(Number(peers?.size)) ? Number(peers.size) : 0
+    return Math.max(1, 1 + size)
+  }
+
+  function participantLabel (social) {
+    return `${participantCount(social)}명 접속`
+  }
+
   function installRewardHook () {
     const Store = root.HanmaumStore
     const prototype = Store?.prototype
@@ -145,7 +155,7 @@
     }
   }
 
-  const api = Object.freeze({VERSION, STAGES, STORAGE_KEY, createState, normalize, stageFor, transition, arrivalModel, createAnonymousProfile, selectJourneyLantern, ceremonialRoute, visitorName})
+  const api = Object.freeze({VERSION, STAGES, STORAGE_KEY, createState, normalize, stageFor, transition, arrivalModel, createAnonymousProfile, selectJourneyLantern, ceremonialRoute, visitorName, participantCount, participantLabel})
   root.HanmaumPilgrimage = api
   installRewardHook()
   installCarryPose()
@@ -424,7 +434,13 @@
     hud = document.createElement('nav')
     hud.id = 'pilgrimageReturnHUD'
     hud.setAttribute('aria-label', '도량 빠른 메뉴')
-    hud.innerHTML = '<button type="button" data-return="map">전체 장소</button><button type="button" data-return="online">접속자</button><button type="button" data-return="guestbook">방명록</button><button type="button" data-return="settings">설정·기록</button>'
+    hud.innerHTML = '<button type="button" data-return="map">전체 장소</button><button type="button" data-return="online">1명 접속</button><button type="button" data-return="guestbook">방명록</button><button type="button" data-return="settings">설정·기록</button>'
+    const refreshParticipants = () => {
+      const button = hud.querySelector('[data-return="online"]')
+      if (button) button.textContent = participantLabel(app.features?.social)
+    }
+    refreshParticipants()
+    hud.__participantTimer = setInterval(refreshParticipants, 2000)
     hud.onclick = event => {
       const action = event.target.closest('button')?.dataset.return
       if (action === 'map') app.showMap()
