@@ -153,8 +153,8 @@
 - Consumes: production build and Vercel deployment
 - Produces: reproducible verification record and deployed v8 URL
 
-- [ ] Run focused tests after every rebase, then the entire Node suite, worker tests, `npm run build`, and `git diff --check`.
-- [ ] Run browser smoke checks at 1440×900 and 390×844 for arrival, craft resume, carry, pagoda lap, hall bows, hang, finale, returning map, and offline/table-missing fallback.
-- [ ] Record screenshots and console/network results without writing test messages or guestbook entries to production.
-- [ ] Update `AGENTS.md` with the new first-journey invariants and write the verification report with real-iPhone and backend-table limitations stated exactly.
+- [x] Run focused tests after every rebase, then the entire Node suite, worker tests, `npm run build`, and `git diff --check`.
+- [x] Run browser smoke checks at 1440×900 and 390×844 for arrival, craft resume, carry, pagoda lap, hall bows, hang, finale, returning map, and offline/table-missing fallback.
+- [x] Record screenshots and console/network results without writing test messages or guestbook entries to production.
+- [x] Update `AGENTS.md` with the new first-journey invariants and write the verification report with real-iPhone and backend-table limitations stated exactly.
 - [ ] Rebase on latest `origin/main`, rerun verification, push the branch, open a PR, merge after checks, and verify the production asset hashes and end-to-end smoke flow.

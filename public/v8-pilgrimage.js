@@ -410,6 +410,7 @@
   }
 
   function setupReturning (app) {
+    if (app.scene !== 'campus') app.enterScene('campus')
     document.body.classList.add('pilgrimage-returning')
     let hud = document.getElementById('pilgrimageReturnHUD')
     if (hud) return
