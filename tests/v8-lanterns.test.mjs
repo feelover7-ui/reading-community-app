@@ -126,9 +126,19 @@ test('걷는 속도·캐릭터 크기·메뉴 키·Enter 대화·접속자 이�
   const { readFileSync } = await import('node:fs')
   const html = readFileSync(new URL('../public/v8.html', import.meta.url), 'utf8')
 
-  // 1) 걷는 속도 (원래 4.3). 3D·2D 두 렌더러가 같은 값을 쓴다.
-  assert.equal((html.match(/this\.walkSpeed=6\.4/g) || []).length, 2, '두 렌더러 모두 올려야 한다')
-  assert.ok(!/this\.walkSpeed=4\.3/.test(html), '옛 속도가 남아 있으면 한쪽만 빨라진다')
+  // 1) 걷는 속도 (원래 4.3). 한 곳에서 정하고 두 렌더러가 같이 쓴다.
+  //    흩어 두었더니 2D 는 도량 가속을 못 받고, 수행을 한 번 하면 둘 다 4.3 으로 떨어졌다.
+  assert.equal((html.match(/HANMAUM_WALK = id => id === 'campus' \? 11\.5 : 6\.4/g) || []).length, 1, '기준이 한 곳이어야 한다')
+  assert.equal((html.match(/this\.walkSpeed=window\.HANMAUM_WALK\?window\.HANMAUM_WALK\(id\):6\.4/g) || []).length, 2, '두 렌더러 모두 같은 기준을 써야 한다')
+  assert.ok(!/walkSpeed\s*=\s*4\.3/.test(html), '옛 속도가 남아 있으면 수행 뒤에 느려진다')
+  assert.ok(!/walkSpeed\s*=\s*8\.6/.test(html), '도량만 따로 올리면 2D 가 빠진다')
+  assert.ok(/this\.world\.walkSpeed=window\.HANMAUM_WALK\?window\.HANMAUM_WALK\(this\.world\.currentScene\)/.test(html), '수행이 끝나면 그 장면의 속도로 돌아와야 한다')
+
+  // 1-2) Enter 는 650px 모달이 아니라 한 줄 입력을 연다 (세계가 멈추지 않는다)
+  assert.ok(/features\?\.social\?\.openQuick\(\)/.test(html), 'Enter 가 한 줄 입력을 열지 않는다')
+  assert.ok(html.includes('id="quickChat"') && html.includes('id="chatStream"'), '한 줄 입력과 왼쪽 기록이 없다')
+  assert.ok(/renderStream\s*\(\)\s*\{/.test(html), '왼쪽 기록을 그리지 않는다')
+  assert.ok(/this\.renderMessages\(\);this\.renderStream\(\)/.test(html), '새 대화가 왼쪽에 흐르지 않는다')
 
   // 5) 바깥 마당 캐릭터 크기 (원래 campus 1.12)
   assert.ok(html.includes("currentScene==='campus'?1.45:1.18"), '캐릭터가 작다는 요청')
@@ -139,8 +149,10 @@ test('걷는 속도·캐릭터 크기·메뉴 키·Enter 대화·접속자 이�
   assert.ok(html.includes('focusFirstMenuItem'), '펼치면 첫 항목에 초점이 가야 바로 고른다')
 
   // 4) Enter 로 대화. 단추·입력칸에 초점이 있으면 넘긴다.
+  //    처음에는 '채팅' 단추와 같은 길(모달)로 열었는데, 창이 너무 크고 세계가 멈춰서
+  //    사용자 요청으로 한 줄 입력으로 바꿨다. 큰 창은 '채팅' 단추에 그대로 남는다.
   assert.ok(/e\.code==='Enter'\|\|e\.code==='NumpadEnter'/.test(html))
-  assert.ok(html.includes("chatBtn.click()"), '대화는 단추와 같은 길로 연다')
+  assert.ok(html.includes("case'chat':this.social.show();"), '큰 창은 채팅 단추에 남아야 한다')
 
   // 3) 누가 들어와 있는지
   assert.ok(html.includes('peerNames()'), '인원 수만이 아니라 이름을 보여 준다')

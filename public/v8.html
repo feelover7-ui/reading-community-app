@@ -106,6 +106,18 @@ body.m-simple #onlineBtn{right:64px;top:max(12px,env(safe-area-inset-top));min-h
 .world-labels button[aria-label="도량으로까지 이동"],.world-labels button[aria-label="전체 도량까지 이동"]{display:block}
 .social-actions{flex-wrap:wrap;max-width:274px}.social-actions button{min-height:44px}.social-actions button:disabled{opacity:.62;cursor:default}.greeting-progress{flex:1 0 100%;text-align:center;font-size:10px;line-height:1.6;color:#52684d;padding:1px 3px 3px;font-variant-numeric:tabular-nums}.chat-composer textarea{flex:1;min-width:0;min-height:54px;max-height:124px;resize:vertical;line-height:1.5;padding:10px 12px}.chat-composer button{align-self:stretch}
 .immersive-view #viewReticle{display:none}
+/* 대화는 왼쪽에 흘리고, 쓸 때는 한 줄만 엽니다(사용자 요청).
+   예전에는 Enter 가 650px 모달을 열고 세계를 멈췄습니다. 그 창은 '채팅' 단추에 그대로 남아
+   방 이름과 60줄 기록을 봅니다. */
+.chat-stream{position:absolute;z-index:9;left:28px;bottom:288px;width:min(320px,42vw);display:flex;flex-direction:column;gap:5px;pointer-events:none}
+.stream-line{background:#1e3129d9;color:#f5efdd;border:1px solid #ffffff2e;border-radius:12px;padding:6px 10px;font-size:12px;line-height:1.42;box-shadow:0 4px 14px #10251c33;transition:opacity .6s;word-break:break-word}
+.stream-line b{display:block;font-size:11px;font-weight:700;color:#cfe0c6}
+.stream-line.mine{background:#2d4738e0}
+.chat-stream.faded .stream-line{opacity:0}
+.quick-chat{position:absolute;z-index:13;left:50%;bottom:190px;transform:translateX(-50%);width:min(520px,calc(100% - 40px));display:flex;align-items:center;gap:7px;padding:8px;border-radius:16px;background:#fffaf0f7;border:1px solid #fff;box-shadow:0 7px 0 #c9d4b999,0 12px 35px #213b2320}
+.quick-chat input{flex:1;min-width:0}
+.quick-chat .btn{flex:none}
+@media(max-width:600px){.chat-stream{left:12px;bottom:306px;width:min(258px,66vw)}.stream-line{font-size:11px;padding:5px 8px}.quick-chat{bottom:152px;width:calc(100% - 24px);padding:6px;gap:5px}}
 .chat-online-panel{padding:14px;border:1px solid #dfe4d1;border-radius:14px;background:#f6f6ec;margin-top:14px}.chat-online-panel>label{display:block;font-size:12px;font-weight:700;margin-bottom:8px}.chat-room-row{display:flex;gap:8px;align-items:center}.chat-room-row input{min-width:0;flex:1}.chat-room-row .btn{flex:none;padding:11px 14px;font-size:12px;min-height:44px}.chat-online-panel .chat-scope{margin:10px 0 4px;border:0;padding:0}.chat-online-panel>small{font-size:10px;color:#7e896f}.chat-online-panel button[hidden]{display:none!important}
 @media(max-width:600px){.chat-online-panel{padding:11px}.chat-room-row{flex-wrap:wrap}.chat-room-row input{flex:1 1 130px}.chat-room-row .btn{padding:10px 11px}.chat-messages{height:200px}.look-controls button{min-width:48px;min-height:48px}}
 @media(max-height:550px) and (orientation:landscape){.social-actions{left:15px;right:auto;bottom:145px}.social-actions button{min-width:46px;min-height:34px;padding:7px 9px;font-size:10px}}
@@ -247,6 +259,8 @@ body.campus-overview .world-marker{padding:9px 13px!important;font-size:13px!imp
   <section id="spaceActivity" class="space-activity" aria-label="도량 안에서 하는 활동" hidden><div class="space-heading"><div><small id="spaceKicker"></small><h2 id="spaceTitle"></h2></div><span id="spaceBreath" aria-hidden="true"></span><strong id="spaceCount"></strong></div><p id="spaceText"></p><div class="space-progress"><i id="spaceFill"></i></div><div class="space-actions"><button id="spaceStop" class="btn ghost small">활동 마치기</button></div></section>
   <div id="firstGuide" class="first-guide"><div><small>첫 걸음</small><b>등불사장에 가 볼까요?</b><span>건물을 누르면 캐릭터가 입구까지 걸어갑니다.</span></div><button class="btn primary small" id="guideWalk">등불사장으로 <span>↗</span></button><button id="guideClose" aria-label="첫 안내 닫기">×</button></div>
   <div id="socialActions" class="social-actions" aria-label="인사와 채팅"><button data-ui="gesture" data-value="hapjang">합장</button><button data-ui="gesture" data-value="bow">반배</button><button data-ui="chat">채팅 <span id="chatBadge" hidden></span></button></div>
+  <div id="chatStream" class="chat-stream" aria-hidden="true"></div>
+  <form id="quickChat" class="quick-chat" hidden autocomplete="off" aria-label="대화 한 줄 쓰기"><input id="quickChatInput" class="text-input" maxlength="160" placeholder="한 줄 남기기" autocomplete="off" spellcheck="false" aria-label="대화 내용"><button type="submit" class="btn primary small">보내기</button><button type="button" id="quickChatClose" class="btn ghost small">닫기</button></form>
   <div id="walkHint" class="walk-hint"><span class="desktop-hint">방향키 / WASD 이동 <i>·</i> E 작업 <i>·</i> 바닥을 눌러 걷기</span><span class="touch-hint">바닥을 눌러 걷거나 조이스틱을 움직여 보세요</span></div>
   <div id="joystick" role="group" aria-label="이동 조이스틱"><span class="joy-ring"></span><span id="joyKnob"></span></div>
   <div id="interaction" class="interaction"><div class="interact-symbol" id="interactSymbol"></div><div class="interact-copy"><small id="interactEyebrow">도량 탐방</small><strong id="interactTitle">가고 싶은 장소를 골라 보세요</strong><span id="interactSub">건물이나 바닥을 누르면 이동합니다.</span></div><button class="btn primary" id="interactBtn" disabled>작업 <kbd>E</kbd></button></div>
@@ -4499,6 +4513,11 @@ globalThis.THREE=lC;
   'use strict';
 
   const SAVE_KEY = 'hanmaum-journey-v3';
+  /* 걷는 속도의 단일 기준.
+     도량(campus)은 조감 시점으로 넓게 보여서 같은 속도가 훨씬 느려 보입니다. 가장 먼 곳이 42.5 칸입니다.
+     장면마다 흩어 두면 한쪽만 바뀝니다. 실제로 2D 대체 렌더러는 도량 가속을 못 받고 있었고,
+     수행을 한 번 하고 나면 두 렌더러 모두 4.3 으로 떨어져 있었습니다. */
+  globalThis.HANMAUM_WALK = id => id === 'campus' ? 11.5 : 6.4;
   const STATS = ['focus', 'care', 'craft', 'insight', 'steady', 'harmony'];
   const SCENES = ['campus', 'workshop', 'temple1', 'lobby2', 'lobby3', 'terrace3', 'terrace2', 'hall5', 'seosan'];
   const SHAPES = ['lotus', 'round', 'star', 'wind', 'windbell', 'fish', 'elephant', 'wheel', 'square', 'palace', 'cloud', 'bell', 'lantern'];
@@ -5274,7 +5293,7 @@ class HanmaumWorld {
  stoneScreen(x,z,parent){const g=this.group(x,0,z,parent),granite=this.stoneMaterial('#bebcab');for(let i=0;i<7;i++){const xx=(i-3)*.92,h=4.2-Math.abs(i-3)*.23;this.box(.91,h,.54,granite,xx,h/2,0,g);const cap=this.cyl(.45,.45,.28,granite,xx,h,0,g,12);cap.scale.z=.6;}const ink=this.mat('#8a8d7b');for(let i=0;i<3;i++){const r=.16+i*.22;this.mesh(new T.TorusGeometry(r,.022,5,42),ink,g,0,3.1-i*.72,.29);}return g;}
  stupa(x,z,parent){const g=this.group(x,0,z,parent),stone=this.mat('#dedecd',{roughness:.7});for(let i=0;i<3;i++)this.box(2.7-i*.22,.22,2.6-i*.22,stone,0,.11+i*.22,0,g);this.box(1.23,1.35,1.23,stone,0,1.34,0,g);this.box(2.05,.3,2.05,stone,0,2.18,0,g);this.cyl(.34,.5,.22,stone,0,2.45,0,g,12);this.mesh(new T.SphereGeometry(.68,20,14),stone,g,0,3.2,0);return g;}
 
- setScene(id,options={}){const previous=options.from||this.currentScene,via=options.via||this.lastInteractionId;if(!SCENES[id])id='campus';if(this.weatherPoints){this.scene.remove(this.weatherPoints);this.weatherPoints.geometry.dispose();this.weatherPoints.material.dispose();this.weatherPoints=null;}if(this.content){this.scene.remove(this.content);this.disposeGroup(this.content);}this._textures.forEach(t=>t.dispose());this._textures=[];this.labelLayer.replaceChildren();this.content=new T.Group();this.scene.add(this.content);this.obstacles=[];this.walkRegions=null;this.hotspots=[];this.trees=[];this.glowMaterials=[];this.patches=[];this.wheelMaterial=null;this.offeringGroup=null;this.offeringSignature='';this.weatherPoints=null;this.path=[];this.manualWalkOnly=false;this.manualMovement=[];this.lookInput=0;this.near=null;this.lastNearId='';this.targetHotspot=null;this.autoLook=null;this.walkSpeed=6.4;this.groundMaterial=null;this.immersiveOnly=[];this.nightLights=[];this.ramps=[];this.gesture=null;this.activeSeat=null;this.selectedCushionId=null;this.currentScene=id;this.scenic=false;this.bounds={minX:-20,maxX:20,minZ:-16,maxZ:16};this.roomTarget=new T.Vector3(0,1,0);this.roomWidth=48;this.indoor=['workshop','temple1','hall5','lobby2','lobby3'].includes(id);
+ setScene(id,options={}){const previous=options.from||this.currentScene,via=options.via||this.lastInteractionId;if(!SCENES[id])id='campus';if(this.weatherPoints){this.scene.remove(this.weatherPoints);this.weatherPoints.geometry.dispose();this.weatherPoints.material.dispose();this.weatherPoints=null;}if(this.content){this.scene.remove(this.content);this.disposeGroup(this.content);}this._textures.forEach(t=>t.dispose());this._textures=[];this.labelLayer.replaceChildren();this.content=new T.Group();this.scene.add(this.content);this.obstacles=[];this.walkRegions=null;this.hotspots=[];this.trees=[];this.glowMaterials=[];this.patches=[];this.wheelMaterial=null;this.offeringGroup=null;this.offeringSignature='';this.weatherPoints=null;this.path=[];this.manualWalkOnly=false;this.manualMovement=[];this.lookInput=0;this.near=null;this.lastNearId='';this.targetHotspot=null;this.autoLook=null;this.walkSpeed=window.HANMAUM_WALK?window.HANMAUM_WALK(id):6.4;this.groundMaterial=null;this.immersiveOnly=[];this.nightLights=[];this.ramps=[];this.gesture=null;this.activeSeat=null;this.selectedCushionId=null;this.currentScene=id;this.scenic=false;this.bounds={minX:-20,maxX:20,minZ:-16,maxZ:16};this.roomTarget=new T.Vector3(0,1,0);this.roomWidth=48;this.indoor=['workshop','temple1','hall5','lobby2','lobby3'].includes(id);
   if(id==='campus')this.buildCampus();else if(id==='workshop')this.buildWorkshop();else if(id==='temple1')this.buildOffice();else if(id==='hall5')this.buildHall();else this.buildTerrace(id);
   this.configurePassages();this.buildAvatar();this.player.position.set(this.spawn?.x||0,.12,this.spawn?.z||0);this.placeAtEntrance(previous,via);this.lastInteractionId=null;this.player.x=this.player.position.x;this.player.z=this.player.position.z;this.buildTarget();this.buildWeather();this.lookYaw=this.arrivalYaw||0;this.player.rotation.y=Math.PI-this.lookYaw;this.lookPitch=.06;this.setViewMode(this.viewMode);this.setEnvironment();this.resize();this.onNear(null);this.onScene(id);
  }
@@ -5566,7 +5585,7 @@ getNearby(){return this.near;}
 interact(){if(this.paused||this.scenic)return null;this.lastInteractionId=this.near?.id;return this.near;}
 refreshAppearance(){this.setEnvironment();}
 setEnvironment(){const s=this.getState()||{},e=s.environment||{},p=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Seoul',month:'numeric',hour:'numeric',hourCycle:'h23'}).formatToParts(new Date()),month=+(p.find(x=>x.type==='month')?.value||11),hour=Number(p.find(x=>x.type==='hour')?.value??12);this.season=e.season&&e.season!=='auto'?e.season:[12,1,2].includes(month)?'winter':month<=5?'spring':month<=8?'summer':'autumn';this.time=e.time&&e.time!=='auto'?e.time:hour<6?'night':hour<9?'dawn':hour<17?'day':hour<19?'sunset':'night';this.weather=e.weather&&e.weather!=='auto'?e.weather:'clear';this.reducedMotion=!!s.settings?.reducedMotion;this.quality=s.settings?.quality||'auto';this.resize();}
-setScene(id,options={}){const previous=options.from||this.currentScene,via=options.via||this.lastInteractionId;if(!['campus','workshop','temple1','terrace3','terrace2','hall5'].includes(id))id='campus';this.currentScene=id;this.indoor=['workshop','temple1','hall5'].includes(id);this.scenic=false;this.yaw=0;this.ramps=[];this.activeSeat=null;this.selectedCushionId=null;this.gesture=null;this.isFallback=true;this.lookYaw=0;this.lookPitch=id==='hall5'?.08:.12;this.walkMarker=null;this._focusLandmark=null;this.path=[];this.manualWalkOnly=false;this.manualMovement=[];this.lookInput=0;this.walkSpeed=6.4;this.target=null;this.near=null;this.lastNearId='';this.labelLayer.style.display='';this.labelLayer.replaceChildren();this.hotspots=[];this.obstacles=[];this.items=[];this.paths=[];this.bounds={minX:-20,maxX:20,minZ:-16,maxZ:16};this.worldWidth=43;this.worldDepth=34;this.spawn={x:0,z:12};if(id==='campus')this.campus();else if(id==='workshop')this.workshop();else if(id==='temple1')this.office();else if(id==='hall5')this.hall();else this.terrace(id);this.configurePassages();this.player={x:this.spawn.x,z:this.spawn.z,position:{x:this.spawn.x,y:.12,z:this.spawn.z},rotation:{y:0},visible:true};this.placeAtEntrance(previous,via);this.player.rotation.y=this.lookYaw+Math.PI;this.lastInteractionId=null;this.setEnvironment();this.onNear(null);this.onScene(id);}
+setScene(id,options={}){const previous=options.from||this.currentScene,via=options.via||this.lastInteractionId;if(!['campus','workshop','temple1','terrace3','terrace2','hall5'].includes(id))id='campus';this.currentScene=id;this.indoor=['workshop','temple1','hall5'].includes(id);this.scenic=false;this.yaw=0;this.ramps=[];this.activeSeat=null;this.selectedCushionId=null;this.gesture=null;this.isFallback=true;this.lookYaw=0;this.lookPitch=id==='hall5'?.08:.12;this.walkMarker=null;this._focusLandmark=null;this.path=[];this.manualWalkOnly=false;this.manualMovement=[];this.lookInput=0;this.walkSpeed=window.HANMAUM_WALK?window.HANMAUM_WALK(id):6.4;this.target=null;this.near=null;this.lastNearId='';this.labelLayer.style.display='';this.labelLayer.replaceChildren();this.hotspots=[];this.obstacles=[];this.items=[];this.paths=[];this.bounds={minX:-20,maxX:20,minZ:-16,maxZ:16};this.worldWidth=43;this.worldDepth=34;this.spawn={x:0,z:12};if(id==='campus')this.campus();else if(id==='workshop')this.workshop();else if(id==='temple1')this.office();else if(id==='hall5')this.hall();else this.terrace(id);this.configurePassages();this.player={x:this.spawn.x,z:this.spawn.z,position:{x:this.spawn.x,y:.12,z:this.spawn.z},rotation:{y:0},visible:true};this.placeAtEntrance(previous,via);this.player.rotation.y=this.lookYaw+Math.PI;this.lastInteractionId=null;this.setEnvironment();this.onNear(null);this.onScene(id);}
 add(kind,x,z,data={}){const o={kind,x,z,...data};this.items.push(o);return o;}
 block(x,z,w,d){this.obstacles.push({x,z,w:w+.5,d:d+.5});}
 hot(id,label,sub,x,z,ax=x,az=z,ah=2){const h={id,label,sub,x,z,ax,az,ah};const b=document.createElement('button');b.type='button';b.className='world-marker';b.textContent=label;b.setAttribute('aria-label',label+'까지 이동');Object.assign(b.style,{position:'absolute',transform:'translate(-50%,-100%)',pointerEvents:'auto',border:'1px solid rgba(255,255,255,.82)',borderRadius:'11px',padding:'7px 10px',background:'rgba(250,246,228,.96)',color:'#2c5146',boxShadow:'0 3px 0 #214f3520,0 7px 18px #214f351a',font:'700 12px "Noto Sans KR", sans-serif',whiteSpace:'nowrap',cursor:'pointer'});b.onclick=e=>{e.stopPropagation();this.walkTo(id);};this.labelLayer.appendChild(b);h.element=b;this.hotspots.push(h);return h;}
@@ -5615,7 +5634,7 @@ case 'bench':this.box(x-.85,z,.12,.45,.7,0,'#59674d');this.box(x+.85,z,.12,.45,.
 case 'lanternString':{const pts=[];for(let i=0;i<=10;i++){const xx=x-6+i*1.2,hh=4-Math.sin(i/10*Math.PI)*.7;pts.push(this.p(xx,z,hh));if(i>0&&i<10)this.lantern(xx,z,hh-.3,['#db9a72','#e3bd72','#c6bb7b','#dca398'][i%4],.28);}this.line(pts,'#637057',.8);this.box(x-6,z,.13,.13,4,0,'#8b6c46');this.box(x+6,z,.13,.13,4,0,'#8b6c46');break;}
 case 'workTable':{this.shadow(x,z,7,4);for(let dx of [-2.7,2.7])for(let dz of [-1.2,1.2])this.box(x+dx,z+dz,.12,.12,1.2,0,'#657a69');this.box(x,z,6,3,.18,1.2,'#ba9874');this.rect(x,z,4.5,2,1.4,'#7b9996');for(let i=0;i<4;i++)this.lantern(x-1.7+i*1.1,z,1.9,['#dea282','#dbaa9d','#d7c384','#a4b791'][i],.32);for(let i=0;i<3;i++)this.box(x-2.1+i*.7,z-1,.5,.65,.08,1.42,['#dba793','#c3bd87','#9eaf94'][i]);break;}
 case 'grand':{this.box(x,z,5,3.6,.32,0,'#aa9470');for(let dx of [-2.1,2.1])for(let dz of [-1.4,1.4])this.box(x+dx,z+dz,.07,.07,3.9,.3,'#908770');for(let y of [1,2.3,3.9]){this.line([this.p(x-2.1,z-1.4,y),this.p(x+2.1,z-1.4,y),this.p(x+2.1,z+1.4,y),this.p(x-2.1,z+1.4,y),this.p(x-2.1,z-1.4,y)],'#a99a7a',1);}for(let j=0;j<6;j++){const pts=[];for(let i=0;i<=24;i++){const a=i*TAU/24;pts.push(this.p(x+Math.cos(a)*(1.5+j*.04),z+Math.sin(a),.85+j*.48));}this.line(pts,'#c6b28b',.9);}for(let i=0;i<8;i++){let a=i*TAU/8;this.line([this.p(x+Math.cos(a)*1.5,z+Math.sin(a),.7),this.p(x+Math.cos(a+.3)*1.7,z+Math.sin(a+.3),3.8)],'#bca27b',.9);}const n=Math.min(12,Math.floor((this.getState().grand?.contributions||0)/2));for(let i=0;i<n;i++){const a=i*2.4,px=x+Math.sin(a)*1.3,pz=z+Math.cos(a);this.box(px,pz,.42,.06,.48,1+Math.floor(i/6)*.8,['#ecd4ae','#dbc19b','#ead9bd'][i%3]);}break;}
-case 'gallery':{this.box(x,z,.3,8,4.7,0,'#b7a27e');for(let row=0;row<10;row++){this.line([this.p(x-.25,z-3.6,4.4-row*.38),this.p(x-.25,z+3.6,4.4-row*.38)],'#806e52',.55);for(let col=0;col<12;col++){const p=this.p(x-.28,z-3.4+col*.62,4.2-row*.38);this.ellipse(...p,.095*this.scale,.13*this.scale,['#dfa191','#e0bc6b','#adb98a','#99b6a7','#d8b387'][(row*12+col)%5]);}}break;}
+case 'gallery':{this.box(x,z,.3,8,4.7,0,'#b7a27e');for(let row=0;row<10;row++)this.line([this.p(x-.25,z-3.6,4.4-row*.38),this.p(x-.25,z+3.6,4.4-row*.38)],'#806e52',.55);const placed=(window.HanmaumExhibit?window.HanmaumExhibit.rows():[]);for(const pl of placed){const p=this.p(x-.28,z+pl.slot.z,pl.slot.y);this.ellipse(...p,.095*this.scale,.13*this.scale,pl.color);}break;}
 case 'wheel':{this.box(x,z,5,1.6,.45,0,'#716d56');const p=this.p(x,z,5),w=this.scale*4.8,h=this.scale*4.1,q=this.ctx,lit=!!this.getState().wheelLit;q.fillStyle='#3c493c';q.fillRect(p[0]-w/2,p[1],w,h);if(lit){const g=q.createRadialGradient(p[0],p[1]+h/2,w*.15,p[0],p[1]+h/2,w);g.addColorStop(0,'#ffd98455');g.addColorStop(1,'#ffd98400');q.fillStyle=g;q.fillRect(p[0]-w,p[1]-h*.4,w*2,h*1.8);}q.strokeStyle=lit?'#e6bd6b':'#a28f65';q.lineWidth=Math.max(1,this.scale*.1);q.strokeRect(p[0]-w/2,p[1],w,h);if(this.imageReady){const ih=w/(this.image.naturalWidth/this.image.naturalHeight);q.save();q.globalAlpha=lit?1:.55;q.drawImage(this.image,p[0]-w/2,p[1]+(h-ih)/2,w,ih);q.restore();}else{this.ellipse(p[0],p[1]+h/2,w*.36,w*.36,'#b46e49','#e2b76a');this.ellipse(p[0],p[1]+h/2,w*.28,w*.28,'#dfbd78');for(let i=0;i<12;i++){const a=i*TAU/12;this.line([[p[0],p[1]+h/2],[p[0]+Math.cos(a)*w*.28,p[1]+h/2+Math.sin(a)*w*.28]],'#ad7540',1);}this.ellipse(p[0],p[1]+h/2,w*.065,w*.065,'#67738e');}break;}
 case 'shelf':this.box(x,z,3,1,2.3,0,'#9e8f72');for(let y of [.5,1.2,1.9]){this.box(x,z+.08,3.2,1.2,.1,y,'#c0ac87');for(let i=0;i<4;i++)this.box(x-1.1+i*.73,z+.1,.5,.55,.35,y+.1,['#d4ae91','#b7bea0','#b8a07d'][i%3]);}break;
 case 'bookShelf':this.box(x,z,2.6,.7,3.3,0,'#96744f');for(let y of [.5,1.3,2.1]){this.box(x,z+.1,2.5,.8,.1,y,'#c0a178');for(let i=0;i<7;i++)this.box(x-1+i*.3,z+.1,.2,.35,.58,y+.1,['#a9b89a','#d5c08e','#bd9277','#829587'][i%4]);}break;
@@ -5908,6 +5927,53 @@ window.HanmaumWorld2D=HanmaumWorld2D;
   const WHEEL_Y = 3.58, WHEEL_R = 2.23;
   const flameOutline = [[-.18, -.03], [-.29, .14], [-.23, .32], [-.09, .46], [-.13, .28], [0, .18], [.02, .39], [.19, .47], [.19, .65], [.34, .47], [.32, .23], [.20, .11], [.36, .31], [.40, .11], [.20, -.06]];
   window.HANMAUM_WORKSHOP = Object.freeze({ width: WIDTH, depth: DEPTH, originalArea: 567, area: 1134, areaRatio: 2, linearScale: SCALE, layout: L });
+
+  /* --- 전시벽의 자리 ---
+     여기에는 등 120개가 하드코딩돼 있었습니다. 색 다섯 가지를 돌려 쓴 장식이었고
+     누가 실제로 건 발원등과는 아무 관계가 없었습니다. 그래서 혼자 들어오면
+     벽은 꽉 차 보이는데 남이 남긴 것은 하나도 만나지 못했습니다.
+
+     이제 자리만 여기서 정하고, 무엇이 걸리는지는 실제 발원등이 정합니다.
+     걸린 순서대로 **맨 아래 줄 왼쪽부터** 채워 올라갑니다. 빈 자리는 고리만 남습니다. */
+  const EXHIBIT_ROWS = 10, EXHIBIT_COLS = 12, EXHIBIT_SLOTS = [];
+  for (let r = EXHIBIT_ROWS - 1; r >= 0; r--) for (let c = 0; c < EXHIBIT_COLS; c++)
+    EXHIBIT_SLOTS.push(Object.freeze({ row: r, col: c, y: 4.25 - r * .38, z: -3.45 + c * .62 }));
+  Object.freeze(EXHIBIT_SLOTS);
+  const EXHIBIT_HEX = /^#[0-9a-fA-F]{6}$/;
+  /* 이 브라우저에 저장된 등은 색이 무엇이든 들어올 수 있습니다.
+     Canvas·THREE 에 임의 문자열을 넘기지 않습니다. */
+  function exhibitColor (value) {
+    const v = typeof value === 'string' ? value.trim() : '';
+    return EXHIBIT_HEX.test(v) ? v : '#e2b878';
+  }
+  function exhibitText (value, n) {
+    return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, n) : '';
+  }
+  /* 걸린 등을 자리에 앉힙니다. 120 보다 많으면 벽에는 최근 120 개가 걸리고
+     나머지는 전시장 창에서 봅니다. placed[i] 는 언제나 EXHIBIT_SLOTS[i] 에 앉으므로
+     그리는 쪽은 색만 바꿔 끼우면 됩니다. */
+  function exhibitPlace (rows) {
+    const list = Array.isArray(rows) ? rows.filter(l => l && typeof l === 'object') : [];
+    const skip = Math.max(0, list.length - EXHIBIT_SLOTS.length);
+    return list.slice(skip).map((l, i) => ({
+      slot: EXHIBIT_SLOTS[i],
+      index: skip + i,
+      color: exhibitColor(l.color),
+      mine: !!l.mine,
+      name: exhibitText(l.name, 40) || '발원등',
+      vow: exhibitText(l.vow, 180)
+    }));
+  }
+  /* app.js 블록과 스코프가 다릅니다. window 를 거쳐야 보입니다. */
+  function exhibitRows () {
+    try {
+      return typeof window.HanmaumGalleryRows === 'function' ? exhibitPlace(window.HanmaumGalleryRows()) : [];
+    } catch (_) { return []; }
+  }
+  window.HanmaumExhibit = Object.freeze({
+    slots: () => EXHIBIT_SLOTS, capacity: EXHIBIT_SLOTS.length,
+    place: exhibitPlace, color: exhibitColor, rows: exhibitRows
+  });
   function dimensions(w, fallback) {
     w.workshopDimensions = { width: WIDTH, depth: DEPTH, originalArea: 567, area: 1134, areaRatio: 2, linearScale: SCALE };
     const xMargin = fallback ? .7 : .65;
@@ -6028,14 +6094,107 @@ window.HanmaumWorld2D=HanmaumWorld2D;
       for (let i = 0; i < 18; i++) { const a = i * 2.4, m = this.mesh(new T.PlaneGeometry(.48, .45), this.mat(['#edcfa4', '#dfc2a1', '#f1dec1'][i % 3], { side: T.DoubleSide }), frame, Math.sin(a) * 1.4, 1 + Math.floor(i / 6) * .7, Math.cos(a)); m.rotation.y = a; this.patches.push(m); }
       this.obstacle(gx, gz, 5.2, 3.8); this.addHotspot('contribute', '장엄등 공동 제작', '아직 이름 없는 골조', gx, gz + 3.5, [gx, 5.2, gz], frame);
       const [ex, ez] = L.gallery, gallery = this.group(ex, 0, ez); this.box(.3, 4.7, 8, '#b19c78', 0, 2.35, 0, gallery);
-      const lanterns = []; for (let r = 0; r < 10; r++) for (let c = 0; c < 12; c++) lanterns.push({ x: -.26, y: 4.25 - r * .38, z: -3.45 + c * .62, sx: .12, sy: .15, sz: .12, color: ['#da9b90', '#e6c070', '#b3bd8c', '#96b9b2', '#dcb184'][(r * 12 + c) % 5] });
-      const exhibit = batch(this, gallery, new T.SphereGeometry(1, 7, 5), this.mat('#ffffff'), lanterns); exhibit.userData.slotCount = 120;
+      /* 종이 몸 · 켜질 때의 빛무리 · 내 등 표시 고리를 자리마다 하나씩 쥐어 두고,
+         실제로 걸린 개수만큼만 그립니다(count). 빈 자리는 고리만 남습니다. */
+      const slots = EXHIBIT_SLOTS;
+      /* 바탕은 흰색입니다. instanceColor 가 곱해지므로 베이지로 두면 등 색이 탁해집니다. */
+      const paper = batch(this, gallery, new T.SphereGeometry(1, 7, 5), this.mat('#ffffff'),
+        slots.map(sl => ({ x: -.26, y: sl.y, z: sl.z, sx: .12, sy: .15, sz: .12, color: '#ffffff' })));
+      paper.userData.slotCount = slots.length; paper.count = 0;
+      const haloMaterial = new T.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+      const halo = batch(this, gallery, new T.SphereGeometry(1, 6, 4), haloMaterial,
+        slots.map(sl => ({ x: -.26, y: sl.y, z: sl.z, sx: .21, sy: .25, sz: .21, color: '#f0e2c2' })));
+      halo.count = 0; halo.renderOrder = 2;
+      const ring = batch(this, gallery, new T.TorusGeometry(.115, .015, 4, 10), this.mat('#d8b35f', { emissive: '#8b6a24', emissiveIntensity: .14 }),
+        slots.map(sl => ({ x: -.19, y: sl.y, z: sl.z, ry: Math.PI / 2 })));
+      ring.count = 0;
+      /* 빈 고리는 늘 걸려 있습니다. 비어 있다는 것도 보여야 합니다. */
+      batch(this, gallery, new T.TorusGeometry(.036, .009, 3, 8), this.mat('#8d8469'),
+        slots.map(sl => ({ x: -.26, y: sl.y + .2, z: sl.z, ry: Math.PI / 2 })));
       for (let r = 0; r < 10; r++) this.box(.07, .035, 7.3, '#4f5e4e', -.27, 4.48 - r * .38, 0, gallery);
-      this.obstacle(ex, ez, 1, 8.3); this.addHotspot('exhibit', '발원등 전시장', '120개의 자리가 있는 전시', ex - 2.6, ez + .6, [ex, 5.5, ez], gallery);
+      this.exhibit = { group: gallery, origin: { x: ex, z: ez }, slots, paper, halo, ring, placed: [], label: null };
+      this.workshopHalos = [{ material: haloMaterial, on: .5 }];
+      this.refreshExhibit();
+      this.obstacle(ex, ez, 1, 8.3); this.addHotspot('exhibit', '발원등 전시장', '걸린 등의 발원을 읽습니다', ex - 2.6, ez + .6, [ex, 5.5, ez], gallery);
       const [wx, wz] = L.wheel, wheel = this.buildFireWheelLantern(wx, wz); this.wheelMaterial = null;
       this.obstacle(wx, wz, 7.5, 2.7); this.addHotspot('wheel', '한마음의 불바퀴등', '입체 등 · 점등과 소등', wx, wz + 3.3, [wx, 6.5, wz], wheel);
       for (const z of [5, 9]) { this.box(3.5, 2, .55, '#94876d', -16.8, 1, z); for (const y of [.45, 1.1, 1.75]) this.box(3.3, .1, .8, '#bda98a', -16.7, y, z); for (let i = 0; i < 4; i++) this.box(.55, .35, .5, ['#d39d71', '#b1b79b', '#cfafa2'][i % 3], -17.9 + i * .8, .7, z - .2); this.obstacle(-16.8, z, 3.5, .9); }
       this.addHotspot('backCampus', '도량으로', '작업장을 나갑니다', ...L.exit, [0, .7, 14]); this.spawn = { x: L.spawn[0], z: L.spawn[1] };
+    };
+
+    /* 실제로 걸린 등만큼만 벽에 그립니다. 자리는 고정이라 색과 개수만 바꿉니다. */
+    P.refreshExhibit = function () {
+      const e = this.exhibit;
+      if (!e || this.currentScene !== 'workshop') return;
+      const placed = e.placed = window.HanmaumExhibit.rows();
+      const color = new T.Color(), d = new T.Object3D();
+      let mine = 0;
+      for (let i = 0; i < placed.length; i++) {
+        color.set(placed[i].color);
+        e.paper.setColorAt(i, color); e.halo.setColorAt(i, color);
+        if (!placed[i].mine) continue;
+        const sl = placed[i].slot;
+        d.position.set(-.19, sl.y, sl.z); d.rotation.set(0, Math.PI / 2, 0); d.scale.set(1, 1, 1);
+        d.updateMatrix(); e.ring.setMatrixAt(mine++, d.matrix);
+      }
+      e.paper.count = placed.length; e.halo.count = placed.length; e.ring.count = mine;
+      if (e.paper.instanceColor) e.paper.instanceColor.needsUpdate = true;
+      if (e.halo.instanceColor) e.halo.instanceColor.needsUpdate = true;
+      e.ring.instanceMatrix.needsUpdate = true;
+    };
+
+    /* 벽 앞에 서면 가장 가까운 등의 이름과 발원을 화면 위 글자로 띄웁니다.
+       3D 판으로 세우면 벽에 가려 잘립니다(AGENTS.md). 120개를 다 띄우지 않고 하나만 봅니다. */
+    P.updateExhibitLabel = function () {
+      const e = this.exhibit;
+      if (!e || this.currentScene !== 'workshop') return;
+      const hide = () => { if (e.label) e.label.style.visibility = 'hidden'; };
+      if (this.scenic || this.paused || !e.placed.length) return hide();
+      const px = this.player.position.x, pz = this.player.position.z;
+      const wallX = e.origin.x - .26;
+      if (Math.abs(px - wallX) > 4.4) return hide();
+      let best = null, bestScore = Infinity;
+      for (const p of e.placed) {
+        const score = Math.hypot(px - wallX, pz - (e.origin.z + p.slot.z)) + Math.abs(p.slot.y - 1.75) * .7;
+        if (score < bestScore) { bestScore = score; best = p; }
+      }
+      if (!best || bestScore > 4.4) return hide();
+      if (!e.label) {
+        const box = document.createElement('div');
+        Object.assign(box.style, {
+          position: 'absolute', transform: 'translate(-50%,-100%)', pointerEvents: 'none',
+          maxWidth: '236px', border: '1px solid rgba(255,255,255,.72)', borderRadius: '12px',
+          padding: '7px 11px', background: 'rgba(28,46,40,.9)', color: '#f6efdc',
+          boxShadow: '0 6px 18px #0b231c44', font: '500 12px "Noto Sans KR",sans-serif',
+          lineHeight: '1.45', backdropFilter: 'blur(6px)', visibility: 'hidden'
+        });
+        const who = document.createElement('strong');
+        Object.assign(who.style, { display: 'block', font: '700 12px "Noto Sans KR",sans-serif' });
+        const vow = document.createElement('span');
+        Object.assign(vow.style, { display: 'block', opacity: '.9', marginTop: '2px' });
+        box.append(who, vow);
+        e.label = box; e.labelWho = who; e.labelVow = vow;
+        this.labelLayer.append(box);
+      }
+      const head = best.name + (best.mine ? ' · 내 등' : ' · 다른 법우의 등');
+      if (e.labelWho.textContent !== head) e.labelWho.textContent = head;
+      if (e.labelVow.textContent !== best.vow) e.labelVow.textContent = best.vow;
+      this.camera.updateMatrixWorld();
+      const v = new T.Vector3(wallX, best.slot.y + .26, e.origin.z + best.slot.z).project(this.camera);
+      if (v.z > 1 || v.z < -1) return hide();
+      const x = (v.x * .5 + .5) * this.width, y = (-v.y * .5 + .5) * this.height;
+      if (x < 16 || x > this.width - 16 || y < 10 || y > this.height - 10) return hide();
+      e.label.style.left = x + 'px'; e.label.style.top = y + 'px';
+      e.label.style.visibility = 'visible';
+    };
+
+    const exhibitSetScene = P.setScene;
+    P.setScene = function (...args) { this.exhibit = null; return exhibitSetScene.apply(this, args); };
+    const exhibitUpdate = P.update;
+    P.update = function (dt) {
+      const value = exhibitUpdate.call(this, dt);
+      try { this.updateExhibitLabel(); } catch (_) {}
+      return value;
     };
 
     P.applyWorkshopLighting = function (lit, options = {}) {
@@ -6046,6 +6205,7 @@ window.HanmaumWorld2D=HanmaumWorld2D;
       for (const entry of this.workshopRoomEmissives || []) entry.material.emissiveIntensity = lit ? entry.on : entry.off;
       for (const entry of this.workshopWheelMaterials || []) entry.material.emissiveIntensity = lit ? entry.on : entry.off;
       for (const entry of this.workshopWheelHalos || []) entry.material.opacity = lit ? entry.on : 0;
+      for (const entry of this.workshopHalos || []) entry.material.opacity = lit ? entry.on : 0;
       for (const light of this.workshopWheelLights || []) light.intensity = lit ? light.userData.litIntensity : 0;
     };
     const setEnvironment = P.setEnvironment;
@@ -6085,7 +6245,7 @@ window.HanmaumWorld2D=HanmaumWorld2D;
       for (const x of [-14.2, 14.2]) for (const z of [-9.8, 8.5]) this.block(x, z, .28, .34);
       const [tx, tz] = L.table; this.add('workTable', tx, tz, { w: 6, d: 3 }); this.block(tx, tz, 6.2, 3.2); this.hot('craft', '발원등 만들기', '골조 → 전기 → 실묶기 → 배접 → 채색', tx, tz + 2.8, tx, tz, 4);
       const [gx, gz] = L.grand; this.add('grand', gx, gz); this.block(gx, gz, 5.2, 3.8); this.hot('contribute', '장엄등 공동 제작', '아직 이름 없는 골조', gx, gz + 3.5, gx, gz, 5.6);
-      const [ex, ez] = L.gallery; this.add('gallery', ex, ez); this.block(ex, ez, 1, 8.3); this.hot('exhibit', '발원등 전시장', '120개의 전시 자리', ex - 2.6, ez + .6, ex, ez, 5.5);
+      const [ex, ez] = L.gallery; this.add('gallery', ex, ez); this.block(ex, ez, 1, 8.3); this.hot('exhibit', '발원등 전시장', '걸린 등의 발원을 읽습니다', ex - 2.6, ez + .6, ex, ez, 5.5);
       const [wx, wz] = L.wheel; this.add('fireWheel3D', wx, wz); this.block(wx, wz, 7.5, 2.7); this.hot('wheel', '한마음의 불바퀴등', '입체 등 · 점등과 소등', wx, wz + 3.3, wx, wz, 6.5);
       for (const z of [5, 9]) { this.add('shelf', -16.8, z); this.block(-16.8, z, 3.5, .9); }
       this.hot('backCampus', '도량으로', '작업장을 나갑니다', ...L.exit, 0, 14, .8); this.spawn = { x: L.spawn[0], z: L.spawn[1] };
@@ -6129,7 +6289,7 @@ window.HanmaumWorld2D=HanmaumWorld2D;
         const x = o.x, z = o.z;
         if (o.kind === 'workTable') { this._pBox(x, z, 6, 3, .2, 1.2, '#ae8d66'); for (const dx of [-2.7, 2.7]) for (const dz of [-1.2, 1.2]) this._pBox(x + dx, z + dz, .13, .13, 1.2, 0, '#64776a'); this._pFlat(x, z, 4.7, 2.1, 1.41, '#82a091'); for (let i = 0; i < 4; i++) this._pSphere(x - 1.8 + i * 1.2, 1.7, z, .27, .37, .27, ['#d6947f', '#d8b167', '#a8b486', '#91afb2'][i], 10, 6); }
         else if (o.kind === 'grand') { this._pBox(x, z, 5, 3.6, .2, 0, '#af9b78'); for (const dx of [-2.1, 2.1]) for (const dz of [-1.4, 1.4]) this._pBox(x + dx, z + dz, .06, .06, 4, .2, '#8b8a73'); for (let j = 0; j < 6; j++) { const p = []; for (let i = 0; i <= 32; i++) { const a = i * TAU / 32; p.push([x + Math.cos(a) * 1.6, .7 + j * .52, z + Math.sin(a)]); } this._pLine(p, '#b1a37d', 1); } for (let i = 0; i < 9; i++) { const a = i * TAU / 9; this._pLine([[x + Math.sin(a) * 1.6, .65, z + Math.cos(a)], [x + Math.sin(a + .3) * 1.6, 3.6, z + Math.cos(a + .3)]], '#a89973', 1); } }
-        else if (o.kind === 'gallery') { this._pBox(x, z, .25, 8, 4.6, 0, '#9c8c6b'); for (let row = 0; row < 10; row++) for (let col = 0; col < 12; col++) this._pSphere(x - .2, 4.3 - row * .38, z - 3.4 + col * .62, .1, .14, .1, ['#d79b88', '#dfb56d', '#a3b082', '#9ab4a4'][(row + col) % 4], 6, 4); }
+        else if (o.kind === 'gallery') { this._pBox(x, z, .25, 8, 4.6, 0, '#9c8c6b'); for (let row = 0; row < 10; row++) this._pBox(x - .22, z, .07, 7.3, .035, 4.48 - row * .38, '#6d6c56'); for (const p of exhibitRows()) this._pSphere(x - .2, p.slot.y, z + p.slot.z, .1, .14, .1, p.color, 6, 4); }
         else if (o.kind === 'shelf') { this._pBox(x, z, 3.5, .75, 2, 0, '#94876d'); for (const y of [.45, 1.1, 1.75]) { this._pBox(x, z + .2, 3.3, .8, .1, y, '#c0a47a'); for (let i = 0; i < 4; i++) this._pBox(x - 1.1 + i * .8, z + .1, .55, .4, .35, y + .1, ['#d39d71', '#b1b79b', '#cfafa2'][i % 3]); } }
         else if (o.kind === 'fireWheel3D') { this._pBox(x, z + .12, 7.2, 2.5, .35, 0, '#6b6755'); this._pBox(x, z + .12, 7.35, 2.65, .09, .35, '#a88b51'); for (const dx of [-1.68, 1.68]) this._pBox(x + dx, z - .28, .10, .10, 2.8, .43, '#636557'); wheelVector(this, x, z, true); }
       }
@@ -6827,7 +6987,7 @@ class HanmaumLocalChat{
   b.innerHTML=`<div class="chat-mode"><span class="local-dot"></span><b id="chatConnection"></b></div><section class="chat-online-panel" aria-label="친구와 함께 접속"><label for="chatRoom">함께 만날 방 이름</label><div class="chat-room-row"><input id="chatRoom" class="text-input" maxlength="32" value="${esc(this.network.room)}" placeholder="hanmaum" autocomplete="off" spellcheck="false"><button id="chatJoin" class="btn secondary" data-ui="onlineConnect">함께 접속</button><button id="chatLeave" class="btn ghost" data-ui="onlineDisconnect" hidden>나가기</button></div><p id="chatNetworkNote" class="chat-scope"></p><small>방 이름은 영문·숫자·밑줄·하이픈 사용 · 같은 이름으로 접속해 주세요.</small></section><div id="chatMessages" class="chat-messages" role="log" aria-live="polite"></div><label class="form-label" for="chatInput">채팅 내용</label><div class="chat-composer"><textarea id="chatInput" class="text-input" maxlength="160" rows="2" placeholder="따뜻한 인사를 남겨보세요" autocomplete="off"></textarea><button class="btn primary" data-ui="chatSend">보내기</button></div><p class="section-note">최대 160자 · Shift+Enter 줄바꿈 · 대화는 머리 위에 10초 동안 표시됩니다. 최근 60개 대화는 이 실행 중에만 남아요.</p>`;
   this.renderMessages();this.updateStatus();setTimeout(()=>$('chatInput')?.focus(),50);
  }
- async send(){const input=$('chatInput');if(!input||this.sendPending)return;const draft=input.value,text=HanmaumAvatar.cleanText(draft);if(!text)return;
+ async send(input=$('chatInput')||$('quickChatInput')){if(!input||this.sendPending)return;const draft=input.value,text=HanmaumAvatar.cleanText(draft);if(!text)return;
   if(this.network.state==='connecting'){this.ctx.toast('접속 중입니다. 연결된 뒤 메시지를 다시 보내주세요.');return;}
   const m={type:'chat',messageId:this.id+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),...this.ownInfo(),text,time:Date.now()};
   this.sendPending=true;let ok=false;
@@ -6874,8 +7034,31 @@ class HanmaumLocalChat{
   if(m.type==='chat'&&typeof m.text==='string'&&m.text.trim())this.append({...peer,text:HanmaumAvatar.cleanText(m.text),time:Date.now()});
   this.renderPeers();
  }
- append(m){if(m.messageId&&this.messages.some(x=>x.messageId===m.messageId))return;this.ctx.world.setSpeech?.(m.text,{id:this.isSelf(m.id)?'self':m.id,scene:m.scene,duration:10000});this.messages.push({...m,mine:this.isSelf(m.id)});this.messages=this.messages.slice(-60);if(!$('chatMessages')&&!this.isSelf(m.id))this.unread++;this.renderMessages();this.updateStatus();}
+ append(m){if(m.messageId&&this.messages.some(x=>x.messageId===m.messageId))return;this.ctx.world.setSpeech?.(m.text,{id:this.isSelf(m.id)?'self':m.id,scene:m.scene,duration:10000});this.messages.push({...m,mine:this.isSelf(m.id)});this.messages=this.messages.slice(-60);if(!$('chatMessages')&&!this.quickOpen()&&!this.isSelf(m.id))this.unread++;this.renderMessages();this.renderStream();this.updateStatus();}
  renderMessages(){const el=$('chatMessages');if(!el)return;el.innerHTML=this.messages.length?this.messages.map(m=>`<div class="chat-line ${m.mine?'mine':''}"><div><strong>${esc(m.name)}${m.mine?' · 나':''}</strong><time>${new Date(m.time).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'})}</time></div><p>${esc(m.text)}</p></div>`).join(''):'<div class="chat-empty">아직 대화가 없어요.<br>첫 인사를 남겨보세요.</div>';el.scrollTop=el.scrollHeight;}
+ /* 왼쪽에 최근 다섯 줄만 흘립니다. 도량·대법당의 '한 줄 이야기'와 같은 방식입니다. */
+ renderStream(){
+  const el=$('chatStream');if(!el)return;
+  const recent=this.messages.slice(-5);
+  el.classList.remove('faded');
+  el.innerHTML=recent.map(m=>`<div class="stream-line${m.mine?' mine':''}"><b>${esc(m.name)}${m.mine?' · 나':''}</b>${esc(m.text)}</div>`).join('');
+  clearTimeout(this._streamTimer);
+  if(recent.length)this._streamTimer=setTimeout(()=>{$('chatStream')?.classList.add('faded');},14000);
+ }
+ /* Enter 로 여는 한 줄 입력. 모달이 아니라서 세계가 멈추지 않습니다. */
+ openQuick(){
+  const form=$('quickChat');if(!form||this.ctx.isModal?.())return;
+  form.hidden=false;this.unread=0;this.updateStatus();this.renderStream();
+  for(const id of ['walkHint','firstGuide']){const el=$(id);if(el)el.style.visibility='hidden';}
+  $('quickChatInput')?.focus();
+ }
+ closeQuick(){
+  const form=$('quickChat');if(!form||form.hidden)return;
+  const input=$('quickChatInput');if(input){input.blur();}
+  form.hidden=true;
+  for(const id of ['walkHint','firstGuide']){const el=$(id);if(el)el.style.visibility='';}
+ }
+ quickOpen(){return $('quickChat')?.hidden===false;}
  makePeer(m){if(!window.THREE||!this.ctx.world.content||!this.ctx.world.player?.isObject3D)return null;const g=HanmaumAvatar.createActor({name:m.name,appearance:m.appearance,outfit:m.outfit},true);this.ctx.world.content.add(g);return g;}
  removePeer(id,keepSpeech=false){if(!keepSpeech)this.ctx.world.clearSpeech?.(id);const g=this.meshes.get(id);if(!g)return;g.removeFromParent();g.userData.parts?.forEach(p=>p.geometry.dispose());g.userData.materials?.forEach(m=>m.dispose());g.userData.tex?.dispose();g.userData.label?.material?.dispose();this.meshes.delete(id);}
  renderPeers(){
@@ -7679,7 +7862,7 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       this.world.setManualWalkOnly?.(false);
       this.releaseLook();
       this.world.activityLock=false;
-      this.world.walkSpeed=4.3;
+      this.world.walkSpeed=window.HANMAUM_WALK?window.HANMAUM_WALK(this.world.currentScene):6.4;
       this.world.leaveSeat?.();
       this.world.playGesture?.('stand');
       this.world.setWalkMarker?.(null);
@@ -8346,7 +8529,6 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
     else if (this.viewMode === 'explore') { const saved = this.getState?.()?.settings?.viewMode; this.viewMode = saved && saved !== 'explore' ? saved : 'chase'; }
     document.body.classList.toggle('campus-overview', id === 'campus');
     const r = origSetScene.call(this, id, options);
-    if (id === 'campus') this.walkSpeed = 8.6;
     return r;
   };
   const origSetView = P.setViewMode;
@@ -8800,7 +8982,7 @@ window.HanmaumMenuKeys=function(e){
 };
 
 function setNear(n){near=n;document.body.classList.toggle('has-near',!!n);const a=n?SCENES[sceneId].actions.find(x=>x[0]===n.id):null;$('interactSymbol').innerHTML=icon(a?.[2]||'hand');$('interactEyebrow').textContent=n?SCENES[sceneId].title:'도량 탐방';$('interactTitle').textContent=n?.label||'가고 싶은 장소로 걸어보세요';$('interactSub').textContent=n?.sub||'이동키 또는 조이스틱으로 걷습니다.';$('interactBtn').disabled=!n;const label=n?.kind==='stairs'?'이동':n?.id==='backCampus'?'나가기':n?.targetScene?'입장':['monk','planner'].includes(n?.id)?'대화':'작업';$('interactBtn').innerHTML=label+' <kbd>Space</kbd>·<kbd>E</kbd>';}
-function onScene(id){sceneId=id;store.data.scene=id;if(!store.data.visited.includes(id))store.data.visited.push(id);store.save();const s=SCENES[id];$('roomTitle').textContent=s.title;$('roomEyebrow').textContent=s.eyebrow;$('roomSub').textContent=s.sub;$('backMap').hidden=id==='campus';const actions=[...s.actions,['sceneryHere','이곳 둘러보기','scenery'],...(id==='campus'?[]:[['backCampus','도량으로 나가기','back']])];$('sceneToolsList').innerHTML=actions.map(([key,label,ic])=>`<button data-ui="${key==='sceneryHere'?'sceneryHere':'walk'}" data-value="${key}">${icon(ic)}<span>${label}</span><small>${key==='sceneryHere'?'보기':'이동'}</small></button>`).join('');setNear(null);$('firstGuide').hidden=id!=='campus'||guideDismissed();updateHUD();exploration?.onScene(id);}
+function onScene(id){sceneId=id;store.data.scene=id;if(!store.data.visited.includes(id))store.data.visited.push(id);store.save();const s=SCENES[id];$('roomTitle').textContent=s.title;$('roomEyebrow').textContent=s.eyebrow;$('roomSub').textContent=s.sub;$('backMap').hidden=id==='campus';const actions=[...s.actions,['sceneryHere','이곳 둘러보기','scenery'],...(id==='campus'?[]:[['backCampus','도량으로 나가기','back']])];$('sceneToolsList').innerHTML=actions.map(([key,label,ic])=>`<button data-ui="${key==='sceneryHere'?'sceneryHere':'walk'}" data-value="${key}">${icon(ic)}<span>${label}</span><small>${key==='sceneryHere'?'보기':'이동'}</small></button>`).join('');setNear(null);$('firstGuide').hidden=id!=='campus'||guideDismissed();updateHUD();exploration?.onScene(id);if(id==='workshop'){refreshExhibitWall();initLanternShare().catch(()=>{});}}
 function guideDismissed(){try{return localStorage.getItem('hanmaum-journey-guide-seen')==='1'||store.data.lanterns.length>0||store.data.visited.length>1;}catch(_){return store.data.visited.length>1;}}
 function dismissGuide(){try{localStorage.setItem('hanmaum-journey-guide-seen','1');}catch(_){}$('firstGuide').hidden=true;}
 function openModal(key,title,sub='',className=''){if(modalKey==='onboarding'&&!store.data.profileReady&&key!=='onboarding')return $('modalBody');$('modalClose').hidden=false;if(cleanup){cleanup();cleanup=null;}activityTicket++;if($('modal').hidden)previousFocus=document.activeElement;modalKey=key;world?.setPaused(true);$('modalTitle').textContent=title;$('modalSub').textContent=sub;$('modalEyebrow').textContent=SCENES[sceneId]?.eyebrow||'한마음 도량여행';$('modalBody').innerHTML='';document.querySelector('.modal-card').className='modal-card '+className;$('modal').hidden=false;document.body.classList.add('has-modal');$('modalBody').scrollTop=0;$('modalClose').focus({preventScroll:true});return $('modalBody');}
@@ -8853,7 +9035,7 @@ async function initLanternShare(){
   lanternShare.owner=shareOwner();
   if(!lanternShare.owner)return null;
   const c=createLanternClient({owner:lanternShare.owner,onChange:rows=>{
-    lanternShare.rows=rows;lanternShare.ready=true;
+    lanternShare.rows=rows;lanternShare.ready=true;refreshExhibitWall();
     if(modalKey==='gallery')showGallery(galleryPage);
   }});
   if(!c)return null;
@@ -8862,7 +9044,7 @@ async function initLanternShare(){
   // SQL 을 돌린 뒤 전시장을 다시 열면 그때 붙는다.
   lanternShare.loading=true;
   try{await c.load(true);c.subscribe();}catch(_){}
-  lanternShare.loading=false;
+  lanternShare.loading=false;refreshExhibitWall();
   if(modalKey==='gallery')showGallery(galleryPage);
   return c;
  }catch(_){return null;}
@@ -8879,6 +9061,7 @@ function shareNewLantern(l){
    if(!c)return;
    const r=await c.publish(l);
    if(r&&r.ok&&r.id){l.sharedId=r.id;try{store.save&&store.save();}catch(_){}}
+   refreshExhibitWall();
   }catch(_){}
  })();
 }
@@ -8893,6 +9076,9 @@ function galleryRows(){
  rows.sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
  return rows.slice(0,360);
 }
+/* 전시벽(world 블록)은 스코프가 달라 window 를 거쳐야 이 목록을 봅니다. */
+window.HanmaumGalleryRows=galleryRows;
+function refreshExhibitWall(){try{world&&world.refreshExhibit&&world.refreshExhibit();}catch(_){}}
 let galleryAllSlots=false;
 function showGallery(page=0){initLanternShare().then(c=>{if(!c)return;lanternShare.loading=true;return c.load().finally(()=>{lanternShare.loading=false;});}).catch(()=>{lanternShare.loading=false;});const all=galleryRows();const pages=galleryAllSlots?3:Math.max(1,Math.ceil(all.length/120));galleryPage=Math.max(0,Math.min(pages-1,page));const b=openModal('gallery','발원등 전시장','한쪽 전시벽에 차곡차곡 모은 등. 불빛을 누르면 발원문을 하나씩 볼 수 있어요.');b.innerHTML=`<div class="gallery-head"><div><strong>백스무 빛의 전시벽</strong>내가 밝힌 등 ${all.filter(l=>l.mine).length}개${lanternShare.ready?' · 함께 걸린 등 '+all.filter(l=>!l.mine).length+'개':''}${galleryAllSlots?' · 전체 360자리':''}</div><div class="gallery-controls">${actButton('이전','galleryPage',String(galleryPage-1),'ghost small',galleryPage===0?'disabled':'')}${actButton('다음','galleryPage',String(galleryPage+1),'ghost small',galleryPage===pages-1?'disabled':'')}</div></div><div class="gallery-grid">${Array.from({length:galleryAllSlots?120:Math.max(0,Math.min(120,all.length-galleryPage*120))},(_,i)=>{const n=galleryPage*120+i,l=all[n];return l?`<button class="lantern-slot filled${l.mine?'':' shared-slot'}" data-ui="lanternDetail" data-value="${n}" aria-label="${n+1}번째 발원등 ${esc(l.name)}${l.mine?'':' · 다른 법우의 등'}">${lanternSVG(l.shape,l.color)}<small>${esc(l.name||'발원등')}</small></button>`:`<div class="lantern-slot empty-slot" aria-label="${n+1}번째 빈 전시 자리">${icon('lantern')}<small>${String(n+1).padStart(3,'0')}</small></div>`;}).join('')}</div><div class="modal-footer">${actButton(galleryAllSlots?'내 등만 보기':'전체 전시 자리 보기','gallerySlots','','ghost')}${actButton('불바퀴등 보기','wheel','','secondary')}${actButton('새 발원등 만들기','craftRoute','','primary')}</div><p class="section-note">${lanternShare.ready?'이 전시벽에는 다른 법우가 건 등도 함께 걸립니다. 내 등은 이 브라우저에도 남습니다.':lanternShare.loading?'다른 법우가 건 등을 불러오는 중입니다…':'지금은 이 브라우저에만 저장됩니다. 공유 설정이 없거나 연결되지 않았습니다.'}</p>`;}
 function showLantern(index){const rows=galleryRows(),l=rows[index];if(!l)return;const b=openModal('lantern','한 사람의 정성, 하나의 빛','발원등 '+String(index+1).padStart(3,'0'));b.innerHTML=`<div class="lantern-detail"><div class="lantern-art">${lanternSVG(l.shape,l.color)}</div><div><span class="badge gold">발원등 ${String(index+1).padStart(3,'0')}</span><h3>${esc(l.name||'나의 발원등')}</h3>${l.mine?'':'<p class="time">다른 법우가 건 등입니다.</p>'}<p class="vow">${esc(l.vow||'정성을 담아 밝힌 등입니다.')}</p><p class="time">${formatDate(l.createdAt)}에 밝힌 등</p></div></div><div class="modal-footer">${actButton('이전 등','lanternDetail',String(index-1),'ghost',index===0?'disabled':'')}${actButton('전시벽으로','galleryPage',String(Math.floor(index/120)),'secondary')}${actButton('다음 등','lanternDetail',String(index+1),'ghost',index>=rows.length-1?'disabled':'')}</div>`;}
@@ -8963,15 +9149,31 @@ case'help':showHelp();break;case'scenery':showScenery();break;
 }}
 function wireUI(){for(const [id,ic]of [['brandMark','lantern'],['leafIcon','leaf'],['helpBtn','help'],['settingsBtn','settings'],['backMap','back'],['dailySymbol','flag'],['sceneToolsIcon','map'],['sceneToolsArrow','down'],['modalClose','close']])$(id).innerHTML=icon(ic);const NAV={map:['map','도량'],daily:['book','일지'],character:['person','캐릭터'],bag:['bag','배낭'],scenery:['scenery','둘러보기']};document.querySelectorAll('[data-nav]').forEach(b=>{const [ic,name]=NAV[b.dataset.nav];b.innerHTML=icon(ic)+`<span>${name}</span>`;b.addEventListener('click',()=>{sound();({map:showMap,daily:showDaily,character:showCharacter,bag:showBag,scenery:showScenery})[b.dataset.nav]();});});
 const clicks={brandHome:showMap,weatherPill:showScenery,helpBtn:showHelp,settingsBtn:showSettings,profileCard:showCharacter,currencyPill:showBag,dailyPeekBtn:showDaily,backMap:()=>routeTo('campus'),interactBtn:handleInteraction,modalClose:closeModal,guideClose:dismissGuide,guideWalk:()=>{dismissGuide();world?.walkTo('enterWorkshop');},leaveScenic,scenicOverview,scenicOptions:showScenery,soundBtn:()=>onUIClick('toggleSound'),sceneToolsToggle:()=>$('sceneTools').classList.toggle('collapsed')};Object.entries(clicks).forEach(([id,fn])=>$(id).addEventListener('click',fn));
-document.addEventListener('click',e=>{const b=e.target.closest('[data-ui]');if(!b||b.disabled)return;sound();onUIClick(b.dataset.ui,b.dataset.value||'',b);});$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-ui]');if(!b||b.disabled)return;sound();onUIClick(b.dataset.ui,b.dataset.value||'',b);});
+/* 한 줄 입력: Enter 로 보내고 Escape 로 닫습니다. 한글 조합 중 Escape 는 조합 취소라서 넘깁니다. */
+const quickForm=$('quickChat'),quickInput=$('quickChatInput');
+if(quickForm&&quickInput){
+ quickForm.addEventListener('submit',e=>{e.preventDefault();features?.social?.send(quickInput);});
+ $('quickChatClose')?.addEventListener('click',()=>features?.social?.closeQuick());
+ quickInput.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&!e.isComposing){e.preventDefault();e.stopPropagation();features?.social?.closeQuick();}
+ });
+ /* 휴대폰 키보드가 올라오면 입력칸이 가려집니다. 키보드 높이만큼 올립니다. */
+ const vv=window.visualViewport;
+ if(vv)vv.addEventListener('resize',()=>{
+  if(quickForm.hidden)return;
+  const lift=Math.max(0,innerHeight-vv.height-vv.offsetTop);
+  quickForm.style.setProperty('--kb',lift+'px');
+  quickForm.style.bottom=lift?`calc(${lift}px + 14px)`:'';
+ });
+}$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
 document.addEventListener('keydown',e=>{if(window.HanmaumMenuKeys&&window.HanmaumMenuKeys(e))return;if(e.key==='Escape'){if(modalKey){e.preventDefault();closeModal();}else if(scenic)leaveScenic();return;}if(e.key==='Tab'&&modalKey){const all=[...document.querySelector('.modal-card').querySelectorAll('button:not(:disabled),input:not(:disabled),select,textarea,[tabindex="0"]')].filter(x=>x.offsetParent!==null);if(!all.length)return;const a=all[0],b=all[all.length-1];if(e.shiftKey&&document.activeElement===a){e.preventDefault();b.focus();}else if(!e.shiftKey&&document.activeElement===b){e.preventDefault();a.focus();}return;}if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.repeat||modalKey)return;
- // Enter 로 대화를 엽니다. 메뉴나 단추에 초점이 있으면 그 단추를 누르는 키라서 넘깁니다.
+ // Enter 로 한 줄 입력을 엽니다. 650px 모달이 아니라서 세계가 멈추지 않습니다.
+ // 메뉴나 단추에 초점이 있으면 그 단추를 누르는 키라서 넘깁니다.
  if(e.code==='Enter'||e.code==='NumpadEnter'){
   const el=document.activeElement;
   if(!(el&&el!==document.body&&/^(BUTTON|A|SUMMARY|DETAILS|INPUT|TEXTAREA|SELECT)$/.test(el.tagName))){
-   e.preventDefault();
-   const chatBtn=document.querySelector('[data-ui="chat"]');
-   if(chatBtn){chatBtn.click();setTimeout(()=>document.getElementById('chatInput')?.focus(),80);}
+   e.preventDefault();features?.social?.openQuick();
    return;
   }
  }
