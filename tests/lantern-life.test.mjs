@@ -51,3 +51,19 @@ test('내 등은 내가 밝히지 않고, 한 등에 한 번만', () => {
   assert.equal(canBless({ owner: 'you' }, 'me', new Set()), false, 'id 없는 로컬 등은 못 밝힌다')
   assert.equal(canBless(yours, '', new Set()), false)
 })
+
+/* 표가 없을 때 조용히 끈다 (2026-11-14 전체 점검에서 발견).
+   예전에는 탭을 다시 볼 때마다 404 를 다시 쳐서 운영 콘솔에 오류가 쌓였다. */
+import test2 from 'node:test'
+test2('blessing 표가 없으면 한 번만 확인하고 다시 치지 않는다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(new URL('../src/deungbul/blessingApi.js', import.meta.url), 'utf8')
+  assert.ok(/PGRST205/.test(src), 'PostgREST 가 주는 코드를 봐야 한다')
+  assert.ok(/42P01/.test(src), 'Postgres 코드도 같이 본다')
+  assert.ok(/tableMissing = true/.test(src), '한 번 없다고 알면 기억해야 한다')
+  for (const fn of ['fetchBlessings', 'insertBlessing', 'subscribeBlessings']) {
+    const i = src.indexOf(fn + '(')
+    const head = src.slice(src.indexOf('{', i), src.indexOf('{', i) + 90)
+    assert.ok(/tableMissing/.test(head), fn + ' 도 꺼진 상태를 봐야 한다')
+  }
+})
