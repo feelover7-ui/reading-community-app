@@ -220,4 +220,3 @@
 - [ ] **Step 4: Merge only after all checks pass, then wait for the production Vercel deployment.**
 - [ ] **Step 5: Verify production HTML/module hashes, PC/mobile arrival, map, workshop, hall, complete pilgrimage, return visit, and zero page errors.**
 - [ ] **Step 6: Record production deployment URL/commit/checks and commit the final release note only if a follow-up documentation PR is required.**
-

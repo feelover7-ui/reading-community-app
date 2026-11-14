@@ -117,4 +117,3 @@ v8을 여러 게임 기능이 병렬로 놓인 3D 맵에서, 실제 한마음선
 - 새 라이브러리를 추가하지 않고 기존 Three.js·Vite·JavaScript를 사용한다.
 - Node 회귀 테스트, Vite 빌드, Chromium PC 1440px, 모바일 390×844를 검증한다.
 - 실제 iPhone Safari 검증 없이는 실기기 완료라고 표현하지 않는다.
-
