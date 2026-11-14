@@ -88,3 +88,34 @@ test('refresh resume keeps a valid in-progress stage and bounded handled event i
   assert.equal(restored.handled.length, 32)
   assert.equal(restored.handled[0], 'event-48')
 })
+
+test('arrival asks for presentation but defers the visitor name until hanging', () => {
+  const journey = loadPilgrimage()
+  const model = journey.arrivalModel('female')
+  assert.equal(model.title, '등 하나를 밝히러 가기')
+  assert.equal(model.primary, '도량 들어가기')
+  assert.equal(model.selected, 'female')
+  assert.deepEqual(Array.from(model.choices, choice => choice.id), ['male', 'female'])
+  assert.equal(model.fields.includes('name'), false)
+})
+
+test('anonymous entry creates a compatible modern profile without replacing an existing one', () => {
+  const journey = loadPilgrimage()
+  const calls = []
+  const store = {
+    data: {profileReady: false},
+    setProfile (name, appearance) {
+      calls.push({name, appearance})
+      this.data.profileReady = true
+      return {ok: true}
+    }
+  }
+  const created = journey.createAnonymousProfile(store, 'female')
+  assert.equal(created.ok, true)
+  assert.equal(calls[0].name, '방문자')
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0].appearance)), {
+    gender: 'female', hair: 'bob', skin: '#e9ba91', hairColor: '#3b3931', robeColor: '#819985'
+  })
+  assert.equal(journey.createAnonymousProfile(store, 'male').existing, true)
+  assert.equal(calls.length, 1)
+})

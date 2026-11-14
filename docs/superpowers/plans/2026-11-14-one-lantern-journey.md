@@ -58,11 +58,11 @@
 - Consumes: existing profile store methods and app scene APIs
 - Produces: `#pilgrimageArrival`, `#pilgrimageObjective`, male/female presentation choice, and anonymous compatible profile
 
-- [ ] Add failing assertions that fresh entry hides the legacy onboarding and progression HUD while exposing one primary arrival action.
-- [ ] Implement the dusk arrival overlay, anonymous profile creation, presentation choice, and composed campus spawn/camera.
-- [ ] Add safe-area and 44 px PC/mobile rules; reduced motion removes entrance animation.
-- [ ] Verify fresh entry, existing profile, keyboard focus, and 390×844 layout tests.
-- [ ] Commit the arrival/UI slice.
+- [x] Add failing assertions that fresh entry hides the legacy onboarding and progression HUD while exposing one primary arrival action.
+- [x] Implement the dusk arrival overlay, anonymous profile creation, presentation choice, and composed campus spawn/camera.
+- [x] Add safe-area and 44 px PC/mobile rules; reduced motion removes entrance animation.
+- [x] Verify fresh entry, existing profile, keyboard focus, and 390×844 layout tests.
+- [x] Commit the arrival/UI slice.
 
 ### Task 3: Craft completion and carried lantern
 
