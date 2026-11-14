@@ -76,12 +76,12 @@
 - Consumes: craft reward event, `store.data.lanterns`, `HanmaumAvatar.poseRig`, WebGL/fallback worlds
 - Produces: `attachLantern(world, lantern)`, `detachLantern(world)`, and journey carry pose
 
-- [ ] Add failing tests for selecting the newly created lantern exactly once, carried-lantern geometry, carry pose, prostration hiding, and fallback indicator.
-- [ ] Route arrival to the workshop craft hotspot and resume the existing draft when present.
-- [ ] Attach a color/shape-aware emissive lantern to the local modern avatar and apply a two-hand carry pose without changing peer payloads.
-- [ ] Add the fallback carried-lantern badge and detach/dispose geometry after hanging or abort.
-- [ ] Run craft, director, exhibit, save-recovery, and pilgrimage tests.
-- [ ] Commit the carried-lantern slice.
+- [x] Add failing tests for selecting the newly created lantern exactly once, carried-lantern geometry, carry pose, prostration hiding, and fallback indicator.
+- [x] Route arrival to the workshop craft hotspot and resume the existing draft when present.
+- [x] Attach a color/shape-aware emissive lantern to the local modern avatar and apply a two-hand carry pose without changing peer payloads.
+- [x] Add the fallback carried-lantern badge and detach/dispose geometry after hanging or abort.
+- [x] Run craft, director, exhibit, save-recovery, and pilgrimage tests.
+- [x] Commit the carried-lantern slice.
 
 ### Task 4: Automatic pagoda lap and hall bows
 
@@ -94,12 +94,12 @@
 - Consumes: `world.getTowerRoute()`, `world.goTo(x,z)`, `app.enterScene()`, `app.runActivity()`
 - Produces: `runCeremonialLap(world,{onProgress,onComplete})` and stage-safe hall continuation
 
-- [ ] Add failing tests that require twelve clockwise checkpoints, exactly one lap, cancellation on scene change, and reduced-motion-safe progress.
-- [ ] Implement automatic waypoint walking around Gujeong Pagoda and a compact progress overlay; do not call the manual three-lap exploration task.
-- [ ] Continue to `hall5`, invoke the existing natural three-bow practice, and advance only after a successful bow reward.
-- [ ] Add idempotency guards so refresh or repeated completion events cannot double-record a lap or bow stage.
-- [ ] Run pilgrimage, camera, view, bow-motion, and integration tests.
-- [ ] Commit the ritual-motion slice.
+- [x] Add failing tests that require twelve clockwise checkpoints, exactly one lap, cancellation on scene change, and reduced-motion-safe progress.
+- [x] Implement automatic waypoint walking around Gujeong Pagoda and a compact progress overlay; do not call the manual three-lap exploration task.
+- [x] Continue to `hall5`, invoke the existing natural three-bow practice, and advance only after a successful bow reward.
+- [x] Add idempotency guards so refresh or repeated completion events cannot double-record a lap or bow stage.
+- [x] Run pilgrimage, camera, view, bow-motion, and integration tests.
+- [x] Commit the ritual-motion slice.
 
 ### Task 5: Hanging, finale, and returning mode
 
@@ -114,13 +114,13 @@
 - Consumes: selected local lantern, store profile methods, exhibit refresh, direct destination map
 - Produces: hang confirmation, temporary dusk campus finale, and returning minimal HUD
 
-- [ ] Add failing tests for delayed visitor naming, one-time hanging, finale dismissal, campus overview, and all-nine-destination reachability.
-- [ ] Implement the hang sheet, profile rename, local/share status, carried-lantern removal, and exhibit refresh.
-- [ ] Implement the temporary dusk finale presentation and restore the actual environment on dismissal.
-- [ ] On later visits, start at campus overview and expose one-tap map, online list, settings, movement, and contextual action while hiding progression HUD clusters.
-- [ ] Keep legacy progression/settings reachable under one secondary records/settings surface without deleting save data.
-- [ ] Run pilgrimage, map, travel, UI, integration, and save-recovery tests.
-- [ ] Commit the finale/returning slice.
+- [x] Add failing tests for delayed visitor naming, one-time hanging, finale dismissal, campus overview, and all-nine-destination reachability.
+- [x] Implement the hang sheet, profile rename, local/share status, carried-lantern removal, and exhibit refresh.
+- [x] Implement the temporary dusk finale presentation and restore the actual environment on dismissal.
+- [x] On later visits, start at campus overview and expose one-tap map, online list, settings, movement, and contextual action while hiding progression HUD clusters.
+- [x] Keep legacy progression/settings reachable under one secondary records/settings surface without deleting save data.
+- [x] Run pilgrimage, map, travel, UI, integration, and save-recovery tests.
+- [x] Commit the finale/returning slice.
 
 ### Task 6: Persistent lantern lighting and wall metadata
 
@@ -136,12 +136,12 @@
 - Consumes: existing Supabase client configuration, `public.blessing`, `v8_lantern` IDs and owners
 - Produces: `createV8Blessings({client,owner,onChange})`, normalized counts/mine sets, live subscribe, and idempotent `light(lanternId)`
 
-- [ ] Write failing tests for sanitization, own-lantern rejection, one-browser idempotency, concurrent load/insert merging, realtime updates, and missing-table fallback.
-- [ ] Implement the v8 blessing adapter without `select *` and export it from the existing network entry.
-- [ ] Integrate lighting into the wall/detail view and show creation date/time plus lighting count.
-- [ ] Preserve the lantern and show honest local-only status when the table or network is unavailable.
-- [ ] Run blessing, lantern, exhibit, network, and realtime tests.
-- [ ] Commit the persistent-lighting slice.
+- [x] Write failing tests for sanitization, own-lantern rejection, one-browser idempotency, concurrent load/insert merging, realtime updates, and missing-table fallback.
+- [x] Implement the v8 blessing adapter without `select *` and export it from the existing network entry.
+- [x] Integrate lighting into the wall/detail view and show creation date/time plus lighting count.
+- [x] Preserve the lantern and show honest local-only status when the table or network is unavailable.
+- [x] Run blessing, lantern, exhibit, network, and realtime tests.
+- [x] Commit the persistent-lighting slice.
 
 ### Task 7: Full verification, PR, deployment, and production smoke test
 

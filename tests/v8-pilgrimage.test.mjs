@@ -119,3 +119,32 @@ test('anonymous entry creates a compatible modern profile without replacing an e
   assert.equal(journey.createAnonymousProfile(store, 'male').existing, true)
   assert.equal(calls.length, 1)
 })
+
+test('craft completion selects only the newly created lantern', () => {
+  const journey = loadPilgrimage()
+  const before = [{id: 'old-1'}, {id: 'old-2'}]
+  const after = [{id: 'old-1'}, {id: 'new-light'}, {id: 'old-2'}]
+  assert.equal(journey.selectJourneyLantern(before, after)?.id, 'new-light')
+  assert.equal(journey.selectJourneyLantern(after, after), null)
+  assert.equal(journey.selectJourneyLantern([], [{id: 'made'}], 'made')?.id, 'made')
+})
+
+test('automatic pagoda ceremony is one clockwise lap with twelve stable checkpoints', () => {
+  const journey = loadPilgrimage()
+  const route = journey.ceremonialRoute({center: {x: -5, z: -1.5}, radius: 4.2})
+  assert.equal(route.length, 12)
+  assert.deepEqual(JSON.parse(JSON.stringify(route[0])), {x: -9.2, z: -1.5})
+  const angles = route.map(point => Math.atan2(-(point.x + 5), point.z + 1.5))
+  for (let index = 1; index < angles.length; index++) {
+    let delta = angles[index] - angles[index - 1]
+    if (delta < 0) delta += Math.PI * 2
+    assert.ok(Math.abs(delta - Math.PI / 6) < 1e-6)
+  }
+})
+
+test('visitor name is cleaned only at the hanging stage', () => {
+  const journey = loadPilgrimage()
+  assert.equal(journey.visitorName('  마음\u0000빛  '), '마음빛')
+  assert.equal(journey.visitorName(''), '방문자')
+  assert.equal(journey.visitorName('열두글자를넘는아주긴이름입니다'), '열두글자를넘는아주긴이름')
+})

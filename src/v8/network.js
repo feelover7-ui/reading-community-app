@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import { createV8RealtimeClient } from './realtime.js'
 import { createV8RelayClient } from './relay.js'
 import { createLanternShare } from './lanterns.js'
+import { createV8Blessings } from './blessings.js'
+import { createV8Guestbook } from './guestbook.js'
 
 /* 기본을 relay 로 둡니다(사용자 요청, 2026-11-13).
 
@@ -89,4 +91,18 @@ export function createLanternClient ({ owner, onChange }) {
   if (!url || !key) return null
   const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
   return createLanternShare({ client, owner, onChange })
+}
+
+export function createBlessingClient ({owner, onChange}) {
+  const url = import.meta.env.VITE_SUPABASE_URL, key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  if (!url || !key) return null
+  const client = createClient(url, key, {auth: {persistSession: false, autoRefreshToken: false, detectSessionInUrl: false}})
+  return createV8Blessings({client, owner, onChange})
+}
+
+export function createGuestbookClient () {
+  const url = import.meta.env.VITE_SUPABASE_URL, key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  if (!url || !key) return null
+  const client = createClient(url, key, {auth: {persistSession: false, autoRefreshToken: false, detectSessionInUrl: false}})
+  return createV8Guestbook({client})
 }

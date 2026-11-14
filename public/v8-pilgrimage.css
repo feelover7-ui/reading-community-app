@@ -23,6 +23,39 @@ body.pilgrimage-arrival-open #modal,body.pilgrimage-arrival-open #topbar,body.pi
 body.pilgrimage-arrival-open #app>:not(#world){display:none!important}
 body.pilgrimage-arrival-open #world{filter:brightness(.67) saturate(.78) sepia(.08)}
 body.pilgrimage-first:not(.has-modal) #dailyPeek,body.pilgrimage-first:not(.has-modal) #currencyPill,body.pilgrimage-first:not(.has-modal) #sceneTools,body.pilgrimage-first:not(.has-modal) #firstGuide{display:none!important}
+#pilgrimageCarryBadge{position:fixed;z-index:31;left:50%;top:18px;transform:translateX(-50%);padding:10px 15px;border:1px solid #e8c775;border-radius:999px;background:#fff8d9e8;color:#74501f;font-size:12px;font-weight:800;box-shadow:0 8px 28px #24180822}
+.pilgrimage-sheet,.pilgrimage-finale{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,28,23,.72);backdrop-filter:blur(9px)}
+.pilgrimage-sheet-card,.pilgrimage-finale>div{width:min(460px,100%);padding:34px;border:1px solid rgba(255,255,255,.7);border-radius:28px;background:#fbf9ed;color:#244b3e;box-shadow:0 30px 100px #03130f66}
+.pilgrimage-sheet-card>span,.pilgrimage-finale span{color:#a16d38;font-size:11px;font-weight:900;letter-spacing:1px}
+.pilgrimage-sheet-card h2,.pilgrimage-finale h2{margin:8px 0 12px;font-size:30px;line-height:1.25;letter-spacing:-1.2px}
+.pilgrimage-sheet-card p,.pilgrimage-finale p{color:#6e7c6e;font-size:13px;line-height:1.7}
+.pilgrimage-sheet-card label{display:grid;gap:8px;margin:22px 0 14px;font-size:12px;font-weight:800}
+.pilgrimage-sheet-card input{width:100%;min-height:50px;border:1px solid #ccd6c5;border-radius:13px;background:#fff;padding:0 14px;font:inherit;color:#244b3e}
+.pilgrimage-sheet-card .btn,.pilgrimage-finale .btn{width:100%;min-height:52px}
+.pilgrimage-sheet-card small{display:block;min-height:17px;margin-top:8px;color:#a23e31}
+.pilgrimage-finale{justify-content:flex-start;background:linear-gradient(90deg,rgba(8,31,25,.92),rgba(8,31,25,.42) 60%,transparent),rgba(17,46,38,.28)}
+.pilgrimage-finale>div{margin-left:clamp(0px,7vw,100px);background:rgba(251,249,237,.92)}
+.pilgrimage-finale-open #world{filter:brightness(.6) saturate(.75) sepia(.15)}
+#pilgrimageReturnHUD{position:fixed;z-index:34;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;padding:7px;border:1px solid rgba(255,255,255,.65);border-radius:18px;background:rgba(250,248,237,.9);box-shadow:0 10px 36px #0a281e2b;backdrop-filter:blur(12px)}
+#pilgrimageReturnHUD button{min-height:44px;border:0;border-radius:12px;background:transparent;padding:0 15px;color:#315849;font-size:12px;font-weight:800;cursor:pointer}
+#pilgrimageReturnHUD button:first-child{background:#285b49;color:#fff}
+body.pilgrimage-returning #dailyPeek,body.pilgrimage-returning #currencyPill,body.pilgrimage-returning #sceneTools,body.pilgrimage-returning #firstGuide,body.pilgrimage-returning #onlineBtn,body.pilgrimage-returning #socialActions,body.pilgrimage-returning #quickChat{display:none!important}
+.pilgrimage-participant-groups{display:grid;gap:10px;margin:18px 0;max-height:min(46vh,380px);overflow:auto}
+.pilgrimage-participant-groups section{padding:13px;border:1px solid #dfe4d7;border-radius:15px;background:#f5f6ee}
+.pilgrimage-participant-groups section>strong{display:block;margin-bottom:7px;color:#9a6939;font-size:11px}
+.pilgrimage-participant-groups section>div{display:flex;align-items:center;gap:8px;padding:5px 0;color:#315849;font-size:13px;font-weight:700}
+.pilgrimage-participant-groups i{min-width:34px;border-radius:999px;background:#dfe9da;padding:3px 7px;text-align:center;font-size:9px;font-style:normal}
+.pilgrimage-guestbook .pilgrimage-sheet-card{width:min(620px,100%)}
+.pilgrimage-guestbook form label{display:grid;gap:7px;color:#315849;font-size:12px;font-weight:800}
+.pilgrimage-guestbook textarea{width:100%;resize:vertical;border:1px solid #ccd6c5;border-radius:13px;background:#fff;padding:12px;font:inherit;color:#244b3e}
+.pilgrimage-guestbook form .btn{margin-top:9px}
+.pilgrimage-guestbook-state{margin:13px 0 7px!important;font-size:10px!important}
+.pilgrimage-guestbook-list{display:grid;gap:8px;max-height:min(34vh,300px);overflow:auto;margin-bottom:12px}
+.pilgrimage-guestbook-list article{padding:12px 14px;border:1px solid #dfe4d7;border-radius:14px;background:#f5f6ee}
+.pilgrimage-guestbook-list article>div{display:flex;justify-content:space-between;gap:10px;color:#315849;font-size:11px}
+.pilgrimage-guestbook-list article time{color:#849184;font-size:9px}
+.pilgrimage-guestbook-list article p{margin:7px 0 0;color:#53685d;font-size:12px;line-height:1.55;white-space:pre-wrap}
+.pilgrimage-guestbook-empty{padding:18px;text-align:center;color:#839083;font-size:11px}
 @media(max-width:600px){
  .pilgrimage-arrival{padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));align-items:flex-end;background:linear-gradient(0deg,rgba(8,26,22,.78),rgba(8,26,22,.08) 75%)}
  .pilgrimage-arrival-card{padding:22px 18px 18px;border-radius:25px}
@@ -32,5 +65,10 @@ body.pilgrimage-first:not(.has-modal) #dailyPeek,body.pilgrimage-first:not(.has-
  .pilgrimage-appearance i{width:46px;height:70px}
  .pilgrimage-objective{bottom:calc(18px + env(safe-area-inset-bottom));grid-template-columns:1fr;padding:14px 15px}
  .pilgrimage-objective .btn{grid-column:1;grid-row:auto;width:100%;margin-top:8px}
+ .pilgrimage-sheet,.pilgrimage-finale{align-items:flex-end;padding:14px}
+ .pilgrimage-sheet-card,.pilgrimage-finale>div{padding:25px 20px;border-radius:24px;margin:0}
+ .pilgrimage-sheet-card h2,.pilgrimage-finale h2{font-size:25px}
+ #pilgrimageReturnHUD{width:calc(100% - 28px)}
+ #pilgrimageReturnHUD button{flex:1;padding:0 5px}
 }
 @media(prefers-reduced-motion:reduce){.pilgrimage-arrival,.pilgrimage-arrival-card{animation:none!important;transition:none!important}}
