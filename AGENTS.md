@@ -1162,3 +1162,7 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
   DOM 을 옮기지 않습니다. **하단 네비를 `할 일 네 개` 로 바꾸는 것은 하지 않았습니다**
   (`onUIClick` 과 얽혀 외부 파일에서 안전하게 못 바꿉니다).
 - `tests/v8-view.test.mjs` 가 수치·강제 해제·좌우 회전·키 복원·조감도 예외를 지킵니다.
+- **올리기 전에 `git diff --stat origin/main HEAD` 로 삭제 줄을 봅니다.** 오래된 `main` 위에서
+  `merge -s ours` 를 반복하면 **코덱스의 머지된 작업을 통째로 되돌리는 커밋**이 됩니다.
+  실제로 그럴 뻔했습니다(2,048 삭제). 그럴 때는 `git merge origin/main` 으로 제대로 합치고
+  `v8.html` 의 `<script src>` 충돌은 **둘 다 남깁니다**(코덱스 먼저, 우리 것 나중).
