@@ -9,18 +9,19 @@ function loadHall () {
   return window.HanmaumHallPhoto
 }
 
-test('hall plan preserves a frontal altar, open white mat, high decorated ceiling and side structure', () => {
+test('hall plan preserves a frontal altar, brown cushion rows, high decorated ceiling and side structure', () => {
   const hall = loadHall()
   const plan = hall.plan()
   assert.ok(plan.ceilingHeight >= 9)
-  assert.ok(plan.centralMat.width >= 12 && plan.centralMat.depth >= 18)
+  assert.equal(plan.cushions.rows * plan.cushions.columns, 30)
+  assert.equal(plan.cushions.color, '#79543b')
   assert.equal(plan.altar.axis.x, 0)
   assert.ok(plan.altar.axis.z < -10)
   assert.equal(plan.centralSightline.blockers, 0)
   assert.ok(plan.features.includes('gold-relief'))
   assert.ok(plan.features.includes('decorated-canopy'))
   assert.ok(plan.features.includes('side-windows'))
-  assert.ok(plan.columns.every(column => Math.abs(column.x) >= plan.centralMat.width / 2 + .5))
+  assert.ok(plan.columns.every(column => Math.abs(column.x) >= 7))
 })
 
 test('hall entry and ritual camera face the altar from desktop and phone', () => {
@@ -38,11 +39,6 @@ test('every hall arrival places the visitor on the central sightline before fram
   const source = fs.readFileSync('public/v8-hall-photo.js', 'utf8')
   assert.match(source, /player\.position\.set\(view\.position\.x, floor \+ \.12, view\.position\.z\)/)
   assert.match(source, /if \(id === 'hall5'\) this\.focusHallFront\?\.\(\)/)
-})
-
-test('fallback hall removes both hidden central cushions and their interaction hotspots', () => {
-  const source = fs.readFileSync('public/v8-hall-photo.js', 'utf8')
-  assert.match(source, /this\.hotspots = \(this\.hotspots \|\| \[\]\)\.filter\(hotspot => hotspot\.kind !== 'cushion' \|\| Math\.abs\(hotspot\.x\) >= 8\)/)
 })
 
 test('bow sequence keeps feet and knees above the floor and completes under reduced motion', () => {
