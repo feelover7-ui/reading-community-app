@@ -1,0 +1,72 @@
+{
+  "webgl": {
+    "immediateReturn": true,
+    "groundCancel": true,
+    "modalBlock": true,
+    "routes": [
+      {
+        "from": "temple1",
+        "to": "hall5",
+        "trace": [
+          "temple1",
+          "hall5"
+        ]
+      },
+      {
+        "from": "lobby2",
+        "to": "seosan",
+        "trace": [
+          "lobby2",
+          "terrace2",
+          "campus",
+          "seosan"
+        ]
+      },
+      {
+        "from": "terrace3",
+        "to": "workshop",
+        "trace": [
+          "terrace3",
+          "campus",
+          "workshop"
+        ]
+      }
+    ],
+    "errors": []
+  },
+  "fallback": {
+    "immediateReturn": true,
+    "groundCancel": true,
+    "modalBlock": true,
+    "routes": [
+      {
+        "from": "temple1",
+        "to": "hall5",
+        "trace": [
+          "temple1",
+          "hall5"
+        ]
+      },
+      {
+        "from": "lobby2",
+        "to": "seosan",
+        "trace": [
+          "lobby2",
+          "terrace2",
+          "campus",
+          "seosan"
+        ]
+      },
+      {
+        "from": "terrace3",
+        "to": "workshop",
+        "trace": [
+          "terrace3",
+          "campus",
+          "workshop"
+        ]
+      }
+    ],
+    "errors": []
+  }
+}
