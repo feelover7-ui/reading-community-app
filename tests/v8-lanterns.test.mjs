@@ -109,3 +109,14 @@ test('제작을 마치면 공유 올리기가 실제로 불린다 (블록이 달
   assert.ok(!/typeof shareNewLantern === 'function'/.test(html),
     '이름만으로 검사하면 안 보이는 채로 조용히 건너뛴다')
 })
+
+/* Space 로 입장 (2026-11-14 사용자 요청) */
+test('Space 와 E 로 입장하고, 한글 입력 상태와 단추 초점을 가린다', async () => {
+  const { readFileSync } = await import('node:fs')
+  const html = readFileSync(new URL('../public/v8.html', import.meta.url), 'utf8')
+  assert.ok(html.includes("e.code==='KeyE'"), "한글 입력에서 e.key 는 'ㄷ' 으로 온다. e.code 를 봐야 한다")
+  assert.ok(html.includes("e.code==='Space'&&!onButton"), 'Space 로도 입장한다')
+  assert.ok(/BUTTON\|A\|SUMMARY\|DETAILS/.test(html),
+    '단추에 초점이 있으면 Space 를 넘긴다. 안 그러면 단추도 눌리고 입장도 된다')
+  assert.ok(html.includes('<kbd>Space</kbd>·<kbd>E</kbd>'), '단추 안내에도 Space 를 적는다')
+})
