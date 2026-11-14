@@ -1,0 +1,242 @@
+{
+  "before": {
+    "data": {
+      "campus": {
+        "render": {
+          "frame": 17,
+          "calls": 777,
+          "triangles": 268860,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 422,
+          "textures": 30
+        },
+        "textures": 28,
+        "layout_sha256": "fea0aa67fd0d24ae54fd30552eae9ec0611add33c9184d5d843dd80a1fdcce84"
+      },
+      "terrace3": {
+        "render": {
+          "frame": 7,
+          "calls": 705,
+          "triangles": 254356,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 410,
+          "textures": 29
+        },
+        "textures": 29,
+        "layout_sha256": "590e88af3cc5093836859a0f80f134fb64b0d28f10ae44e161a3582f689fa562"
+      },
+      "terrace2": {
+        "render": {
+          "frame": 10,
+          "calls": 592,
+          "triangles": 169182,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 396,
+          "textures": 22
+        },
+        "textures": 28,
+        "layout_sha256": "e832a63f3f3bbf3b7c887ceae81febbab552be387004022f74579c3b27a5805e"
+      },
+      "seosan": {
+        "render": {
+          "frame": 12,
+          "calls": 286,
+          "triangles": 46154,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 152,
+          "textures": 6
+        },
+        "textures": 4,
+        "layout_sha256": "d64e91c2c435e8ac1f2d6a548ac338a9cd31a838d34d1651e7ceb0ba9ef77e3a"
+      },
+      "hall5": {
+        "render": {
+          "frame": 15,
+          "calls": 988,
+          "triangles": 155458,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 589,
+          "textures": 5
+        },
+        "textures": 2,
+        "layout_sha256": "75a9360a91326f271bec182005603a7e7959d34109952e28e75c0727ab3a8340"
+      }
+    },
+    "errors": []
+  },
+  "after": {
+    "data": {
+      "campus": {
+        "render": {
+          "frame": 18,
+          "calls": 739,
+          "triangles": 273312,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 404,
+          "textures": 27
+        },
+        "textures": 25,
+        "layout_sha256": "fea0aa67fd0d24ae54fd30552eae9ec0611add33c9184d5d843dd80a1fdcce84"
+      },
+      "terrace3": {
+        "render": {
+          "frame": 8,
+          "calls": 667,
+          "triangles": 259168,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 390,
+          "textures": 26
+        },
+        "textures": 26,
+        "layout_sha256": "590e88af3cc5093836859a0f80f134fb64b0d28f10ae44e161a3582f689fa562"
+      },
+      "terrace2": {
+        "render": {
+          "frame": 10,
+          "calls": 558,
+          "triangles": 174438,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 376,
+          "textures": 21
+        },
+        "textures": 25,
+        "layout_sha256": "e832a63f3f3bbf3b7c887ceae81febbab552be387004022f74579c3b27a5805e"
+      },
+      "seosan": {
+        "render": {
+          "frame": 13,
+          "calls": 286,
+          "triangles": 46154,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 152,
+          "textures": 6
+        },
+        "textures": 4,
+        "layout_sha256": "d64e91c2c435e8ac1f2d6a548ac338a9cd31a838d34d1651e7ceb0ba9ef77e3a"
+      },
+      "hall5": {
+        "render": {
+          "frame": 15,
+          "calls": 988,
+          "triangles": 155458,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 589,
+          "textures": 5
+        },
+        "textures": 2,
+        "layout_sha256": "75a9360a91326f271bec182005603a7e7959d34109952e28e75c0727ab3a8340"
+      }
+    },
+    "errors": []
+  },
+  "mobile": {
+    "data": {
+      "campus": {
+        "render": {
+          "frame": 18,
+          "calls": 712,
+          "triangles": 271362,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 383,
+          "textures": 25
+        },
+        "textures": 25,
+        "layout_sha256": "fea0aa67fd0d24ae54fd30552eae9ec0611add33c9184d5d843dd80a1fdcce84"
+      },
+      "terrace3": {
+        "render": {
+          "frame": 8,
+          "calls": 554,
+          "triangles": 199306,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 378,
+          "textures": 16
+        },
+        "textures": 26,
+        "layout_sha256": "590e88af3cc5093836859a0f80f134fb64b0d28f10ae44e161a3582f689fa562"
+      },
+      "terrace2": {
+        "render": {
+          "frame": 11,
+          "calls": 499,
+          "triangles": 169874,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 361,
+          "textures": 14
+        },
+        "textures": 25,
+        "layout_sha256": "e832a63f3f3bbf3b7c887ceae81febbab552be387004022f74579c3b27a5805e"
+      },
+      "seosan": {
+        "render": {
+          "frame": 13,
+          "calls": 262,
+          "triangles": 43724,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 152,
+          "textures": 6
+        },
+        "textures": 4,
+        "layout_sha256": "d64e91c2c435e8ac1f2d6a548ac338a9cd31a838d34d1651e7ceb0ba9ef77e3a"
+      },
+      "hall5": {
+        "render": {
+          "frame": 16,
+          "calls": 853,
+          "triangles": 149674,
+          "points": 0,
+          "lines": 0
+        },
+        "memory": {
+          "geometries": 589,
+          "textures": 5
+        },
+        "textures": 2,
+        "layout_sha256": "75a9360a91326f271bec182005603a7e7959d34109952e28e75c0727ab3a8340"
+      }
+    },
+    "errors": []
+  }
+}
