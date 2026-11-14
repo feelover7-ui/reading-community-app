@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createV8RealtimeClient } from './realtime.js'
 import { createV8RelayClient } from './relay.js'
+import { createLanternShare } from './lanterns.js'
 
 /* 기본을 relay 로 둡니다(사용자 요청, 2026-11-13).
 
@@ -79,4 +80,13 @@ export function createOnlineClient (options) {
   const makeFallback = () => createSupabaseClient(options)
   if (!url) return makeFallback()
   return withSupabaseFallback(options, url, makeFallback)
+}
+
+/* 발원등 공유. 통신(relay/Supabase)과 별개입니다. 등은 언제나 Supabase 표에 올립니다.
+   relay 는 사람의 위치를 나르는 것이고 등은 남아 있어야 하는 기록이라 저장소가 필요합니다. */
+export function createLanternClient ({ owner, onChange }) {
+  const url = import.meta.env.VITE_SUPABASE_URL, key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+  if (!url || !key) return null
+  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
+  return createLanternShare({ client, owner, onChange })
 }

@@ -4908,6 +4908,7 @@ globalThis.THREE=lC;
       if (kind === 'craft') {
         const l = info.lantern;
         this.data.lanterns.push({id: l.id.slice(0, 128), shape: l.shape, color: l.color, vow: String(l.vow || '').slice(0, 180), name: String(l.name || '나의 발원등').slice(0, 40), createdAt: Number.isFinite(Date.parse(l.createdAt)) ? new Date(l.createdAt).toISOString() : new Date(this._now()).toISOString()});
+        if (typeof shareNewLantern === 'function') shareNewLantern(this.data.lanterns[this.data.lanterns.length - 1]);
         record.crafts = Math.min(MAX_RECORD, record.crafts + 1);
       } else if (kind === 'contribute') {
         const aliases = {frame: 'frame', light: 'light', paper: 'paper', '골조': 'frame', '골조 제작': 'frame', '전기': 'light', '전기 작업': 'light', '배선': 'light', '배선 작업': 'light', '전구': 'light', '한지': 'paper', '한지 바르기': 'paper', thread:'thread', paint:'paint', '실묶기':'thread', '배접':'paper', '채색':'paint'};
@@ -8794,9 +8795,59 @@ function altarSVG(){const r=store.data.records.offeringItems;return `<svg viewBo
 function showOffer(){const b=openModal('offer','정성을 담아 공양 올리기','1층 무진향에서 준비한 초, 공양미, 향을 대법당에 올립니다.');b.innerHTML=`<div class="offer-layout"><div><div class="altar-preview">${altarSVG()}</div><div class="offering-history">지금까지 공양 ${store.data.records.offerings}회</div></div><div><p class="section-note" style="margin-top:0">공양할 때 소지품 1개가 사용됩니다.<br>게임 경험치 +20 · 정성 +1 · 협동 +1</p><div class="offer-options">${['candle','rice','incense'].map(id=>`<div class="offering-item">${icon(id)}<div><b>${Store.ITEMS[id].name}</b><small>소지 ${store.data.inventory[id]}개 · 올린 공양 ${store.data.records.offeringItems[id]}회</small></div>${actButton('올리기','offer',id,'primary small',!store.data.inventory[id]?'disabled':'')}</div>`).join('')}</div><div class="modal-footer">${actButton('무진향에서 준비하기','enter','temple1','secondary small')}</div></div></div>`;}
 let galleryPage=0;
 function lanternSVG(shape,color,lit=true){return HanmaumActivities.lanternSVG(shape,color,lit);}
+/* 발원등 공유. 지금까지 등은 이 브라우저에만 있어서 남이 볼 수 없었다.
+   설정이 없거나 표가 아직 없으면 조용히 끄고 전처럼 이 브라우저에만 남긴다. */
+const lanternShare={client:null,rows:[],ready:false,tried:false,owner:null};
+function shareOwner(){
+ try{let v=localStorage.getItem('hanmaum-journey-owner');
+  if(!v){v='v8-'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);localStorage.setItem('hanmaum-journey-owner',v);}
+  return v;}catch(_){return null;}
+}
+async function initLanternShare(){
+ if(lanternShare.tried)return lanternShare.client;
+ lanternShare.tried=true;
+ if(typeof location==='undefined'||!/^https?:$/.test(location.protocol))return null;
+ try{
+  const {createLanternClient}=await import('/v8-network.js');
+  lanternShare.owner=shareOwner();
+  if(!lanternShare.owner)return null;
+  const c=createLanternClient({owner:lanternShare.owner,onChange:rows=>{
+    lanternShare.rows=rows;lanternShare.ready=true;
+    if(modalKey==='gallery')showGallery(galleryPage);
+  }});
+  if(!c)return null;
+  lanternShare.client=c;
+  // 표가 아직 없어 조회가 실패해도 클라이언트는 버리지 않는다.
+  // SQL 을 돌린 뒤 전시장을 다시 열면 그때 붙는다.
+  try{await c.load(true);c.subscribe();}catch(_){}
+  return c;
+ }catch(_){return null;}
+}
+/* 내 등과 남의 등을 한 벽에 건다. 내 기록(store.data.lanterns)은 건드리지 않는다. */
+/* 만든 등을 공유 저장에 올린다. 실패해도 등은 이 브라우저에 그대로 남는다. */
+function shareNewLantern(l){
+ if(!l)return;
+ (async()=>{
+  try{
+   const c=await initLanternShare();
+   if(!c)return;
+   const r=await c.publish(l);
+   if(r&&r.ok&&r.id){l.sharedId=r.id;try{store.save&&store.save();}catch(_){}}
+  }catch(_){}
+ })();
+}
+function galleryRows(){
+ const mine=store.data.lanterns||[];
+ if(!lanternShare.ready||!lanternShare.rows.length)return mine.map(l=>({...l,mine:true}));
+ const seen=new Set(),rows=[];
+ for(const l of mine){if(l&&l.sharedId)seen.add(l.sharedId);rows.push({...l,mine:true});}
+ for(const l of lanternShare.rows){if(!l||!l.id||seen.has(l.id))continue;seen.add(l.id);rows.push({...l,mine:false});}
+ rows.sort((a,b)=>Date.parse(a.createdAt||0)-Date.parse(b.createdAt||0));
+ return rows.slice(0,360);
+}
 let galleryAllSlots=false;
-function showGallery(page=0){const pages=galleryAllSlots?3:Math.max(1,Math.ceil(store.data.lanterns.length/120));galleryPage=Math.max(0,Math.min(pages-1,page));const all=store.data.lanterns,b=openModal('gallery','발원등 전시장','한쪽 전시벽에 차곡차곡 모은 등. 불빛을 누르면 발원문을 하나씩 볼 수 있어요.');b.innerHTML=`<div class="gallery-head"><div><strong>백스무 빛의 전시벽</strong>내가 밝힌 등 ${all.length}개${galleryAllSlots?' · 전체 360자리':''}</div><div class="gallery-controls">${actButton('이전','galleryPage',String(galleryPage-1),'ghost small',galleryPage===0?'disabled':'')}${actButton('다음','galleryPage',String(galleryPage+1),'ghost small',galleryPage===pages-1?'disabled':'')}</div></div><div class="gallery-grid">${Array.from({length:galleryAllSlots?120:Math.max(0,Math.min(120,all.length-galleryPage*120))},(_,i)=>{const n=galleryPage*120+i,l=all[n];return l?`<button class="lantern-slot filled" data-ui="lanternDetail" data-value="${n}" aria-label="${n+1}번째 발원등 ${esc(l.name)}">${lanternSVG(l.shape,l.color)}<small>${esc(l.name||'발원등')}</small></button>`:`<div class="lantern-slot empty-slot" aria-label="${n+1}번째 빈 전시 자리">${icon('lantern')}<small>${String(n+1).padStart(3,'0')}</small></div>`;}).join('')}</div><div class="modal-footer">${actButton(galleryAllSlots?'내 등만 보기':'전체 전시 자리 보기','gallerySlots','','ghost')}${actButton('불바퀴등 보기','wheel','','secondary')}${actButton('새 발원등 만들기','craftRoute','','primary')}</div><p class="section-note">각 등과 발원문은 이 브라우저의 기록에 저장됩니다. 다른 기기로 옮길 때는 설정에서 기록을 내보내 주세요.</p>`;}
-function showLantern(index){const l=store.data.lanterns[index];if(!l)return;const b=openModal('lantern','한 사람의 정성, 하나의 빛','발원등 '+String(index+1).padStart(3,'0'));b.innerHTML=`<div class="lantern-detail"><div class="lantern-art">${lanternSVG(l.shape,l.color)}</div><div><span class="badge gold">발원등 ${String(index+1).padStart(3,'0')}</span><h3>${esc(l.name||'나의 발원등')}</h3><p class="vow">${esc(l.vow||'정성을 담아 밝힌 등입니다.')}</p><p class="time">${formatDate(l.createdAt)}에 밝힌 등</p></div></div><div class="modal-footer">${actButton('이전 등','lanternDetail',String(index-1),'ghost',index===0?'disabled':'')}${actButton('전시벽으로','galleryPage',String(Math.floor(index/120)),'secondary')}${actButton('다음 등','lanternDetail',String(index+1),'ghost',index>=store.data.lanterns.length-1?'disabled':'')}</div>`;}
+function showGallery(page=0){initLanternShare().then(c=>c&&c.load()).catch(()=>{});const all=galleryRows();const pages=galleryAllSlots?3:Math.max(1,Math.ceil(all.length/120));galleryPage=Math.max(0,Math.min(pages-1,page));const b=openModal('gallery','발원등 전시장','한쪽 전시벽에 차곡차곡 모은 등. 불빛을 누르면 발원문을 하나씩 볼 수 있어요.');b.innerHTML=`<div class="gallery-head"><div><strong>백스무 빛의 전시벽</strong>내가 밝힌 등 ${all.filter(l=>l.mine).length}개${lanternShare.ready?' · 함께 걸린 등 '+all.filter(l=>!l.mine).length+'개':''}${galleryAllSlots?' · 전체 360자리':''}</div><div class="gallery-controls">${actButton('이전','galleryPage',String(galleryPage-1),'ghost small',galleryPage===0?'disabled':'')}${actButton('다음','galleryPage',String(galleryPage+1),'ghost small',galleryPage===pages-1?'disabled':'')}</div></div><div class="gallery-grid">${Array.from({length:galleryAllSlots?120:Math.max(0,Math.min(120,all.length-galleryPage*120))},(_,i)=>{const n=galleryPage*120+i,l=all[n];return l?`<button class="lantern-slot filled${l.mine?'':' shared-slot'}" data-ui="lanternDetail" data-value="${n}" aria-label="${n+1}번째 발원등 ${esc(l.name)}${l.mine?'':' · 다른 법우의 등'}">${lanternSVG(l.shape,l.color)}<small>${esc(l.name||'발원등')}</small></button>`:`<div class="lantern-slot empty-slot" aria-label="${n+1}번째 빈 전시 자리">${icon('lantern')}<small>${String(n+1).padStart(3,'0')}</small></div>`;}).join('')}</div><div class="modal-footer">${actButton(galleryAllSlots?'내 등만 보기':'전체 전시 자리 보기','gallerySlots','','ghost')}${actButton('불바퀴등 보기','wheel','','secondary')}${actButton('새 발원등 만들기','craftRoute','','primary')}</div><p class="section-note">${lanternShare.ready?'이 전시벽에는 다른 법우가 건 등도 함께 걸립니다. 내 등은 이 브라우저에도 남습니다.':'지금은 이 브라우저에만 저장됩니다. 공유 설정이 없거나 연결되지 않았습니다.'}</p>`;}
+function showLantern(index){const rows=galleryRows(),l=rows[index];if(!l)return;const b=openModal('lantern','한 사람의 정성, 하나의 빛','발원등 '+String(index+1).padStart(3,'0'));b.innerHTML=`<div class="lantern-detail"><div class="lantern-art">${lanternSVG(l.shape,l.color)}</div><div><span class="badge gold">발원등 ${String(index+1).padStart(3,'0')}</span><h3>${esc(l.name||'나의 발원등')}</h3>${l.mine?'':'<p class="time">다른 법우가 건 등입니다.</p>'}<p class="vow">${esc(l.vow||'정성을 담아 밝힌 등입니다.')}</p><p class="time">${formatDate(l.createdAt)}에 밝힌 등</p></div></div><div class="modal-footer">${actButton('이전 등','lanternDetail',String(index-1),'ghost',index===0?'disabled':'')}${actButton('전시벽으로','galleryPage',String(Math.floor(index/120)),'secondary')}${actButton('다음 등','lanternDetail',String(index+1),'ghost',index>=rows.length-1?'disabled':'')}</div>`;}
 function showWheel(){if(sceneId!=='workshop'){routeTo('workshop','wheel');return;}const lit=store.data.wheelLit,b=openModal('wheel','한마음의 불바퀴등','등불사장 안에 세운 입체 불바퀴등입니다.','narrow');b.innerHTML=`<div class="wheel-control"><span class="wheel-seal ${lit?'lit':''}">${icon('sun')}</span><span class="badge ${lit?'gold':''}">${lit?'불빛을 밝혔어요':'점등을 기다립니다'}</span><h3>한마음으로 밝히는 등</h3><p>불을 밝히면 등불사장의 주변 조명이 낮아지고,<br>등 안쪽의 빛이 색지와 골조 사이로 드러납니다.</p><div class="modal-footer">${actButton(lit?'불빛 끄고 돌아보기':'불 밝히고 돌아보기','toggleWheel','','primary')}${actButton('도량으로 돌아가기','close','','secondary')}</div><small>${store.data.wheelCount?`지금까지 ${store.data.wheelCount}번 밝힌 불빛`:'첫 점등 경험치 +30 · 마음잎 +15'}</small></div>`;}
 function toggleWheel(){if(sceneId!=='workshop'){routeTo('workshop','wheel');return;}let message;if(store.data.wheelLit){store.data.wheelLit=false;store.save();message='불바퀴등을 끄고 작업장의 빛으로 돌아왔어요.';}else if(store.data.wheelCount===0){const r=store.reward({kind:'wheel',xp:30,coins:15,stats:{harmony:1},message:'한마음의 불바퀴등을 밝혔어요.'});message=r.levels.length?`레벨 ${store.data.level}! 불바퀴등을 밝혔어요.`:'불바퀴등을 밝혔어요. 경험치 +30 · 마음잎 +15';sound('win');}else{store.data.wheelLit=true;store.data.wheelCount++;store.save();message='주변의 빛을 낮추고, 불바퀴등을 밝혔어요.';sound('good');}world?.setEnvironment();updateHUD();closeModal();toast(message);}
 function showTower(){const b=openModal('towerMenu','구정탑 앞에서','마음을 모아 예경하거나, 시계방향으로 직접 걸어봅니다.');b.innerHTML=`<div class="card-grid"><article class="destination-card">${icon('lotus','map-art')}<span class="badge">마음 모아 예경</span><h3>삼배 올리기</h3><p>구정탑 앞에 서서 합장하고, 세 번 절한 뒤 다시 일어섭니다.</p>${actButton('구정탑 앞에서 삼배','placeBow','tower','primary')}</article><article class="destination-card">${icon('tower','map-art')}<span class="badge">마음의 발걸음</span><h3>탑돌이</h3><p>선택한 시점을 유지하며 구정탑 주위를 시계방향으로 세 바퀴 직접 걸어요.</p>${actButton('탑돌이 시작','activity','tower','primary')}</article><article class="destination-card">${icon('shield','map-art')}<span class="badge gold">작은 디펜스 게임</span><h3>빛 지키기</h3><p>세 갈래 길에 등불을 세우고 40초 동안 바람 속의 빛을 지켜요.</p>${actButton('빛 지키기 시작','activity','defense','secondary')}</article></div><div class="modal-footer">${actButton('이곳 둘러보기','sceneryHere','','secondary')}</div>`;}
