@@ -212,6 +212,7 @@
     button.hidden = typeof action !== 'function'
     button.onclick = typeof action === 'function' ? action : null
     objective.hidden = false
+    root.HanmaumQuietUI?.showContext?.({id: 'pilgrimage-step', label: button.textContent, onSelect: action})
     return objective
   }
 
@@ -533,7 +534,7 @@
     overlay.setAttribute('role', 'dialog')
     overlay.setAttribute('aria-modal', 'true')
     overlay.setAttribute('aria-labelledby', 'pilgrimageArrivalTitle')
-    overlay.innerHTML = '<div class="pilgrimage-arrival-card"><span>한마음 도량여행</span><h1 id="pilgrimageArrivalTitle">등 하나를 밝히러 가기</h1><p>내 손으로 만든 등을 들고 탑을 돌고, 법당을 참배한 뒤 도량에 남깁니다.</p><fieldset><legend>함께 걸을 모습</legend><div class="pilgrimage-appearance"><button type="button" data-gender="male" class="selected"><i></i><b>남성 청년</b></button><button type="button" data-gender="female"><i></i><b>여성 청년</b></button></div></fieldset><button type="button" class="btn primary pilgrimage-enter">도량 들어가기</button><small class="pilgrimage-note">이름은 완성한 등을 걸 때 정합니다.</small></div>'
+    overlay.innerHTML = '<div class="pilgrimage-arrival-card"><span>한마음선원 · 온라인 참배</span><h1 id="pilgrimageArrivalTitle">잠시 마음을 모아<br>도량에 들어갑니다</h1><p>구정탑을 돌고 대법당에서 삼배합니다. 등 만들기는 참배 전에 선택할 수 있습니다.</p><fieldset><legend>함께 걸을 모습</legend><div class="pilgrimage-appearance"><button type="button" data-gender="male" class="selected"><i></i><b>남성 청년</b></button><button type="button" data-gender="female"><i></i><b>여성 청년</b></button></div></fieldset><div class="pilgrimage-arrival-actions"><button type="button" class="btn primary pilgrimage-enter">참배 시작</button><button type="button" class="btn secondary" data-arrival-choice="craft">등을 만들고 갈게요</button><button type="button" class="btn ghost" data-arrival-choice="explore">자유롭게 둘러보기</button></div><small class="pilgrimage-note">이름은 등을 걸거나 방명록을 남길 때 정할 수 있습니다.</small></div>'
     const portraits = overlay.querySelectorAll('.pilgrimage-appearance i')
     if (root.HanmaumAvatar?.portrait) {
       portraits[0].innerHTML = root.HanmaumAvatar.portrait('hae', 'basic', false, {gender: 'male', hair: 'short', robeColor: '#526b62'})
@@ -545,7 +546,7 @@
         overlay.querySelectorAll('[data-gender]').forEach(item => item.classList.toggle('selected', item === button))
       }
     })
-    overlay.querySelector('.pilgrimage-enter').onclick = () => {
+    const beginCraft = () => {
       const result = createAnonymousProfile(app.store, selected)
       if (!result?.ok) return
       state = transition(state, {type: 'start', id: eventId('start'), at: Date.now()})
@@ -559,6 +560,14 @@
       showCraftObjective(app)
       if (app.scene !== 'workshop') app.enterScene('workshop')
       setTimeout(() => app.runActivity('craft'), 180)
+    }
+    overlay.querySelector('.pilgrimage-enter').onclick = beginCraft
+    overlay.querySelector('[data-arrival-choice="craft"]').onclick = beginCraft
+    overlay.querySelector('[data-arrival-choice="explore"]').onclick = () => {
+      createAnonymousProfile(app.store, selected)
+      overlay.remove()
+      document.body.classList.remove('pilgrimage-arrival-open')
+      setupReturning(app)
     }
     document.body.append(overlay)
     requestAnimationFrame(() => overlay.querySelector('[data-gender="male"]')?.focus())
@@ -589,6 +598,7 @@
       }
     }
     root.HanmaumPilgrimageRuntime = controller
+    root.HanmaumQuietUI?.sync?.({scene: app.scene, stage: state.stage, returning: state.stage === 'complete'})
     if (state.stage === 'complete') {
       setupReturning(app)
       return

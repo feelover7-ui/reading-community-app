@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#244c3b">
-<meta name="description" content="캐릭터와 함께 도량을 거닐고, 등을 만들고, 마음을 살피는 한마음선원 도량여행 게임.">
-<title>한마음 도량여행 v8 · 함께 밝히는 등불</title>
+<meta name="description" content="한마음선원 온라인 참배. 도량을 걷고 등을 밝히며 탑돌이와 법당 참배를 이어갑니다.">
+<title>한마음선원 온라인 참배 · 함께 밝히는 등불</title>
 <!-- 첨부 게임의 오프라인 업그레이드. 원본 내장 Three.js r187 재사용. 파일 단독 실행을 지원하며 현재 날씨를 자동으로 확인합니다. 온라인 만남은 이용자가 선택할 때 시작합니다.
 Three.js is licensed under the MIT License. Copyright (c) 2010-2026 three.js authors.
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software
@@ -7270,6 +7270,7 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
 <link rel="stylesheet" href="/v8-craft-view.css">
 <link rel="stylesheet" href="/v8-director.css">
 <link rel="stylesheet" href="/v8-pilgrimage.css">
+<link rel="stylesheet" href="/v8-quiet-ui.css">
 <script src="/v8-craft-view.js"></script>
 <script data-source="activities.js">
 /* Hanmaum · self-contained, touch-friendly activities. No network requests. */
@@ -8899,8 +8900,10 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
 <script src="/v8-view.js"></script>
 <script src="/v8-ui.js"></script>
 <script src="/v8-director.js"></script>
+<script src="/v8-workshop-photo.js"></script>
 <script src="/v8-ambience.js"></script>
 <script src="/v8-map.js"></script>
+<script src="/v8-quiet-ui.js"></script>
 <script src="/v8-pilgrimage.js"></script>
 <script data-source="app.js">
 (function(){

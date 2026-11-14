@@ -1,0 +1,33 @@
+/* Online pilgrimage is the product; game records remain stored but stay out of the world view. */
+body.quiet-pilgrimage #profileCard,
+body.quiet-pilgrimage #currencyPill,
+body.quiet-pilgrimage #dailyPeek,
+body.quiet-pilgrimage #bottomNav,
+body.quiet-pilgrimage #socialActions,
+body.quiet-pilgrimage .chat-stream,
+body.quiet-pilgrimage .quick-chat,
+body.quiet-pilgrimage #sceneTools,
+body.quiet-pilgrimage #firstGuide,
+body.quiet-pilgrimage #weatherPill,
+body.quiet-pilgrimage #helpBtn{display:none!important}
+
+body.quiet-pilgrimage #topbar{top:max(12px,env(safe-area-inset-top));left:14px;right:14px;height:48px}
+body.quiet-pilgrimage #brandHome{min-width:44px;min-height:44px;padding:0;border-radius:50%;background:#fffaf0e8;display:grid;place-items:center}
+body.quiet-pilgrimage #brandHome>span:last-child{display:none}
+body.quiet-pilgrimage #soundBtn,
+body.quiet-pilgrimage #settingsBtn{min-width:44px;min-height:44px}
+body.quiet-pilgrimage .top-actions{gap:7px}
+body.quiet-pilgrimage #onlineBtn{display:none!important}
+
+.quiet-context-action{position:fixed;z-index:33;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(420px,calc(100% - 28px));min-height:52px;padding:13px 18px;border:1px solid #d8c27d;border-radius:16px;background:#244c3bf2;color:#fffaf0;font-weight:800;box-shadow:0 12px 34px #0d261c44}
+.quiet-context-action[hidden]{display:none!important}
+
+body.quiet-pilgrimage #modal{min-height:100dvh}
+body.quiet-pilgrimage #modalClose{min-width:44px;min-height:44px}
+body.quiet-pilgrimage .pilgrimage-objective{bottom:max(18px,env(safe-area-inset-bottom))}
+
+@media(max-width:600px){
+ body.quiet-pilgrimage #topbar{left:10px;right:10px}
+ body.quiet-pilgrimage .room-info{top:max(72px,calc(env(safe-area-inset-top) + 60px));max-width:calc(100% - 28px)}
+ body.quiet-pilgrimage .interaction{bottom:max(84px,calc(env(safe-area-inset-bottom) + 66px))}
+}
