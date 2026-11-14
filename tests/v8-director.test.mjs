@@ -84,3 +84,28 @@ test('female basic look uses the approved field jacket while every portrait stay
   assert.equal(window.HanmaumDirector.characterStyle({gender: 'female', outfit: 'basic'}).outfit, 'field-jacket')
 })
 
+test('fresh entry asks only for a nickname and presentation before the first lantern route', () => {
+  const window = loadDirector()
+  const female = window.HanmaumDirector.firstEntry({name: '법우', appearance: {gender: 'female'}})
+  assert.equal(female.promise, '마음을 담은 등을 만들어 도량에 남겨보세요')
+  assert.deepEqual(Array.from(female.fields), ['name', 'gender'])
+  assert.equal(female.appearance.gender, 'female')
+  assert.equal(female.appearance.hair, 'bob')
+  assert.equal(female.appearance.robeColor, '#819985')
+  assert.doesNotMatch(female.markup, /setupHair|type="color"|피부색|머리색/)
+  assert.match(female.markup, /첫 등 만들기/)
+  assert.match(fs.readFileSync('public/v8-director.js', 'utf8'), /featurePrototype[\s\S]*showProfile/)
+  assert.match(html, /머리 모양/)
+  assert.match(html, /profile-colors/)
+})
+
+test('director HUD keeps controls reachable while meeting mobile touch sizes', () => {
+  const css = fs.readFileSync('public/v8-director.css', 'utf8')
+  assert.match(css, /#mGoal[^}]*min-height:\s*44px/s)
+  assert.match(css, /#mSheetClose[^}]*min-width:\s*44px/s)
+  assert.match(css, /\.world-label[^}]*min-height:\s*44px/s)
+  assert.match(css, /#dailyPeek[^}]*display:\s*none/s)
+  assert.match(css, /#currencyPill[^}]*display:\s*none/s)
+  assert.match(fs.readFileSync('public/v8-director.js', 'utf8'), /hanmaum-journey-touch-hint-v1/)
+})
+

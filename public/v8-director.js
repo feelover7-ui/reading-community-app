@@ -31,6 +31,23 @@
     }
   }
 
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[character]))
+
+  function firstEntry (state = {}) {
+    const current = safeAppearance(state.appearance)
+    const gender = current.gender === 'female' ? 'female' : 'male'
+    const appearance = {
+      gender,
+      hair: gender === 'female' ? 'bob' : 'short',
+      skin: current.skin,
+      hairColor: current.hairColor,
+      robeColor: gender === 'female' ? '#819985' : '#526b62'
+    }
+    const name = state.name === '법우' ? '' : String(state.name || '').slice(0, 12)
+    const markup = `<form id="profileForm" data-director-entry="true" onsubmit="return false"><div class="director-entry"><div class="director-entry-promise"><span>한마음 도량여행</span><h3>천천히 걷고, 마음을 밝혀요.</h3><p>마음을 담은 등을 만들어 도량에 남겨보세요</p><ol><li>등불사장에서 첫 등을 만들어요</li><li>완성한 등에 마음을 적어 걸어요</li><li>탑돌이와 법당 참배로 이어가요</li></ol></div><div class="director-entry-form"><div id="profilePreview" class="director-entry-preview">${portrait('hae', 'basic', false, appearance)}</div><label class="form-label" for="setupName">도량에서 불릴 이름</label><input class="text-input" id="setupName" maxlength="12" autocomplete="nickname" placeholder="1~12자로 입력" value="${escapeHtml(name)}"><label class="form-label" for="setupGender">나의 모습</label><select id="setupGender" class="text-input"><option value="male" ${gender === 'male' ? 'selected' : ''}>현대적인 남성 청년</option><option value="female" ${gender === 'female' ? 'selected' : ''}>현대적인 여성 청년</option></select><p class="section-note">머리 모양과 색은 들어간 뒤 캐릭터 메뉴에서 바꿀 수 있어요.</p><button type="button" class="btn primary wide" data-ui="saveProfile">첫 등 만들기 시작</button><p id="profileError" class="profile-error" role="status"></p></div></div></form>`
+    return {promise: '마음을 담은 등을 만들어 도량에 남겨보세요', fields: ['name', 'gender'], appearance, markup}
+  }
+
   function portrait (character = 'hae', outfit = 'basic', small = false, value = {}) {
     const a = safeAppearance(value)
     const style = characterStyle({gender: a.gender, outfit})
@@ -152,7 +169,62 @@
 
   avatar.portrait = portrait
   avatar.createActor = createActor
-  window.HanmaumDirector = Object.freeze({characterStyle})
+  window.HanmaumDirector = Object.freeze({characterStyle, firstEntry})
+
+  const featurePrototype = window.HanmaumFeatures?.prototype
+  if (featurePrototype && typeof featurePrototype.showProfile === 'function' && !featurePrototype.__directorEntry) {
+    featurePrototype.__directorEntry = true
+    const originalShowProfile = featurePrototype.showProfile
+    const originalFormAppearance = featurePrototype.formAppearance
+    const originalSaveProfile = featurePrototype.saveProfile
+    featurePrototype.showProfile = function (first = false) {
+      if (!first) {
+        this._directorFirstProfile = false
+        document.body?.classList?.remove('director-onboarding')
+        return originalShowProfile.call(this, false)
+      }
+      this._directorFirstProfile = true
+      document.body?.classList?.add('director-onboarding')
+      const model = firstEntry(this.store.view())
+      const body = this.ctx.openModal('onboarding', '도량에 작은 빛을 남겨보세요', '이름과 모습만 정하면 바로 첫 등을 만들러 갑니다.')
+      const close = document.getElementById('modalClose'); if (close) close.hidden = true
+      body.innerHTML = model.markup
+      setTimeout(() => document.getElementById('setupName')?.focus(), 80)
+    }
+    featurePrototype.formAppearance = function () {
+      if (!document.querySelector?.('#profileForm[data-director-entry]')) return originalFormAppearance.call(this)
+      const current = this.store.view()
+      const gender = document.getElementById('setupGender')?.value === 'female' ? 'female' : 'male'
+      return firstEntry({...current, appearance: {...current.appearance, gender}}).appearance
+    }
+    featurePrototype.saveProfile = function () {
+      const wasFirst = this._directorFirstProfile === true
+      const result = originalSaveProfile.apply(this, arguments)
+      if (wasFirst && this.store?.data?.profileReady) {
+        this._directorFirstProfile = false
+        document.body?.classList?.remove('director-onboarding')
+        try { globalThis.localStorage?.setItem('hanmaum-journey-touch-hint-v1', '1') } catch (_) {}
+        const guide = document.getElementById('firstGuide')
+        if (guide) {
+          const title = guide.querySelector('b'), copy = guide.querySelector('span'), button = document.getElementById('guideWalk')
+          if (title) title.textContent = '첫 등을 만들러 갈까요?'
+          if (copy) copy.textContent = '앞으로 걸어 문을 지나면 등불사장에 자동으로 들어갑니다.'
+          if (button) button.childNodes[0].textContent = '등불사장으로 '
+        }
+      }
+      return result
+    }
+  }
+
+  function refreshFirstGuide () {
+    const guide = document.getElementById?.('firstGuide')
+    if (!guide) return
+    const title = guide.querySelector('b'), copy = guide.querySelector('span')
+    if (title) title.textContent = '첫 등을 만들러 갈까요?'
+    if (copy) copy.textContent = '왼쪽은 걷기, 오른쪽은 둘러보기. 문을 지나면 자동으로 들어갑니다.'
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refreshFirstGuide, {once: true})
+  else refreshFirstGuide()
 
   const worldPrototype = window.HanmaumWorld?.prototype
   if (worldPrototype && !worldPrototype.__directorAvatarScale) {

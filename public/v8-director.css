@@ -1,2 +1,34 @@
-/* Director pass presentation rules are added in the onboarding task. */
+/* v8 director pass: quiet HUD, simple first entry, and reliable mobile targets. */
+body:not(.has-modal) #dailyPeek{display:none}
+body:not(.has-modal) #currencyPill{display:none}
+body:not(.has-modal) .profile-card{width:auto;min-width:76px;padding:8px 10px;gap:8px}
+body:not(.has-modal) .profile-card .profile-portrait{width:46px;height:46px}
+body:not(.has-modal) .profile-card .profile-copy{display:none}
+
+.director-entry{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(300px,.95fr);gap:28px;align-items:stretch}
+.director-entry-promise{border-radius:22px;padding:34px;background:linear-gradient(145deg,#234b3a,#45654f);color:#fffaf0;display:flex;flex-direction:column;justify-content:center;min-height:440px}
+.director-entry-promise>span{color:#e6c57b;font-size:11px;font-weight:800;letter-spacing:1.5px}
+.director-entry-promise h3{font-size:30px;line-height:1.35;letter-spacing:-1px;margin:14px 0 10px}
+.director-entry-promise p{font-size:15px;line-height:1.8;color:#e4eadf;margin:0 0 26px}
+.director-entry-promise ol{margin:0;padding-left:20px;display:grid;gap:12px;color:#f4ecd9;line-height:1.6}
+.director-entry-form{display:flex;flex-direction:column;justify-content:center;padding:12px 6px}
+.director-entry-preview{width:156px;height:188px;margin:0 auto 4px;border-radius:24px;background:#edf1e2;overflow:hidden}
+.director-entry-preview svg{width:100%;height:100%}
+.director-entry-form select{appearance:auto}
+
+.world-label{min-height:44px;display:flex;flex-direction:column;justify-content:center}
+#mGoal{min-height:44px;min-width:44px}
+#mSheetClose{min-height:44px;min-width:44px}
+#mMenuBtn,#mActBtn,#mChat,#mHapjang,#mBan,.btn.small{min-height:44px}
+
+@media(max-width:700px){
+ .director-entry{grid-template-columns:1fr;gap:12px}
+ .director-entry-promise{min-height:0;padding:22px}
+ .director-entry-promise h3{font-size:23px;margin:8px 0 5px}
+ .director-entry-promise p{font-size:13px;margin-bottom:12px}
+ .director-entry-promise ol{display:none}
+ .director-entry-form{padding:0}
+ .director-entry-preview{width:112px;height:132px}
+ body.m-simple #mGoal{font-size:12px;line-height:1.3;padding:8px 12px}
+}
 

@@ -57,11 +57,11 @@
 - Consumes: `HanmaumFeatures.prototype.showProfile/formAppearance/saveProfile`, existing modal IDs, existing first guide
 - Produces: simple first-entry form, full later editor fallback, `director-onboarding` and `director-hud` presentation
 
-- [ ] Add failing assertions for promise-first copy, nickname/presentation-only first form, retained later editor, one onboarding layer, and 44 px control rules.
-- [ ] Run the focused test and confirm expected failures.
-- [ ] Patch first-entry behavior and add CSS-only HUD/touch changes.
-- [ ] Run focused, integration, travel, camera, and mobile tests.
-- [ ] Commit the passing onboarding/UI slice.
+- [x] Add failing assertions for promise-first copy, nickname/presentation-only first form, retained later editor, one onboarding layer, and 44 px control rules.
+- [x] Run the focused test and confirm expected failures.
+- [x] Patch first-entry behavior and add CSS-only HUD/touch changes.
+- [x] Run focused, integration, travel, camera, and mobile tests.
+- [x] Commit the passing onboarding/UI slice.
 
 ### Task 3: Procedural scene ambience
 
