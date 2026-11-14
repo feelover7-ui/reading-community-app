@@ -120,3 +120,28 @@ test('Space 와 E 로 입장하고, 한글 입력 상태와 단추 초점을 가
     '단추에 초점이 있으면 Space 를 넘긴다. 안 그러면 단추도 눌리고 입장도 된다')
   assert.ok(html.includes('<kbd>Space</kbd>·<kbd>E</kbd>'), '단추 안내에도 Space 를 적는다')
 })
+
+/* 2026-11-14 사용자 요청 다섯 가지 */
+test('걷는 속도·캐릭터 크기·메뉴 키·Enter 대화·접속자 이름', async () => {
+  const { readFileSync } = await import('node:fs')
+  const html = readFileSync(new URL('../public/v8.html', import.meta.url), 'utf8')
+
+  // 1) 걷는 속도 (원래 4.3). 3D·2D 두 렌더러가 같은 값을 쓴다.
+  assert.equal((html.match(/this\.walkSpeed=6\.4/g) || []).length, 2, '두 렌더러 모두 올려야 한다')
+  assert.ok(!/this\.walkSpeed=4\.3/.test(html), '옛 속도가 남아 있으면 한쪽만 빨라진다')
+
+  // 5) 바깥 마당 캐릭터 크기 (원래 campus 1.12)
+  assert.ok(html.includes("currentScene==='campus'?1.45:1.18"), '캐릭터가 작다는 요청')
+
+  // 2) 메뉴 위아래. 걷기 처리가 이 함수를 먼저 봐야 메뉴에서 걷지 않는다.
+  assert.equal((html.match(/window\.HanmaumMenuKeys&&window\.HanmaumMenuKeys\(e\)/g) || []).length, 3,
+    '3D·2D 이동키와 전역 처리 세 곳에서 먼저 본다')
+  assert.ok(html.includes('focusFirstMenuItem'), '펼치면 첫 항목에 초점이 가야 바로 고른다')
+
+  // 4) Enter 로 대화. 단추·입력칸에 초점이 있으면 넘긴다.
+  assert.ok(/e\.code==='Enter'\|\|e\.code==='NumpadEnter'/.test(html))
+  assert.ok(html.includes("chatBtn.click()"), '대화는 단추와 같은 길로 연다')
+
+  // 3) 누가 들어와 있는지
+  assert.ok(html.includes('peerNames()'), '인원 수만이 아니라 이름을 보여 준다')
+})
