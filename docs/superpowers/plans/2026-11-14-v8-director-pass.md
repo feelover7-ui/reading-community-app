@@ -74,11 +74,11 @@
 - Consumes: `window.__HANMAUM_APP__`, scene ID, existing `settings.sound`, browser AudioContext
 - Produces: `window.HanmaumAmbience.profile(scene)` and one lifecycle-managed ambience controller
 
-- [ ] Write failing pure-profile and lifecycle-source tests.
-- [ ] Verify failures before implementation.
-- [ ] Implement user-gesture wake, noise/wind bed, sparse scene-specific chimes, visibility/mute suspension, and disposal.
-- [ ] Run focused tests and the full suite.
-- [ ] Commit the passing ambience slice.
+- [x] Write failing pure-profile and lifecycle-source tests.
+- [x] Verify failures before implementation.
+- [x] Implement user-gesture wake, noise/wind bed, sparse scene-specific chimes, visibility/mute suspension, and disposal.
+- [x] Run focused tests and the full suite.
+- [x] Commit the passing ambience slice.
 
 ### Task 4: Browser verification and release
 
