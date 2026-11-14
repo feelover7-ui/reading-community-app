@@ -265,7 +265,7 @@ body.campus-overview .world-marker{padding:9px 13px!important;font-size:13px!imp
   <div id="socialActions" class="social-actions" aria-label="인사와 채팅"><button data-ui="gesture" data-value="hapjang">합장</button><button data-ui="gesture" data-value="bow">반배</button><button data-ui="chat">채팅 <span id="chatBadge" hidden></span></button></div>
   <div id="chatStream" class="chat-stream" aria-hidden="true"></div>
   <form id="quickChat" class="quick-chat" hidden autocomplete="off" aria-label="대화 한 줄 쓰기"><input id="quickChatInput" class="text-input" maxlength="160" placeholder="한 줄 남기기" autocomplete="off" spellcheck="false" aria-label="대화 내용"><button type="submit" class="btn primary small">보내기</button><button type="button" id="quickChatClose" class="btn ghost small">닫기</button></form>
-  <div id="walkHint" class="walk-hint"><span class="desktop-hint">방향키 / WASD 이동 <i>·</i> E 작업 <i>·</i> 바닥을 눌러 걷기</span><span class="touch-hint">바닥을 눌러 걷거나 조이스틱을 움직여 보세요</span></div>
+  <div id="walkHint" class="walk-hint"><span class="desktop-hint">↑↓ 앞뒤로 걷기 <i>·</i> ←→ 시점 돌리기 <i>·</i> E 작업 <i>·</i> 바닥을 눌러 걷기</span><span class="touch-hint">바닥을 눌러 걷거나 조이스틱을 움직여 보세요</span></div>
   <div id="joystick" role="group" aria-label="이동 조이스틱"><span class="joy-ring"></span><span id="joyKnob"></span></div>
   <div id="interaction" class="interaction"><div class="interact-symbol" id="interactSymbol"></div><div class="interact-copy"><small id="interactEyebrow">도량 탐방</small><strong id="interactTitle">가고 싶은 장소를 골라 보세요</strong><span id="interactSub">건물이나 바닥을 누르면 이동합니다.</span></div><button class="btn primary" id="interactBtn" disabled>작업 <kbd>E</kbd></button></div>
   <nav id="bottomNav" class="bottom-nav" aria-label="게임 메뉴"><button data-nav="map" class="active"></button><button data-nav="daily"></button><button data-nav="character"></button><button data-nav="bag"></button><button data-nav="scenery"></button></nav>
@@ -7705,11 +7705,11 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       byId('spaceActivity').hidden = !this.task || this.ctx.isModal() || scenic;
       const hint = byId('walkHint');
       if (immersed) {
-        hint.querySelector('.desktop-hint').textContent = 'WASD / 방향키: 화면 기준 이동 · Q / R: 좌우 보기 · 화면 끌어 보기 · E 활동 · V 시점';
-        hint.querySelector('.touch-hint').textContent = '조이스틱: 화면 기준 이동 · 시선 버튼 길게 누르기 / 화면 끌기';
+        hint.querySelector('.desktop-hint').textContent = '↑↓ · W/S 앞뒤로 걷기 · ←→ · A/D 시점 돌리기 · 화면 끌어 보기 · E 활동 · V 시점';
+        hint.querySelector('.touch-hint').textContent = '조이스틱 위아래로 걷기 · 좌우로 둘러보기 · 화면 끌기';
       } else {
-        hint.querySelector('.desktop-hint').textContent = this.task?.kind === 'tower' ? '탑돌이: WASD / 방향키로 직접 걷기 · V 뒤에서 따라보기' : '방향키 / WASD 이동 · E 활동 · 바닥을 눌러 걷기 · V 시점';
-        hint.querySelector('.touch-hint').textContent = this.task?.kind === 'tower' ? '조이스틱으로 직접 시계방향으로 걸어주세요' : '바닥을 눌러 걷거나 조이스틱을 움직여 보세요';
+        hint.querySelector('.desktop-hint').textContent = this.task?.kind === 'tower' ? '탑돌이: WASD / 방향키로 직접 걷기 · V 뒤에서 따라보기' : '↑↓ 앞뒤로 걷기 · ←→ 시점 돌리기 · E 활동 · 바닥을 눌러 걷기 · V 시점';
+        hint.querySelector('.touch-hint').textContent = this.task?.kind === 'tower' ? '조이스틱으로 직접 시계방향으로 걸어주세요' : '조이스틱을 위아래로 밀면 걷고, 좌우로 밀면 둘러봅니다';
       }
     }
 
@@ -8882,6 +8882,8 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
   }, true);
 })();
 </script>
+<script src="/v8-view.js"></script>
+<script src="/v8-ui.js"></script>
 <script data-source="app.js">
 (function(){
 'use strict';
