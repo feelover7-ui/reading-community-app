@@ -18,6 +18,10 @@ function loadDirector () {
     buildAvatar () {
       this.player = {scale: new THREE.Vector3(1, 1, 1)}
     }
+    animateGesture () {
+      this.player.userData.rig.body.rotation.x = 1.25
+      this.player.userData.rig.body.position.y = -0.5
+    }
     getState () { return this.state }
     mat (color, options = {}) { return new THREE.MeshStandardMaterial({color, ...options}) }
     mesh (geometry, material, parent, x = 0, y = 0, z = 0) {
@@ -77,7 +81,13 @@ test('modern young adult actors preserve the complete gesture rig and stand abov
       assert.equal(rig.hands.length, 2)
       assert.equal(rig.legs.length, 2)
       assert.ok(rig.torso.position.y >= 0.85)
-      assert.ok(new THREE.Box3().setFromObject(actor).min.y >= -0.01)
+      actor.updateMatrixWorld(true)
+      const actorBox = new THREE.Box3().setFromObject(actor)
+      const headBox = new THREE.Box3().setFromObject(rig.head)
+      const ratio = actorBox.getSize(new THREE.Vector3()).y / headBox.getSize(new THREE.Vector3()).y
+      assert.ok(actorBox.min.y >= -0.01)
+      if (hair !== 'bun') assert.ok(ratio >= 5.7 && ratio <= 6.4, `${gender}/${hair} ratio ${ratio}`)
+      assert.ok(new THREE.Box3().setFromObject(rig.legs[0]).getSize(new THREE.Vector3()).y >= .9)
     }
   }
 })
@@ -86,22 +96,45 @@ test('the local 3D player uses the modern actor instead of the closed-over legac
   const window = loadDirector()
   const world = new window.HanmaumWorld()
   world.buildAvatar()
-  assert.equal(world.player.userData.directorStyle.outfit, 'field-jacket')
+  assert.equal(world.player.userData.directorStyle.outfit, 'two-tone-jacket')
+  assert.equal(world.player.userData.directorStyle.jacket, 'two-tone')
   assert.equal(world.player.userData.rig.elbows.length, 2)
   assert.equal(world.player.parent, world.content)
 })
 
-test('female basic look uses the approved field jacket while every portrait stays modern', () => {
+test('approved youth portraits and actors share the exact male and female jacket designs', () => {
   const window = loadDirector()
-  const female = window.HanmaumAvatar.portrait('hae', 'basic', false, {gender: 'female', hair: 'bob'})
-  const male = window.HanmaumAvatar.portrait('hae', 'basic', false, {gender: 'male', hair: 'short'})
-  assert.match(female, /data-style="modern-youth"/)
-  assert.match(female, /data-outfit="field-jacket"/)
+  const femaleAppearance = {gender: 'female', hair: 'bob', robeColor: '#819985'}
+  const maleAppearance = {gender: 'male', hair: 'short', robeColor: '#526b62'}
+  const female = window.HanmaumAvatar.portrait('hae', 'basic', false, femaleAppearance)
+  const male = window.HanmaumAvatar.portrait('hae', 'basic', false, maleAppearance)
+  assert.match(female, /data-design="approved-youth"/)
+  assert.match(female, /data-proportion="6-head"/)
+  assert.match(female, /data-jacket="two-tone"/)
+  assert.match(female, /data-part="jacket-lower"[^>]*fill="#f4f1e9"/i)
+  assert.match(female, /#819985/i)
   assert.match(female, /#f4f1e9/i)
   assert.match(female, /#3f4748/i)
-  assert.match(male, /data-style="modern-youth"/)
-  assert.doesNotMatch(male, /data-outfit="field-jacket"/)
-  assert.equal(window.HanmaumDirector.characterStyle({gender: 'female', outfit: 'basic'}).outfit, 'field-jacket')
+  assert.match(male, /data-design="approved-youth"/)
+  assert.match(male, /data-proportion="6-head"/)
+  assert.match(male, /data-jacket="sage-blazer"/)
+  assert.match(male, /#526b62/i)
+  assert.match(female, /<g data-part="figure">[\s\S]*<g data-part="head-silhouette">/)
+  assert.match(male, /<g data-part="figure">[\s\S]*<g data-part="head-silhouette">/)
+  assert.equal(window.HanmaumDirector.characterStyle({gender: 'female', outfit: 'basic'}).design, 'approved-youth')
+  assert.equal(window.HanmaumAvatar.createActor({outfit: 'basic', appearance: femaleAppearance}).userData.directorStyle.jacket, 'two-tone')
+  assert.equal(window.HanmaumAvatar.createActor({outfit: 'basic', appearance: maleAppearance}).userData.directorStyle.jacket, 'sage-blazer')
+})
+
+test('approved actor clamps animated bow and prostration geometry to the floor', () => {
+  const window = loadDirector()
+  const world = new window.HanmaumWorld()
+  world.buildAvatar()
+  world.animateGesture(1.4, false)
+  world.player.updateMatrixWorld(true)
+  const parts = world.player.userData.parts
+  const box = parts.reduce((bounds, part) => bounds.expandByObject(part), new THREE.Box3())
+  assert.ok(box.min.y >= -0.01, `animated actor penetrated floor at ${box.min.y}`)
 })
 
 test('fresh entry asks only for a nickname and presentation before the first lantern route', () => {
