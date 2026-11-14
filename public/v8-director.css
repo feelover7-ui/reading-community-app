@@ -20,6 +20,7 @@ body:not(.has-modal) .profile-card .profile-copy{display:none}
 .world-marker{min-height:44px;min-width:44px}
 #mGoal{min-height:44px;min-width:44px}
 #mSheetClose{min-height:44px;min-width:44px}
+body.m-simple #mBack{width:44px;height:44px}
 #mMenuBtn,#mActBtn,#mChat,#mHapjang,#mBan,.btn.small{min-height:44px}
 
 @media(max-width:700px){

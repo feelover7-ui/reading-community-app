@@ -236,14 +236,29 @@
   const worldPrototype = window.HanmaumWorld?.prototype
   if (worldPrototype && !worldPrototype.__directorAvatarScale) {
     worldPrototype.__directorAvatarScale = true
-    const originalBuildAvatar = worldPrototype.buildAvatar
-    worldPrototype.buildAvatar = function (...args) {
-      const result = originalBuildAvatar.apply(this, args)
+    worldPrototype.buildAvatar = function () {
+      const state = this.getState() || {}
+      const player = avatar.createActor(state)
+      const rig = player.userData.rig
+      this.content.add(player)
+      this.player = this.avatar = player
+      this._avatarRig = rig
+      this.body = rig.body
+      this.armL = rig.arms[0]; this.armR = rig.arms[1]
+      this.legL = rig.legs[0]; this.legR = rig.legs[1]
+      const halo = this.mesh(new T.RingGeometry(.53, .62, 36), new T.MeshBasicMaterial({color: '#fff3c5', transparent: true, opacity: .86, side: T.DoubleSide}), player, 0, -.015, 0)
+      halo.rotation.x = -Math.PI / 2
+      player.scale.setScalar(this.currentScene === 'campus' ? 1.12 : 1)
+      this.avatarLight = new T.PointLight('#ffe2a6', 0, 7)
+      this.avatarLight.position.set(0, 2, 0); player.add(this.avatarLight)
+      if (Number(state.level) >= 99) {
+        const aura = this.mesh(new T.TorusGeometry(.86, .055, 8, 40), this.mat('#f4d891', {emissive: '#f4d891', emissiveIntensity: .6}), player, 0, 1.25, -.25)
+        aura.rotation.x = .08
+      }
       if ((window.innerWidth || 999) < 700 && this.player?.scale && this.viewMode !== 'explore') {
         this.player.scale.multiplyScalar(.82)
         this.player.userData.directorMobileScale = .82
       }
-      return result
     }
   }
 })()

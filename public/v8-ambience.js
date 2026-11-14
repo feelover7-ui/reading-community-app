@@ -36,7 +36,7 @@
       sync,
       setVisible (value) { visible = !!value; return sync() },
       dispose () { if (disposed) return; disposed = true; audio?.dispose(); audio = null },
-      get state () { return {awake, visible, scene, active: !!audio && !disposed, failed} }
+      get state () { return {awake, visible, scene, active: !!audio && !disposed, failed, disposed} }
     }
   }
 
@@ -62,7 +62,7 @@
       const now = this.context.currentTime
       this.filter.frequency.cancelScheduledValues(now); this.filter.frequency.linearRampToValueAtTime(value.filter, now + .8)
       if (!this.suspended) { this.master.gain.cancelScheduledValues(now); this.master.gain.linearRampToValueAtTime(value.level, now + 1.2) }
-      this.scheduleDetail()
+      clearTimeout(this.timer); this.timer = 0; this.scheduleDetail()
     }
     resume () {
       if (this.disposed) return
@@ -70,7 +70,7 @@
       this.context.resume?.().catch?.(() => {})
       const now = this.context.currentTime
       this.master.gain.cancelScheduledValues(now); this.master.gain.linearRampToValueAtTime(this.current.level, now + .7)
-      this.scheduleDetail()
+      if (!this.timer) this.scheduleDetail()
     }
     suspend () {
       if (this.disposed || this.suspended) return
@@ -80,8 +80,7 @@
       setTimeout(() => { if (this.suspended && !this.disposed) this.context.suspend?.().catch?.(() => {}) }, 220)
     }
     scheduleDetail () {
-      clearTimeout(this.timer); this.timer = 0
-      if (this.disposed || this.suspended) return
+      if (this.timer || this.disposed || this.suspended) return
       const span = Math.max(0, this.current.chimeMax - this.current.chimeMin)
       const delay = (this.current.chimeMin + Math.random() * span) * 1000
       this.timer = setTimeout(() => { this.timer = 0; this.playDetail(); this.scheduleDetail() }, delay)
@@ -108,7 +107,7 @@
     }
   }
 
-  const api = {profile, createController, controller: null}
+  const api = {profile, createController, createProceduralAudio: () => new ProceduralAudio(), controller: null}
   window.HanmaumAmbience = api
 
   function install () {
@@ -124,8 +123,18 @@
     window.addEventListener('pointerdown', wake, {passive: true})
     window.addEventListener('keydown', wake)
     const timer = setInterval(() => controller.sync(), 1000)
-    document.addEventListener('visibilitychange', () => controller.setVisible(!document.hidden))
-    window.addEventListener('pagehide', () => { clearInterval(timer); controller.dispose(); window.removeEventListener('pointerdown', wake); window.removeEventListener('keydown', wake) }, {once: true})
+    const visibility = () => controller.setVisible(!document.hidden)
+    const pageShow = event => { if (event.persisted) controller.setVisible(!document.hidden) }
+    const pageHide = event => {
+      if (event.persisted) { controller.setVisible(false); return }
+      clearInterval(timer); controller.dispose()
+      document.removeEventListener?.('visibilitychange', visibility)
+      window.removeEventListener('pointerdown', wake); window.removeEventListener('keydown', wake)
+      window.removeEventListener('pagehide', pageHide); window.removeEventListener('pageshow', pageShow)
+    }
+    document.addEventListener('visibilitychange', visibility)
+    window.addEventListener('pageshow', pageShow)
+    window.addEventListener('pagehide', pageHide)
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install, {once: true})
   else install()

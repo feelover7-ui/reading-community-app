@@ -90,9 +90,9 @@
 - Consumes: built static v8 page
 - Produces: evidence for fresh PC/mobile entry, workshop route, character profile, and stable existing scenes
 
-- [ ] Run all Node tests, `npm run build`, and `git diff --check`.
-- [ ] Run PC 1440×960 and mobile 390×844 browser smoke checks without writing production data.
-- [ ] Inspect screenshots for first entry, male/female portraits, campus, workshop, and hall.
-- [ ] Record limits: emulation is not a real iPhone; 80-avatar client rendering remains unverified.
+- [x] Run all Node tests, `npm run build`, and `git diff --check`.
+- [x] Run PC 1440×960 and mobile 390×844 browser smoke checks without writing production data.
+- [x] Inspect screenshots for first entry, male/female portraits, campus, workshop, and hall.
+- [x] Record limits: emulation is not a real iPhone; 80-avatar client rendering remains unverified.
 - [ ] Rebase on latest `origin/main`, rerun verification, push a PR, merge only after checks, and verify the Vercel production deployment.
 

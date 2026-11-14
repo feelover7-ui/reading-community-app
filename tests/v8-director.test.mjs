@@ -10,8 +10,19 @@ function loadDirector () {
   const source = fs.readFileSync('public/v8-director.js', 'utf8')
   class Features {}
   class World {
+    constructor () {
+      this.content = new THREE.Group()
+      this.currentScene = 'campus'
+      this.state = {name: '법우', level: 1, outfit: 'basic', appearance: {gender: 'female', hair: 'bob'}}
+    }
     buildAvatar () {
       this.player = {scale: new THREE.Vector3(1, 1, 1)}
+    }
+    getState () { return this.state }
+    mat (color, options = {}) { return new THREE.MeshStandardMaterial({color, ...options}) }
+    mesh (geometry, material, parent, x = 0, y = 0, z = 0) {
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.position.set(x, y, z); parent.add(mesh); return mesh
     }
   }
   const window = {
@@ -71,6 +82,15 @@ test('modern young adult actors preserve the complete gesture rig and stand abov
   }
 })
 
+test('the local 3D player uses the modern actor instead of the closed-over legacy builder', () => {
+  const window = loadDirector()
+  const world = new window.HanmaumWorld()
+  world.buildAvatar()
+  assert.equal(world.player.userData.directorStyle.outfit, 'field-jacket')
+  assert.equal(world.player.userData.rig.elbows.length, 2)
+  assert.equal(world.player.parent, world.content)
+})
+
 test('female basic look uses the approved field jacket while every portrait stays modern', () => {
   const window = loadDirector()
   const female = window.HanmaumAvatar.portrait('hae', 'basic', false, {gender: 'female', hair: 'bob'})
@@ -104,6 +124,7 @@ test('director HUD keeps controls reachable while meeting mobile touch sizes', (
   const css = fs.readFileSync('public/v8-director.css', 'utf8')
   assert.match(css, /#mGoal[^}]*min-height:\s*44px/s)
   assert.match(css, /#mSheetClose[^}]*min-width:\s*44px/s)
+  assert.match(css, /#mBack[^}]*width:\s*44px/s)
   assert.match(css, /\.world-label[^}]*min-height:\s*44px/s)
   assert.match(css, /\.world-marker[^}]*min-height:\s*44px/s)
   assert.match(css, /#dailyPeek[^}]*display:\s*none/s)

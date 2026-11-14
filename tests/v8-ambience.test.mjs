@@ -3,17 +3,39 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import vm from 'node:vm'
 
-function loadAmbience () {
+function loadAmbience ({readyState = 'loading', app = null, timers = {setTimeout, clearTimeout, setInterval, clearInterval}, AudioContext} = {}) {
   const source = fs.readFileSync('public/v8-ambience.js', 'utf8')
   const listeners = new Map()
+  const windowListeners = new Map()
   const document = {
-    readyState: 'loading',
+    readyState,
     hidden: false,
     addEventListener: (name, fn) => listeners.set(name, fn)
   }
-  const window = {addEventListener () {}, removeEventListener () {}}
-  vm.runInNewContext(source, {window, document, globalThis: {}, console, setTimeout, clearTimeout, setInterval, clearInterval, Math})
-  return {api: window.HanmaumAmbience, listeners}
+  const window = {
+    __HANMAUM_APP__: app,
+    AudioContext,
+    addEventListener: (name, fn) => windowListeners.set(name, fn),
+    removeEventListener: name => windowListeners.delete(name)
+  }
+  vm.runInNewContext(source, {window, document, globalThis: {}, console, ...timers, Math})
+  return {api: window.HanmaumAmbience, listeners, windowListeners, document}
+}
+
+function fakeAudioContext () {
+  const param = () => ({value: 0, cancelScheduledValues () {}, linearRampToValueAtTime () {}, setValueAtTime () {}, exponentialRampToValueAtTime () {}})
+  const node = () => ({connect () {}, disconnect () {}})
+  return class {
+    constructor () { this.sampleRate = 4; this.currentTime = 0; this.destination = node() }
+    createGain () { return {...node(), gain: param()} }
+    createBiquadFilter () { return {...node(), frequency: param()} }
+    createBuffer () { return {getChannelData: () => new Float32Array(8)} }
+    createBufferSource () { return {...node(), start () {}, stop () {}} }
+    createOscillator () { return {...node(), frequency: param(), start () {}, stop () {}} }
+    resume () { return Promise.resolve() }
+    suspend () { return Promise.resolve() }
+    close () { return Promise.resolve() }
+  }
 }
 
 test('scene ambience profiles stay restrained and distinguish outdoor, workshop and hall spaces', () => {
@@ -61,5 +83,36 @@ test('v8 loads the ambience lifecycle before app startup', () => {
   const ambience = html.indexOf('<script src="/v8-ambience.js"></script>')
   assert.ok(ambience > html.indexOf('<script src="/v8-director.js"></script>'))
   assert.ok(ambience < html.indexOf('<script data-source="app.js">'))
+})
+
+test('periodic sync does not postpone the current scene detail timer', () => {
+  let nextId = 0
+  const scheduled = new Map()
+  const timers = {
+    setTimeout: (fn, delay) => { const id = ++nextId; scheduled.set(id, {fn, delay}); return id },
+    clearTimeout: id => scheduled.delete(id),
+    setInterval: () => 1,
+    clearInterval () {}
+  }
+  const {api} = loadAmbience({timers, AudioContext: fakeAudioContext()})
+  const audio = api.createProceduralAudio()
+  audio.setProfile(api.profile('seosan'))
+  const [detailId] = scheduled.keys()
+  audio.resume(); audio.resume(); audio.resume()
+  assert.ok(scheduled.has(detailId))
+  assert.equal(scheduled.size, 1)
+  audio.dispose()
+})
+
+test('a BFCache pagehide suspends ambience and pageshow revives the same controller', () => {
+  const app = {scene: 'campus', store: {data: {settings: {sound: false}}}}
+  const {api, windowListeners} = loadAmbience({readyState: 'complete', app})
+  windowListeners.get('pagehide')({persisted: true})
+  assert.equal(api.controller.state.disposed, false)
+  assert.equal(api.controller.state.visible, false)
+  windowListeners.get('pageshow')({persisted: true})
+  assert.equal(api.controller.state.visible, true)
+  windowListeners.get('pagehide')({persisted: false})
+  assert.equal(api.controller.state.disposed, true)
 })
 
