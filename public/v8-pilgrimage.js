@@ -353,15 +353,20 @@
     if (controller.state.stage !== 'hall' || controller.runningBow) return
     controller.runningBow = true
     closeLegacyModal()
-    if (app.scene !== 'hall5') app.enterScene('hall5')
-    app.world?.focusHallFront?.()
-    const carriedLantern = lanternById(app, controller.state.lanternId)
-    if (carriedLantern) attachCarriedLantern(app.world, carriedLantern)
-    showObjective('법당에서 삼배합니다', '법당 안 예경 자리로 걸어가 세 번 천천히 절합니다.', null)
-    setTimeout(() => {
-      closeLegacyModal()
-      app.runActivity('bow')
-    }, 750)
+    const begin = () => {
+      if (controller.state.stage !== 'hall') { controller.runningBow = false; return }
+      app.world?.focusHallFront?.()
+      const carriedLantern = lanternById(app, controller.state.lanternId)
+      if (carriedLantern) attachCarriedLantern(app.world, carriedLantern)
+      showObjective('법당에서 삼배합니다', '법당 안 예경 자리로 걸어가 세 번 천천히 절합니다.', null)
+      setTimeout(() => {
+        closeLegacyModal()
+        app.runActivity('bow')
+      }, 750)
+    }
+    if (app.scene === 'hall5') begin()
+    else if (root.HanmaumBuildingTransition?.enterHall) root.HanmaumBuildingTransition.enterHall(app).then(ok => { if (ok) begin(); else controller.runningBow = false })
+    else { app.enterScene('hall5'); begin() }
   }
 
   function showHangSheet (app, controller) {
