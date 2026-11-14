@@ -32,7 +32,7 @@ test('all destinations render as immediate scene controls with the current place
   assert.equal((markup.match(/data-value="/g) || []).length, 9)
   assert.match(markup, /data-value="terrace3"[^>]*aria-current="location"/)
   assert.match(markup, /현재 장소/)
-  assert.match(markup, /destination-map-group outdoor[\s\S]*바깥 공간/)
+  assert.match(markup, /destination-map-group outdoor[\s\S]*도량·문화회관·서산정/)
   assert.match(markup, /destination-map-group main-building[\s\S]*본원 층별 공간/)
   assert.doesNotMatch(markup, /data-ui="(?:walk|route)"/)
 })

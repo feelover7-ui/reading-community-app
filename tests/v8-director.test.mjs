@@ -119,14 +119,11 @@ test('approved youth portraits and actors share the exact male and female jacket
   assert.match(male, /data-proportion="6-head"/)
   assert.match(male, /data-jacket="sage-blazer"/)
   assert.match(male, /#526b62/i)
+  assert.match(female, /<g data-part="figure">[\s\S]*<g data-part="head-silhouette">/)
+  assert.match(male, /<g data-part="figure">[\s\S]*<g data-part="head-silhouette">/)
   assert.equal(window.HanmaumDirector.characterStyle({gender: 'female', outfit: 'basic'}).design, 'approved-youth')
   assert.equal(window.HanmaumAvatar.createActor({outfit: 'basic', appearance: femaleAppearance}).userData.directorStyle.jacket, 'two-tone')
   assert.equal(window.HanmaumAvatar.createActor({outfit: 'basic', appearance: maleAppearance}).userData.directorStyle.jacket, 'sage-blazer')
-  for (const svg of [female, male]) {
-    const head = Number(svg.match(/data-head-height="([\d.]+)"/)?.[1])
-    const figure = Number(svg.match(/data-figure-height="([\d.]+)"/)?.[1])
-    assert.ok(figure / head >= 5.7 && figure / head <= 6.4)
-  }
 })
 
 test('approved actor clamps animated bow and prostration geometry to the floor', () => {

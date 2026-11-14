@@ -28,7 +28,7 @@
     const outdoorIds = new Set(['campus', 'workshop', 'seosan'])
     const outdoor = destinations.filter(place => outdoorIds.has(place.id)).map(placeButton).join('')
     const main = destinations.filter(place => !outdoorIds.has(place.id)).map(placeButton).join('')
-    return `<div class="map-route destination-map-help"><b>도량여행 · 빠른 이동</b><span>가고 싶은 곳을 누르면 걷지 않고 바로 이동합니다.</span></div><nav class="destination-map-board" aria-label="도량 전체 장소"><section class="destination-map-group outdoor"><h3>바깥 공간</h3>${outdoor}</section><section class="destination-map-group main-building"><h3>본원 층별 공간</h3>${main}</section></nav><p class="section-note destination-map-note">직접 걸을 때는 문과 계단을 지나면 다음 공간으로 자동 연결됩니다.</p>`
+    return `<div class="map-route destination-map-help"><b>도량여행 · 빠른 이동</b><span>가고 싶은 곳을 누르면 걷지 않고 바로 이동합니다.</span></div><nav class="destination-map-board" aria-label="도량 전체 장소"><section class="destination-map-group outdoor"><h3>도량·문화회관·서산정</h3>${outdoor}</section><section class="destination-map-group main-building"><h3>본원 층별 공간</h3>${main}</section></nav><p class="section-note destination-map-note">직접 걸을 때는 문과 계단을 지나면 다음 공간으로 자동 연결됩니다.</p>`
   }
 
   window.HanmaumDestinationMap = Object.freeze({destinations, render})

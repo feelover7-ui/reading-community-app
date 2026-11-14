@@ -25,17 +25,21 @@ const assert = require('node:assert/strict')
       const actor = await page.evaluate(() => {
         const player = window.__HANMAUM_APP__.world.player
         const portrait = document.querySelector('#profileCard svg')
+        const figureBox = portrait?.querySelector('[data-part="figure"]')?.getBBox()
+        const headBox = portrait?.querySelector('[data-part="head-silhouette"]')?.getBBox()
         return {
           design: player.userData.directorStyle.design,
           jacket: player.userData.directorStyle.jacket,
           joints: ['arms', 'elbows', 'wrists', 'hands', 'legs'].map(key => player.userData.rig[key].length),
-          portrait: {proportion: portrait?.dataset.proportion, jacket: portrait?.dataset.jacket}
+          portrait: {proportion: portrait?.dataset.proportion, jacket: portrait?.dataset.jacket, ratio: figureBox?.height / headBox?.height}
         }
       })
       assert.equal(actor.design, 'approved-youth')
       assert.equal(actor.jacket, mode.gender === 'female' ? 'two-tone' : 'sage-blazer')
       assert.deepEqual(actor.joints, [2, 2, 2, 2, 2])
-      assert.deepEqual(actor.portrait, {proportion: '6-head', jacket: actor.jacket})
+      assert.equal(actor.portrait.proportion, '6-head')
+      assert.equal(actor.portrait.jacket, actor.jacket)
+      assert.equal(actor.portrait.ratio >= 5.7 && actor.portrait.ratio <= 6.4, true)
       const grounded = await page.evaluate(() => {
         const world = window.__HANMAUM_APP__.world
         return ['bow', 'prostrate'].map(kind => {
