@@ -119,6 +119,41 @@
   /* ── ① 눈높이·거리·시야 ─────────────────────────────────────
      원래 updateCamera 를 그대로 돌린 뒤 결과만 낮춥니다. 벽에 막혀 당겨진
      거리는 비율로 보존합니다(밀어내지 않습니다). */
+  /* 카메라와 사람 사이에 뭔가 끼면 먼저 **올려서** 넘깁니다. 그래도 막히면 당깁니다.
+     눈높이를 4.45 에서 2.77 로 내리면서 나무 수관 속에 들어가는 자리가 생겼습니다
+     (걸을 수 있는 291자리 중 12). 당기기만 하면 가지 안쪽에 그대로 남습니다. */
+  function clearView (world, cam, tx, ty, tz) {
+    const ray = world._viewRay || (world._viewRay = new T.Raycaster());
+    const dir = world._viewDir || (world._viewDir = new T.Vector3());
+    const blocked = () => {
+      dir.set(tx - cam.position.x, ty - cam.position.y, tz - cam.position.z);
+      const len = dir.length();
+      if (len < .4) return false;
+      dir.multiplyScalar(1 / len);
+      ray.set(cam.position, dir); ray.near = .05; ray.far = len - .35; ray.camera = cam;
+      const hits = ray.intersectObjects(world.content.children, true);
+      for (const h of hits) {
+        const o = h.object;
+        if (o.isSprite || o.userData.cameraIgnore || world.isAvatarPart(o)) continue;
+        if (o === world.targetMarker) continue;
+        return true;
+      }
+      return false;
+    };
+    if (!blocked()) return;
+    const baseY = cam.position.y;
+    for (const lift of [.6, 1.2, 1.9]) {            // 올려서 넘기기
+      cam.position.y = baseY + lift;
+      if (!blocked()) return;
+    }
+    cam.position.y = baseY + 1.9;
+    const ox = cam.position.x - tx, oz = cam.position.z - tz;   // 그래도 막히면 당기기
+    for (const k of [.7, .5, .34]) {
+      cam.position.x = tx + ox * k; cam.position.z = tz + oz * k;
+      if (!blocked()) return;
+    }
+  }
+
   const prevUpdateCamera = W.prototype.updateCamera;
   W.prototype.updateCamera = function (dt, immediate) {
     const out = prevUpdateCamera.call(this, dt, immediate);
@@ -130,6 +165,7 @@
     if (h < .01) return out;
     const s = Math.min(1, V.distOut / h);                        // 막혔으면 그대로 둡니다
     cam.position.set(p.x + ox * s, ty + V.eyeAbove - this.lookPitch * 2.0, p.z + oz * s);
+    if (this.content) { try { clearView(this, cam, p.x, ty, p.z); } catch (_) {} }
     cam.lookAt(p.x + Math.sin(this.lookYaw) * .65, ty + .30, p.z - Math.cos(this.lookYaw) * .65);
     return out;
   };
