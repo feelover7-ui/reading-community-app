@@ -101,16 +101,22 @@ export function createRoom ({ now = () => Date.now(), maxSessions = LIMITS.maxSe
       const records = [], removed = []
       for (const id of changed) {
         const s = sessions.get(id) || pending.get(id)
-        if (s) records.push(publicOf(s)); else removed.push(id)
+        if (!s) { removed.push(id); continue }
+        // 처음 실릴 때는 이름·생김새까지, 그 뒤로는 움직이는 값만.
+        if (profile.deltaOf && s.intro) records.push(profile.deltaOf(s))
+        else { records.push(publicOf(s)); s.intro = true }
       }
       changed = new Set()
       return { t: 'snapshot', serverSeq, serverTime: now(), epoch, records, removed }
     },
     fullSnapshot (serverSeq) {
+      // 전체 명단에는 언제나 다 싣습니다. 받는 쪽이 여기서 생김새를 다시 맞춥니다.
+      for (const s of sessions.values()) s.intro = true
+      for (const s of pending.values()) s.intro = true
       return { t: 'snapshot', serverSeq, serverTime: now(), epoch, full: true, records: this.roster(), removed: [] }
     },
     exportState(){
-      const serial=s=>{const {gate,poseBucket,eventBucket,...rest}=s;return {...rest,lastSeq:gate.state.last}};
+      const serial=s=>{const {gate,poseBucket,eventBucket,intro,...rest}=s;return {...rest,lastSeq:gate.state.last}};
       return{epoch,nextId,sessions:[...sessions.values()].map(serial),pending:[...pending.values()].map(serial)};
     },
     restore(saved){

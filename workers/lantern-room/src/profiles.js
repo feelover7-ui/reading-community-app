@@ -54,8 +54,26 @@ export const V8_PROFILE = {
   apply: (s, v) => Object.assign(s, {
     sceneId: v.sceneId, x: v.x, y: v.y, z: v.z, vx: v.vx, vy: v.vy, vz: v.vz, rotation: v.rotation
   }),
-  freeze: s => { s.vx = s.vy = s.vz = 0 }
+  freeze: s => { s.vx = s.vy = s.vz = 0 },
+
+  /* 이름·생김새·옷은 들어올 때 정하고 바뀌지 않습니다. 매번 다시 보내면
+     80명이 다 움직일 때 1인당 초당 56KB 가 됩니다(2026-11-14 측정).
+     처음 한 번과 전체 명단에만 싣고, 이후에는 움직이는 값만 보냅니다.
+     좌표는 소수 셋째 자리까지면 충분합니다(한 칸 2.5m 이므로 2.5mm).
+     linkState 는 'live' 가 보통이라 그때는 빼고, 받는 쪽이 기본값으로 둡니다. */
+  deltaOf: s => {
+    const r = {
+      id: s.id, scene: s.sceneId,
+      x: round(s.x), y: round(s.y), z: round(s.z),
+      vx: round(s.vx), vy: round(s.vy), vz: round(s.vz),
+      rotation: round(s.rotation), at: s.at
+    }
+    if (s.linkState !== 'live') r.linkState = s.linkState
+    return r
+  }
 }
+
+const round = v => Math.round((Number(v) || 0) * 1000) / 1000
 
 // 'load-test' 는 v1 용, 'v8-load-test' 는 v8 용 전용 시험 방입니다.
 // 봇은 운영 방(campus-v2 · v8)에 넣지 않습니다.

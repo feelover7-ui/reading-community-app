@@ -24,7 +24,10 @@ export function createV8RelayClient ({ id, url, onMessage = () => {}, onStatus =
   let participantId = null, resumeToken = null, attempt = 0, retryTimer = null
   let clientSeq = 0, lastPoseAt = 0, lastPose = null, hello = null
   const predictor = createMotionSender()
-  const members = new Map()   // 서버 id -> 마지막 명단 한 줄
+  const members = new Map()   // 서버 id -> 마지막 명단 한 줄(합친 것)
+  // 이름·생김새·옷은 서버가 처음 한 번과 전체 명단에만 싣습니다. 여기 기억해 두고 합칩니다.
+  const looks = new Map()
+  let resyncAt = 0
   let manualClose = false
 
   const live = g => g === generation
@@ -34,18 +37,35 @@ export function createV8RelayClient ({ id, url, onMessage = () => {}, onStatus =
 
   function dropEveryone () {
     for (const peer of members.keys()) onMessage({ type: 'leave', id: peer })
-    members.clear()
+    members.clear(); looks.clear()
   }
 
-  /* 명단 한 줄을 v8 의 presence 로 바꿔 올립니다. 내 것은 올리지 않습니다. */
+  /* 생김새를 모르는 사람이 움직임만으로 왔습니다. 전체 명단을 달라고 합니다.
+     30초마다 오는 전체 명단을 기다리면 그동안 그 사람이 안 보입니다.
+     너무 자주 부르지 않도록 5초에 한 번만 보냅니다. */
+  function askResync () {
+    const t = now()
+    if (t - resyncAt < 5000) return
+    resyncAt = t
+    write({ t: 'ping', clientTime: t })
+  }
+
+  /* 명단 한 줄을 v8 의 presence 로 바꿔 올립니다. 내 것은 올리지 않습니다.
+     이름·생김새가 실려 있으면 기억하고, 없으면 기억해 둔 것과 합칩니다. */
   function applyRecord (rec) {
     if (!rec || typeof rec.id !== 'string' || rec.id === participantId) return
     if (!SCENES.has(rec.scene)) return
+    if (typeof rec.nick === 'string' && rec.nick) {
+      looks.set(rec.id, { nick: rec.nick, appearance: rec.appearance, outfit: rec.outfit })
+    }
+    const look = looks.get(rec.id)
+    if (!look) return askResync()
+    const full = { ...look, ...rec, linkState: rec.linkState || 'live' }
     const known = members.get(rec.id)
-    members.set(rec.id, rec)
+    members.set(rec.id, full)
     if (!known) onMessage({ type: 'join', id: rec.id, session: rec.id })
-    else if (known.scene !== rec.scene) onMessage({ type: 'scene-change', id: rec.id, scene: rec.scene })
-    onMessage(v8PresenceOf(rec))
+    else if (known.scene !== full.scene) onMessage({ type: 'scene-change', id: rec.id, scene: full.scene })
+    onMessage(v8PresenceOf(full))
   }
 
   function applySnapshot (snap) {
@@ -53,11 +73,12 @@ export function createV8RelayClient ({ id, url, onMessage = () => {}, onStatus =
     if (snap.full) {
       // 전체 명단이 오면 그 안에 없는 사람은 나간 것입니다.
       const seen = new Set((snap.records || []).map(r => r && r.id))
-      for (const peer of [...members.keys()]) if (!seen.has(peer)) { members.delete(peer); onMessage({ type: 'leave', id: peer }) }
+      for (const peer of [...members.keys()]) if (!seen.has(peer)) { members.delete(peer); looks.delete(peer); onMessage({ type: 'leave', id: peer }) }
     }
     for (const rec of snap.records || []) applyRecord(rec)
     for (const peer of snap.removed || []) {
       if (peer === participantId) continue
+      looks.delete(peer)
       if (members.delete(peer)) onMessage({ type: 'leave', id: peer })
     }
   }

@@ -217,3 +217,70 @@ test('relay 주소는 off 로 끌 수 있고 기본값이 있다', async () => {
     assert.equal(relayUrl(), '', 'ws 가 아니면 무시한다')
   } finally { globalThis.localStorage = prev }
 })
+
+/* --- 바뀌지 않는 값은 한 번만 보낸다 (2026-11-14) --- */
+test('서버는 처음 한 번만 이름·생김새를 싣고 그 뒤로는 움직이는 값만 보낸다', () => {
+  const room = createRoom({ profile: V8_PROFILE })
+  const j = room.join(validateV8Hello(hello()).value)
+  const first = room.drainBatch(1).records[0]
+  assert.equal(first.nick, '법우', '처음에는 이름이 실린다')
+  assert.ok(first.appearance && first.outfit)
+
+  room.pose(j.session.id, pose({ clientSeq: 1, x: 1.23456789 }))
+  const next = room.drainBatch(2).records[0]
+  assert.equal(next.nick, undefined, '그 뒤로는 이름을 빼서 보낸다')
+  assert.equal(next.appearance, undefined)
+  assert.equal(next.outfit, undefined)
+  assert.equal(next.id, j.session.id, 'id 는 있어야 누구인지 안다')
+  assert.equal(next.x, 1.235, '좌표는 소수 셋째 자리까지. 한 칸 2.5m 라 2.5mm 다')
+  assert.equal(next.linkState, undefined, "보통인 'live' 는 빼고 받는 쪽이 기본값으로 둔다")
+
+  // 전체 명단에는 언제나 다 싣는다. 받는 쪽이 여기서 생김새를 다시 맞춘다.
+  const full = room.fullSnapshot(3)
+  assert.equal(full.records[0].nick, '법우')
+
+  // 아낀 양
+  const lean = JSON.stringify(next).length, fat = JSON.stringify(full.records[0]).length
+  assert.ok(lean < fat * 0.6, `움직임만 ${lean}B 가 전체 ${fat}B 의 60% 미만이어야 한다`)
+})
+
+test('v1 은 그대로 전체를 보낸다 (이미 배포돼 돌고 있다)', () => {
+  const room = createRoom({ profile: V1_PROFILE })
+  const j = room.join({ nickname: '법우', appearance: { sex: 'f', color: '#70a994' }, sceneId: 'yard', mapVersion: 'campus-v2' })
+  room.drainBatch(1)
+  room.pose(j.session.id, { clientSeq: 1, sceneId: 'yard', x: 1, z: 1, vx: 0, vz: 0, yaw: 0, motion: 'walk' })
+  const next = room.drainBatch(2).records[0]
+  assert.equal(next.nick, '법우', 'v1 기록 모양을 바꾸지 않는다')
+  assert.equal(next.motion, 'walk')
+})
+
+test('받는 쪽은 기억해 둔 생김새를 움직임에 합친다', () => {
+  const { c, got, ws } = client()
+  ws().openNow(); c.send(presence())
+  ws().deliver({ t: 'welcome', participantId: 'p1', snapshot: { t: 'snapshot', serverSeq: 1, full: true, records: [record()], removed: [] } })
+  assert.equal(got.filter(m => m.type === 'presence').at(-1).name, '나래')
+
+  // 이름 없이 움직임만 와도 아는 사람으로 그린다
+  ws().deliver({ t: 'snapshot', serverSeq: 2, records: [{ id: 'p2', scene: 'campus', x: 3, y: 0, z: 4, vx: 1, vy: 0, vz: 0, rotation: .2, at: Date.now() }], removed: [] })
+  const p = got.filter(m => m.type === 'presence').at(-1)
+  assert.equal(p.name, '나래', '기억해 둔 이름을 쓴다')
+  assert.equal(p.appearance.hair, 'bun', '생김새도 기억해 둔 것을 쓴다')
+  assert.equal(p.position.x, 3, '위치는 새로 온 값이다')
+  assert.deepEqual(p.velocity, { x: 1, y: 0, z: 0 })
+})
+
+test('모르는 사람이 움직임만으로 오면 전체 명단을 달라고 한다', () => {
+  const { c, got, ws } = client()
+  ws().openNow(); c.send(presence())
+  ws().deliver({ t: 'welcome', participantId: 'p1', snapshot: { t: 'snapshot', serverSeq: 1, full: true, records: [], removed: [] } })
+  const before = ws().sent.filter(m => m.t === 'ping').length
+  ws().deliver({ t: 'snapshot', serverSeq: 2, records: [{ id: 'p9', scene: 'campus', x: 1, y: 0, z: 1, vx: 0, vy: 0, vz: 0, rotation: 0, at: Date.now() }], removed: [] })
+  assert.equal(ws().sent.filter(m => m.t === 'ping').length, before + 1, '30초를 기다리면 그동안 안 보인다')
+  assert.equal(got.filter(m => m.type === 'presence').length, 0, '생김새를 모르는 채로 그리지 않는다')
+  assert.equal(c.peerCount, 0)
+
+  // 전체 명단이 오면 그때 보인다
+  ws().deliver({ t: 'snapshot', serverSeq: 3, full: true, records: [record({ id: 'p9' })], removed: [] })
+  assert.equal(got.filter(m => m.type === 'presence').at(-1).id, 'p9')
+  assert.equal(c.peerCount, 1)
+})
