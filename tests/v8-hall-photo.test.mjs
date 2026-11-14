@@ -34,6 +34,12 @@ test('hall entry and ritual camera face the altar from desktop and phone', () =>
   }
 })
 
+test('every hall arrival places the visitor on the central sightline before framing', () => {
+  const source = fs.readFileSync('public/v8-hall-photo.js', 'utf8')
+  assert.match(source, /player\.position\.set\(view\.position\.x, floor \+ \.12, view\.position\.z\)/)
+  assert.match(source, /if \(id === 'hall5'\) this\.focusHallFront\?\.\(\)/)
+})
+
 test('bow sequence keeps feet and knees above the floor and completes under reduced motion', () => {
   const hall = loadHall()
   for (const phase of hall.bowSequence({reducedMotion: false}).poses) {

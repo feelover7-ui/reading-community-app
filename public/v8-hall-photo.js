@@ -83,6 +83,11 @@
     P.focusHallFront = function () {
       if (this.currentScene !== 'hall5' || !this.player) return false
       const view = frontView({width: window.innerWidth || 1440, height: window.innerHeight || 900})
+      const floor = this.groundHeight?.(view.position.x, view.position.z) ?? 0
+      if (this.player.position?.set) this.player.position.set(view.position.x, floor + .12, view.position.z)
+      else { this.player.x = view.position.x; this.player.z = view.position.z }
+      this.player.x = view.position.x
+      this.player.z = view.position.z
       this.lookYaw = view.yaw
       this.lookPitch = view.pitch
       this.roomTarget?.set?.(view.target.x, view.target.y, view.target.z)
@@ -91,6 +96,12 @@
       this.target = null
       this.updateCamera?.(0, true)
       return true
+    }
+    const setScene = P.setScene
+    P.setScene = function (id) {
+      const result = setScene.apply(this, arguments)
+      if (id === 'hall5') this.focusHallFront?.()
+      return result
     }
   }
 
@@ -105,7 +116,19 @@
       this.add?.('photoHallMat', 0, 1.5, {width: PLAN.centralMat.width, depth: PLAN.centralMat.depth, ceilingHeight: PLAN.ceilingHeight})
       return result
     }
-    P.focusHallFront = function () { this.lookYaw = 0; this.lookPitch = .1; return this.currentScene === 'hall5' }
+    P.focusHallFront = function () {
+      if (this.currentScene !== 'hall5') return false
+      this.player.x = 0; this.player.z = 10.8
+      if (this.player.position) { this.player.position.x = 0; this.player.position.z = 10.8 }
+      this.lookYaw = 0; this.lookPitch = .1
+      return true
+    }
+    const setScene = P.setScene
+    P.setScene = function (id) {
+      const result = setScene.apply(this, arguments)
+      if (id === 'hall5') this.focusHallFront?.()
+      return result
+    }
   }
 
   window.HanmaumHallPhoto = Object.freeze({plan: () => PLAN, frontView, bowSequence})

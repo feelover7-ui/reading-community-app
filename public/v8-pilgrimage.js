@@ -577,6 +577,7 @@
     const begin = mode => {
       const result = createAnonymousProfile(app.store, selected)
       if (!result?.ok) return
+      try { root.localStorage?.setItem('hanmaum-journey-touch-hint-v1', '1') } catch (_) {}
       state = transition(state, {type: mode, id: eventId(mode), at: Date.now()})
       save(state)
       app.world?.refreshAppearance?.()

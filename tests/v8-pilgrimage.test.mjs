@@ -122,6 +122,11 @@ test('arrival asks for presentation but defers the visitor name until hanging', 
   assert.equal(model.fields.includes('name'), false)
 })
 
+test('pilgrimage entry suppresses the redundant legacy touch coach', () => {
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /localStorage\?\.setItem\('hanmaum-journey-touch-hint-v1', '1'\)/)
+})
+
 test('anonymous entry creates a compatible modern profile without replacing an existing one', () => {
   const journey = loadPilgrimage()
   const calls = []
