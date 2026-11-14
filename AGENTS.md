@@ -1069,7 +1069,12 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 1차 시안(비례·한복·표정 다듬기)은 사용자가 **"이런 느낌이 아니야"** 로 거절했습니다.
   그 구간(3등신 + 한복)으로 다시 가지 않습니다.
 - 2차로 결이 다른 다섯 가지를 세웠습니다: 단순한 도형 / 마스코트 / 어른 비례 / 한지 공예 /
-  둥근 현대복. `docs/concept/character-styles.js` 와 `docs/CHARACTER_REDESIGN_PLAN_2026-11-14.md`.
+  둥근 현대복. 사용자가 **"완전히 좀 달랐으면"** 이라고 해서 이것도 지나갔습니다.
+  **1·2차는 전부 "구와 캡슐로 만든 둥근 사람"이라는 같은 뿌리였습니다.** 그 뿌리로 돌아가지 않습니다.
+- 3차는 뿌리가 다른 여덟 가지입니다: 등불 사람 / 그림자 / 목각 / 종이접기 / 염주 / 구름 /
+  복셀 / 선화. `docs/concept/character-far.js`.
+  **A 등불 사람·B 그림자·F 구름은 얼굴이나 다리가 없어 `poseRig()` 의 합장·반배·절을 새로
+  짜야 합니다.** C 목각·G 복셀·H 선화는 지금 뼈대를 그대로 씁니다.
 - **아직 고르지 않았습니다. 고르기 전에 `avatar-social.js` 를 고치지 않습니다.**
 - 고른 뒤에 같이 맞출 것: 머리 네 가지(short/bob/bun/shaved), 얼굴 세 가지(FACE), 2D 초상
   (`portrait()`), 옷차림(`OUTFITS` 의 apron·gold 자리), `poseRig()` 뼈대는 그대로.
