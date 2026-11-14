@@ -946,5 +946,14 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
   사실이 아니라서 **불러오는 중 상태를 따로 뒀습니다.** 문구를 되돌리지 않습니다.
 - 확인하느라 건 등 한 개가 전시벽에 남아 있습니다. 정책에 삭제 권한이 없어 앱에서는 못 지웁니다.
   Supabase Table editor 에서 지웁니다.
-- **게임 안 다섯 공정을 거쳐 거는 흐름은 자동 확인하지 못했습니다.** 공유 모듈을 직접 부르는
-  데까지만 확인했고 `shareNewLantern` 연결은 코드로만 봤습니다.
+- **`public/v8.html` 은 스크립트 블록이 여러 개이고 블록끼리 스코프가 다릅니다.**
+  `state.js` 에서 `app.js` 의 함수를 이름만으로 부르면 안 보입니다. `window` 를 거칩니다
+  (`window.HanmaumShareLantern`, 기존 `window.HanmaumActivities` 와 같은 방식).
+  **`typeof fn === 'function'` 으로 감싸면 안 보이는 채로 조용히 건너뜁니다.** 실제로 그래서
+  제작을 마쳐도 등이 안 올라갔고, 직접 다섯 공정을 돌려 보고서야 드러났습니다.
+  `tests/v8-lanterns.test.mjs` 가 이 연결을 구조로 지킵니다.
+- 직접 끝까지 만들어 확인했습니다(평균 89점). `POST v8_lantern` 이 나가고 다른 브라우저에
+  `함께 걸린 등 2개` 로 보입니다.
+- v8 UI 는 누를 때마다 다시 그려서 **같은 요소를 반복해 누르려면 매번 다시 찾아야** 합니다.
+  채색 부분은 SVG 라 `click()` 이 없어 이벤트를 직접 보냅니다. 창이 열렸는지는
+  `#modalTitle` 글자가 아니라 **`#modal.hidden`** 으로 봅니다.
