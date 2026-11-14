@@ -17,6 +17,7 @@ body:not(.has-modal) .profile-card .profile-copy{display:none}
 .director-entry-form select{appearance:auto}
 
 .world-label{min-height:44px;display:flex;flex-direction:column;justify-content:center}
+.world-marker{min-height:44px;min-width:44px}
 #mGoal{min-height:44px;min-width:44px}
 #mSheetClose{min-height:44px;min-width:44px}
 #mMenuBtn,#mActBtn,#mChat,#mHapjang,#mBan,.btn.small{min-height:44px}

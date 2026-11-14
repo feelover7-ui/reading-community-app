@@ -176,6 +176,7 @@
     featurePrototype.__directorEntry = true
     const originalShowProfile = featurePrototype.showProfile
     const originalFormAppearance = featurePrototype.formAppearance
+    const originalPreviewProfile = featurePrototype.previewProfile
     const originalSaveProfile = featurePrototype.saveProfile
     featurePrototype.showProfile = function (first = false) {
       if (!first) {
@@ -197,6 +198,11 @@
       const gender = document.getElementById('setupGender')?.value === 'female' ? 'female' : 'male'
       return firstEntry({...current, appearance: {...current.appearance, gender}}).appearance
     }
+    featurePrototype.previewProfile = function () {
+      if (!document.querySelector?.('#profileForm[data-director-entry]')) return originalPreviewProfile.call(this)
+      const preview = document.getElementById('profilePreview')
+      if (preview) preview.innerHTML = portrait('hae', 'basic', false, this.formAppearance())
+    }
     featurePrototype.saveProfile = function () {
       const wasFirst = this._directorFirstProfile === true
       const result = originalSaveProfile.apply(this, arguments)
@@ -209,7 +215,8 @@
           const title = guide.querySelector('b'), copy = guide.querySelector('span'), button = document.getElementById('guideWalk')
           if (title) title.textContent = '첫 등을 만들러 갈까요?'
           if (copy) copy.textContent = '앞으로 걸어 문을 지나면 등불사장에 자동으로 들어갑니다.'
-          if (button) button.childNodes[0].textContent = '등불사장으로 '
+          const buttonText = button && Array.from(button.childNodes).find(node => node.nodeType === 3)
+          if (buttonText) buttonText.textContent = '등불사장으로 '
         }
       }
       return result
