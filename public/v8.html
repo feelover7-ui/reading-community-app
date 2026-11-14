@@ -5350,7 +5350,7 @@ class HanmaumWorld {
   const columns=this.group();for(let x of [-7.8,7.8])for(let z of [-6.5,1,8.5]){this.cyl(.48,.52,6.7,'#985249',x,3.35,z,columns,20);this.cyl(.58,.58,.25,'#bbb4a1',x,.13,z,columns,16);this.cyl(.64,.64,.22,'#3d6455',x,6.55,z,columns,12);this.obstacle(x,z,1.15,1.15);}
   for(let row=0;row<6;row++)for(let col=0;col<5;col++){
    const x=-10+col*5,z=-5.5+row*2.8,id=`cushion-${row}-${col}`,cushion=this.group(x,0,z);
-   this.box(2,.13,1.3,'#bfa681',0,.17,0,cushion);this.box(1.87,.05,1.2,'#e1d0a6',0,.27,0,cushion);
+   this.box(2,.13,1.3,'#79543b',0,.17,0,cushion);this.box(1.87,.05,1.2,'#946b4b',0,.27,0,cushion);
    const h=this.addHotspot(id,`${row+1}열 ${col+1}번 좌복`,'이 좌복에 앉아 마음 살피기',x,z,[x,.7,z],cushion);
    Object.assign(h,{kind:'cushion',activity:'breathe',seat:{id,row,col,x,y:.295,z,heading:Math.PI}});
   }
@@ -5648,7 +5648,7 @@ case 'elevator':
  for(const side of [-1,1]){this.box(x+side*1.44,z+.18,.16,.2,3.68,0,'#9fa89d');this.box(x+side*.65,z+.18,1.27,.055,3.38,.04,'#8c9e96');}
  this.box(x,z+.19,3.05,.22,.17,3.64,'#aeb7aa');this.box(x,z+.22,.035,.025,3.38,.04,'#566b61');this.box(x,z+.22,2.87,.4,.055,.02,'#b9b7a5');
  this.box(x+1.67,z+.2,.23,.08,.55,1.07,'#5c6c63');this.text('↑',x+1.67,z+.25,1.48,.18,'#e5e0b3',null);this.text(`${o.floor||2} F ↑`,x,z+.2,4.08,.35,'#e9e5bc','#39564a');break;
-case 'cushion':this.box(x,z,2.3,1.5,.18,.1,'#ad6d54');this.rect(x,z,2.12,1.32,.3,'#d09b7b');break;
+case 'cushion':this.box(x,z,2.3,1.5,.18,.1,'#79543b');this.rect(x,z,2.12,1.32,.3,'#946b4b');break;
 case 'altar':{this.box(x,z,14,4,.7,0,'#a47c45');this.box(x,z,14.4,4.3,.22,.7,'#d6ad69');this.box(x,z-.5,5,2.4,.4,.94,'#b28a4f');const p=this.p(x,z-.6,1.4),r=this.scale;this.ellipse(p[0],p[1],r*1.55,r*.5,'#d3aa61');this.ellipse(p[0],p[1]-r*.5,r*1.3,r*.5,'#dfba70');this.poly([[p[0]-r*.85,p[1]-r*.4],[p[0]+r*.85,p[1]-r*.4],[p[0]+r*.65,p[1]-r*2.2],[p[0]-r*.65,p[1]-r*2.2]],'#dcb465');this.ellipse(p[0],p[1]-r*2.7,r*.53,r*.58,'#e5c57f');this.ellipse(p[0],p[1]-r*3.28,r*.18,r*.2,'#d6af62');this.ellipse(p[0]-r*.6,p[1]-r*1.3,r*.3,r*.25,'#e5c47e');this.ellipse(p[0]+r*.6,p[1]-r*1.3,r*.3,r*.25,'#e5c47e');const q=this.ctx;q.beginPath();q.arc(p[0],p[1]-r*2.6,r*1.2,0,TAU);q.strokeStyle='#efd799';q.lineWidth=r*.06;q.stroke();for(let a of [-5,5]){this.box(x+a,z,.35,.35,.8,1.1,'#f5e6bc');this.flame(x+a,z,2.05);}const of=this.getState().records?.offeringItems||{};for(let i=0;i<Math.min(3,of.candle||0);i++){this.box(x-4+i*.5,z+1.2,.25,.25,.6,1,'#eee4c4');this.flame(x-4+i*.5,z+1.2,1.75);}for(let i=0;i<Math.min(3,of.rice||0);i++){const pp=this.p(x+3+i*.6,z+1.2,1.15);this.ellipse(...pp,r*.29,r*.17,'#ddd2ac');this.ellipse(pp[0],pp[1]-r*.08,r*.24,r*.14,'#fff5d7');}for(let i=0;i<Math.min(3,of.incense||0);i++){this.box(x-.6+i*.6,z+1.3,.4,.4,.3,1,'#a78b55');for(let j=0;j<3;j++)this.line([this.p(x-.7+i*.6+j*.1,z+1.3,1.3),this.p(x-.7+i*.6+j*.1,z+1.3,1.85)],'#807144',.7);}break;}
 case 'avatar':this.drawAvatar();break;
 }}

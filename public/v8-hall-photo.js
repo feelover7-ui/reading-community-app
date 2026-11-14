@@ -5,11 +5,11 @@
 
   const PLAN = Object.freeze({
     ceilingHeight: 9.4,
-    centralMat: Object.freeze({x: 0, z: 1.5, width: 13, depth: 21}),
+    cushions: Object.freeze({rows: 6, columns: 5, color: '#79543b', topColor: '#946b4b'}),
     altar: Object.freeze({axis: Object.freeze({x: 0, z: -12.4}), width: 19}),
     centralSightline: Object.freeze({blockers: 0}),
     columns: Object.freeze([-8.8, 8.8].flatMap(x => [-7, 3, 11].map(z => Object.freeze({x, z})))),
-    features: Object.freeze(['frontal-altar', 'gold-relief', 'decorated-canopy', 'open-central-white-mat', 'raised-coffered-ceiling', 'side-windows'])
+    features: Object.freeze(['frontal-altar', 'gold-relief', 'decorated-canopy', 'brown-cushion-rows', 'raised-coffered-ceiling', 'side-windows'])
   })
 
   function frontView (viewport = {}) {
@@ -44,17 +44,7 @@
       root.name = 'photo-grounded-great-dharma-hall'
       root.userData.evidence = 'official-tour-hall-0201-0203'
 
-      /* Preserve side meditation places while opening the central white ritual mat. */
-      const centralCushions = this.hotspots.filter(hotspot => hotspot.kind === 'cushion' && Math.abs(hotspot.x) < 8)
-      const hidden = new Set(centralCushions.map(hotspot => hotspot.id))
-      this.content.traverse(object => { if (hidden.has(object.userData?.hotspot)) object.visible = false })
-      centralCushions.forEach(hotspot => hotspot.element?.remove?.())
-      this.hotspots = this.hotspots.filter(hotspot => !hidden.has(hotspot.id))
-
-      const mat = this.box(PLAN.centralMat.width, .055, PLAN.centralMat.depth, this.mat('#eee9dc', {roughness: .96}), PLAN.centralMat.x, .105, PLAN.centralMat.z, root)
-      mat.name = 'open-central-white-mat'
-      mat.userData.ritualSurface = true
-      for (let z = -7.8; z <= 10.8; z += 2.3) this.box(PLAN.centralMat.width - .5, .012, .025, '#d9d1be', 0, .14, z, root)
+      /* Keep the original cushion rows, seat heights and interactions on the wooden floor. */
 
       /* Raise the existing decorated ceiling group rather than placing a second roof below it. */
       for (const enclosure of this.immersiveOnly || []) {
@@ -112,10 +102,6 @@
     const original = P.hall
     P.hall = function () {
       const result = original.apply(this, arguments)
-      this.items = (this.items || []).filter(item => item.kind !== 'cushion' || Math.abs(item.x) >= 8)
-      for (const hotspot of this.hotspots || []) if (hotspot.kind === 'cushion' && Math.abs(hotspot.x) < 8) hotspot.element?.remove?.()
-      this.hotspots = (this.hotspots || []).filter(hotspot => hotspot.kind !== 'cushion' || Math.abs(hotspot.x) >= 8)
-      this.add?.('photoHallMat', 0, 1.5, {width: PLAN.centralMat.width, depth: PLAN.centralMat.depth, ceilingHeight: PLAN.ceilingHeight})
       return result
     }
     P.focusHallFront = function () {
