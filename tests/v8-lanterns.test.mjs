@@ -92,3 +92,20 @@ test('표가 없을 때 PostgREST 의 PGRST205 도 알아본다 (42P01 만 보�
   const r = await createLanternShare({ client: f.client, owner: 'me' }).publish(mine())
   assert.equal(r.reason, 'no_table')
 })
+
+/* 제작 완료 → 공유 올리기 연결. state.js 와 app.js 는 스코프가 달라서
+   이름만으로는 안 보인다. 실제로 그래서 등이 안 올라갔다(2026-11-14). */
+test('제작을 마치면 공유 올리기가 실제로 불린다 (블록이 달라 window 를 거친다)', async () => {
+  const { readFileSync } = await import('node:fs')
+  const html = readFileSync(new URL('../public/v8.html', import.meta.url), 'utf8')
+  const block = i => { let name = '?'; for (const m of html.matchAll(/<script(?:\s+data-source="([^"]*)")?[^>]*>/g)) { if (m.index < i) name = m[1] || '(이름없음)' } return name }
+
+  const defined = html.indexOf('function shareNewLantern')
+  const called = html.indexOf('window.HanmaumShareLantern(this.data.lanterns')
+  assert.ok(defined > 0, '올리는 함수가 있어야 한다')
+  assert.ok(called > 0, '제작을 마치는 자리에서 불러야 한다')
+  assert.ok(html.includes('window.HanmaumShareLantern=shareNewLantern'), 'window 에 올려야 다른 블록에서 보인다')
+  assert.notEqual(block(defined), block(called), '두 블록이 다르다는 전제가 이 연결의 이유다')
+  assert.ok(!/typeof shareNewLantern === 'function'/.test(html),
+    '이름만으로 검사하면 안 보이는 채로 조용히 건너뛴다')
+})

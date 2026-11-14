@@ -4908,7 +4908,8 @@ globalThis.THREE=lC;
       if (kind === 'craft') {
         const l = info.lantern;
         this.data.lanterns.push({id: l.id.slice(0, 128), shape: l.shape, color: l.color, vow: String(l.vow || '').slice(0, 180), name: String(l.name || '나의 발원등').slice(0, 40), createdAt: Number.isFinite(Date.parse(l.createdAt)) ? new Date(l.createdAt).toISOString() : new Date(this._now()).toISOString()});
-        if (typeof shareNewLantern === 'function') shareNewLantern(this.data.lanterns[this.data.lanterns.length - 1]);
+        // app.js 블록에 있는 함수다. window 를 거쳐야 보인다.
+        if (typeof window !== 'undefined' && typeof window.HanmaumShareLantern === 'function') window.HanmaumShareLantern(this.data.lanterns[this.data.lanterns.length - 1]);
         record.crafts = Math.min(MAX_RECORD, record.crafts + 1);
       } else if (kind === 'contribute') {
         const aliases = {frame: 'frame', light: 'light', paper: 'paper', '골조': 'frame', '골조 제작': 'frame', '전기': 'light', '전기 작업': 'light', '배선': 'light', '배선 작업': 'light', '전구': 'light', '한지': 'paper', '한지 바르기': 'paper', thread:'thread', paint:'paint', '실묶기':'thread', '배접':'paper', '채색':'paint'};
@@ -8828,6 +8829,8 @@ async function initLanternShare(){
 }
 /* 내 등과 남의 등을 한 벽에 건다. 내 기록(store.data.lanterns)은 건드리지 않는다. */
 /* 만든 등을 공유 저장에 올린다. 실패해도 등은 이 브라우저에 그대로 남는다. */
+/* state.js 는 이 블록과 스코프가 다르다. window 에 올려야 보인다.
+   예전에는 typeof 검사로 감싸 두어 안 보이는 채로 조용히 건너뛰었다. */
 function shareNewLantern(l){
  if(!l)return;
  (async()=>{
@@ -8839,6 +8842,8 @@ function shareNewLantern(l){
   }catch(_){}
  })();
 }
+window.HanmaumShareLantern=shareNewLantern;
+
 function galleryRows(){
  const mine=store.data.lanterns||[];
  if(!lanternShare.ready||!lanternShare.rows.length)return mine.map(l=>({...l,mine:true}));
