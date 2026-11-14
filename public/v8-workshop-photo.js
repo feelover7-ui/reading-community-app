@@ -47,6 +47,11 @@
     const original = P.buildWorkshop
     P.buildWorkshop = function () {
       const result = original.apply(this, arguments)
+      const legacyCeiling = (this.immersiveOnly || []).find(item => item?.isMesh && Math.abs((item.position?.y || 0) - 11.4) < .05)
+      if (legacyCeiling) {
+        legacyCeiling.visible = false
+        this.immersiveOnly = (this.immersiveOnly || []).filter(item => item !== legacyCeiling)
+      }
       const root = this.group(0, 0, 0)
       root.name = 'photo-grounded-workshop-architecture'
       root.userData.evidence = 'official-workshop-news-2023-2025'

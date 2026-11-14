@@ -48,9 +48,14 @@
   }
 
   function stageFor (store = {}, saved = null) {
-    if (Array.isArray(store.lanterns) && store.lanterns.length > 0) return 'complete'
-    const state = normalize(saved, {hasLantern: false})
-    return state.stage === 'complete' ? 'complete' : state.stage
+    const lanterns = Array.isArray(store.lanterns) ? store.lanterns : []
+    const savedLanternId = cleanId(saved?.lanternId)
+    const hasLantern = !!savedLanternId && lanterns.some(item => cleanId(item?.id) === savedLanternId)
+    const state = normalize(saved, {hasLantern})
+    const validCheckpoint = saved && typeof saved === 'object' && STAGE_SET.has(saved.stage)
+    if (validCheckpoint && state.stage !== 'arrival') return state.stage
+    if (lanterns.length > 0) return 'complete'
+    return state.stage
   }
 
   function transition (value, event = {}) {
@@ -140,6 +145,10 @@
     return `${participantCount(social)}명 접속`
   }
 
+  function shouldDeferLanternShare (stage) {
+    return ['craft', 'carry', 'tower', 'hall', 'hang'].includes(stage)
+  }
+
   function installRewardHook () {
     const Store = root.HanmaumStore
     const prototype = Store?.prototype
@@ -157,7 +166,7 @@
     }
   }
 
-  const api = Object.freeze({VERSION, STAGES, STORAGE_KEY, createState, normalize, stageFor, transition, arrivalModel, createAnonymousProfile, selectJourneyLantern, ceremonialRoute, visitorName, participantCount, participantLabel})
+  const api = Object.freeze({VERSION, STAGES, STORAGE_KEY, createState, normalize, stageFor, transition, arrivalModel, createAnonymousProfile, selectJourneyLantern, ceremonialRoute, visitorName, participantCount, participantLabel, shouldDeferLanternShare})
   root.HanmaumPilgrimage = api
   installRewardHook()
   installCarryPose()
@@ -200,6 +209,32 @@
     objective.innerHTML = '<small>첫 번째 여정</small><strong></strong><p></p><button type="button" class="btn primary"></button>'
     document.body.append(objective)
     return objective
+  }
+
+  function mountDialog (overlay, {escape = true} = {}) {
+    const previousFocus = document.activeElement
+    const appRoot = document.getElementById('app')
+    if (appRoot) appRoot.inert = true
+    const focusables = () => [...overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])')]
+    const close = () => {
+      overlay.removeEventListener('keydown', onKeydown)
+      overlay.remove()
+      if (appRoot) appRoot.inert = false
+      if (previousFocus?.isConnected) previousFocus.focus?.({preventScroll: true})
+    }
+    const onKeydown = event => {
+      if (event.key === 'Escape' && escape) { event.preventDefault(); close(); return }
+      if (event.key !== 'Tab') return
+      const items = focusables()
+      if (!items.length) { event.preventDefault(); return }
+      const first = items[0], last = items[items.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    overlay.addEventListener('keydown', onKeydown)
+    overlay.__closeDialog = close
+    document.body.append(overlay)
+    return close
   }
 
   function showCraftObjective (app) {
@@ -318,6 +353,13 @@
     })
   }
 
+  function completeTowerRitual (app, controller) {
+    controller.runningLap = false
+    app.store.reward({kind: 'tower', xp: 60, coins: 22, stats: {steady: 2, focus: 1}, message: '구정탑을 오른쪽에 두고 시계방향으로 한 바퀴 걸었어요.', data: {laps: 1}})
+    controller.advance('tower-complete')
+    beginHallBows(app, controller)
+  }
+
   async function runPagodaLap (app, controller) {
     if (!['carry', 'tower'].includes(controller.state.stage) || controller.runningLap) return
     controller.runningLap = true
@@ -348,6 +390,14 @@
     const token = ++controller.ritualToken
     await new Promise(resolve => setTimeout(resolve, 700))
     if (controller.ritualToken !== token || controller.state.stage !== 'tower') { controller.runningLap = false; return }
+    const reducedMotion = !!app.store?.data?.settings?.reducedMotion
+    if (reducedMotion) {
+      showObjective('구정탑을 한 바퀴 돕니다', '움직임 줄이기 설정에 따라 걷는 장면을 생략하고 탑돌이의 뜻을 고요히 이어갑니다.', null)
+      await new Promise(resolve => setTimeout(resolve, 360))
+      if (controller.ritualToken !== token || controller.state.stage !== 'tower') { controller.runningLap = false; return }
+      completeTowerRitual(app, controller)
+      return
+    }
     const objective = showObjective('구정탑을 한 바퀴 돕니다', '캐릭터가 탑을 오른쪽에 두고 시계방향으로 천천히 걷습니다.', null)
     for (let step = 1; step <= route.length; step++) {
       const index = step % route.length
@@ -355,10 +405,11 @@
       const reached = await waitForPoint(app.world, route[index], token, controller)
       if (!reached) { controller.runningLap = false; return }
     }
-    controller.runningLap = false
-    app.store.reward({kind: 'tower', xp: 60, coins: 22, stats: {steady: 2, focus: 1}, message: '구정탑을 오른쪽에 두고 시계방향으로 한 바퀴 걸었어요.', data: {laps: 1}})
-    controller.advance('tower-complete')
-    beginHallBows(app, controller)
+    completeTowerRitual(app, controller)
+  }
+
+  function completeBowRitual (app, completedBows = 3) {
+    return app.store.reward({kind: 'bow', xp: 54, coins: 18, stats: {focus: 2, steady: 1}, message: '대법당에서 삼배하며 마음을 모았어요.', data: {bows: completedBows}})
   }
 
   function beginHallBows (app, controller) {
@@ -371,6 +422,13 @@
       const carriedLantern = lanternById(app, controller.state.lanternId)
       if (carriedLantern) attachCarriedLantern(app.world, carriedLantern)
       showObjective('법당에서 삼배합니다', '법당 안 예경 자리로 걸어가 세 번 천천히 절합니다.', null)
+      const reducedMotion = !!app.store?.data?.settings?.reducedMotion
+      if (reducedMotion) {
+        const sequence = root.HanmaumHallPhoto?.bowSequence?.({reducedMotion: true}) || {completedBows: 3}
+        showObjective('법당에서 삼배합니다', '움직임 줄이기 설정에 따라 절 동작을 생략하고 세 번의 예경을 고요히 이어갑니다.', null)
+        setTimeout(() => { if (controller.state.stage === 'hall') completeBowRitual(app, sequence.completedBows) }, 520)
+        return
+      }
       setTimeout(() => {
         closeLegacyModal()
         app.runActivity('bow')
@@ -390,7 +448,8 @@
     overlay.setAttribute('role', 'dialog')
     overlay.setAttribute('aria-modal', 'true')
     overlay.innerHTML = '<form class="pilgrimage-sheet-card"><span>마지막 걸음</span><h2>이름과 발원을 적고 등을 걸어요</h2><p>완성한 등은 도량의 불빛으로 남고, 다음 방문에도 다시 볼 수 있습니다.</p><label>도량에서 불릴 이름<input maxlength="12" autocomplete="nickname" value="" placeholder="이름 또는 별명"></label><label>등에 남길 발원<textarea maxlength="120" rows="3" placeholder="마음에 품은 발원을 적어주세요."></textarea></label><button class="btn primary" type="submit">내 등 걸기</button><small role="status"></small></form>'
-    overlay.querySelector('form').onsubmit = event => {
+    const closeSheet = mountDialog(overlay, {escape: false})
+    overlay.querySelector('form').onsubmit = async event => {
       event.preventDefault()
       const name = visitorName(overlay.querySelector('input').value)
       const result = app.store.setProfile(name, app.store.data.appearance)
@@ -401,14 +460,14 @@
       const lantern = lanternById(app, controller.state.lanternId)
       const vow = overlay.querySelector('textarea').value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 120)
       if (lantern && vow) { lantern.vow = vow; app.store.save?.() }
+      if (lantern) { try { await controller.publishLantern?.(lantern) } catch (_) {} }
       controller.advance('hang-complete')
       detachCarriedLantern(app.world)
       app.world?.refreshAppearance?.()
       app.features?.social?.announce?.()
-      overlay.remove()
+      closeSheet()
       showFinale(app, controller)
     }
-    document.body.append(overlay)
     setTimeout(() => overlay.querySelector('input')?.focus(), 80)
   }
 
@@ -458,7 +517,8 @@
   }
 
   function showParticipants (app) {
-    document.getElementById('pilgrimageParticipants')?.remove()
+    const previous = document.getElementById('pilgrimageParticipants')
+    if (previous) previous.__closeDialog?.() || previous.remove()
     const social = app.features?.social
     const names = {campus: '전체 도량', workshop: '등불사장', temple1: '본원 1층', lobby2: '본원 2층', lobby3: '본원 3층', terrace2: '2층 바깥마당', terrace3: '구정탑·동상', hall5: '대법당', seosan: '서산정'}
     const groups = new Map()
@@ -476,9 +536,26 @@
     overlay.className = 'pilgrimage-sheet pilgrimage-participants'
     overlay.setAttribute('role', 'dialog')
     overlay.setAttribute('aria-modal', 'true')
-    overlay.innerHTML = `<div class="pilgrimage-sheet-card"><span>함께 걷는 사람</span><h2>${total}명 접속</h2><p>${online ? '지금 같은 도량을 둘러보는 사람들입니다.' : '온라인 연결을 확인하고 있습니다. 혼자서도 모든 여정을 진행할 수 있어요.'}</p><div class="pilgrimage-participant-groups">${[...groups].map(([scene, people]) => `<section><strong>${names[scene]}</strong>${people.map(person => `<div>${person.mine ? '<i>나</i>' : '<i>함께</i>'}<span>${person.name}</span></div>`).join('')}</section>`).join('')}</div><button class="btn primary" type="button">도량으로 돌아가기</button></div>`
-    overlay.querySelector('button').onclick = () => overlay.remove()
-    document.body.append(overlay)
+    overlay.innerHTML = `<div class="pilgrimage-sheet-card"><span>함께 걷는 사람</span><h2>${total}명 접속</h2><p>${online ? '지금 같은 도량을 둘러보는 사람들입니다.' : '온라인 연결을 확인하고 있습니다. 혼자서도 모든 여정을 진행할 수 있어요.'}</p><div class="pilgrimage-participant-groups"></div><button class="btn primary" type="button">도량으로 돌아가기</button></div>`
+    const list = overlay.querySelector('.pilgrimage-participant-groups')
+    for (const [scene, people] of groups) {
+      const section = document.createElement('section')
+      const title = document.createElement('strong')
+      title.textContent = names[scene]
+      section.append(title)
+      for (const person of people) {
+        const row = document.createElement('div')
+        const role = document.createElement('i')
+        const personName = document.createElement('span')
+        role.textContent = person.mine ? '나' : '함께'
+        personName.textContent = person.name
+        row.append(role, personName)
+        section.append(row)
+      }
+      list.append(section)
+    }
+    const closeSheet = mountDialog(overlay)
+    overlay.querySelector('button').onclick = closeSheet
     setTimeout(() => overlay.querySelector('button')?.focus(), 50)
   }
 
@@ -498,14 +575,15 @@
   }
 
   async function showGuestbook (app) {
-    document.getElementById('pilgrimageGuestbook')?.remove()
+    const previous = document.getElementById('pilgrimageGuestbook')
+    if (previous) previous.__closeDialog?.() || previous.remove()
     const overlay = document.createElement('section')
     overlay.id = 'pilgrimageGuestbook'
     overlay.className = 'pilgrimage-sheet pilgrimage-guestbook'
     overlay.setAttribute('role', 'dialog')
     overlay.setAttribute('aria-modal', 'true')
     overlay.innerHTML = '<div class="pilgrimage-sheet-card"><span>도량 방명록</span><h2>오늘의 마음을 남겨요</h2><form><label>짧은 인사<textarea maxlength="500" rows="3" placeholder="도량에서 만난 마음을 적어주세요."></textarea></label><button class="btn primary" type="submit">방명록 남기기</button></form><p class="pilgrimage-guestbook-state" role="status">방명록을 불러오는 중입니다.</p><div class="pilgrimage-guestbook-list"></div><button class="btn secondary pilgrimage-guestbook-close" type="button">닫기</button></div>'
-    document.body.append(overlay)
+    const closeSheet = mountDialog(overlay)
     const list = overlay.querySelector('.pilgrimage-guestbook-list')
     const status = overlay.querySelector('[role="status"]')
     let rows = localGuestbook()
@@ -550,7 +628,7 @@
       status.textContent = available ? '방명록을 남겼습니다.' : '이 브라우저에 방명록을 남겼습니다.'
       render()
     }
-    overlay.querySelector('.pilgrimage-guestbook-close').onclick = () => overlay.remove()
+    overlay.querySelector('.pilgrimage-guestbook-close').onclick = closeSheet
     setTimeout(() => overlay.querySelector('textarea')?.focus(), 50)
   }
 
@@ -628,6 +706,15 @@
       }
     }
     root.HanmaumPilgrimageRuntime = controller
+    const publishLantern = typeof root.HanmaumShareLantern === 'function' ? root.HanmaumShareLantern : null
+    controller.publishLantern = lantern => publishLantern?.(lantern)
+    if (publishLantern) root.HanmaumShareLantern = lantern => {
+      if (shouldDeferLanternShare(state.stage) && cleanId(lantern?.id)) {
+        controller.deferredLanternId = cleanId(lantern.id)
+        return Promise.resolve({ok: true, deferred: true})
+      }
+      return publishLantern(lantern)
+    }
     root.HanmaumQuietUI?.sync?.({scene: app.scene, stage: state.stage, returning: state.stage === 'complete' || state.stage === 'free'})
     if (state.stage === 'complete' || state.stage === 'free') {
       setupReturning(app)

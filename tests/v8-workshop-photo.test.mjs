@@ -61,3 +61,9 @@ test('photo workshop module loads after director geometry and quiet craft CSS hi
     assert.match(css, new RegExp(selector.replace('.', '\\.') + '[^}]*display:\s*none', 's'))
   }
 })
+
+test('the old low ceiling is disabled so the raised trusses and lights are visible', () => {
+  const source = fs.readFileSync('public/v8-workshop-photo.js', 'utf8')
+  assert.match(source, /legacyCeiling\.visible = false/)
+  assert.match(source, /this\.immersiveOnly = \(this\.immersiveOnly \|\| \[\]\)\.filter\(item => item !== legacyCeiling\)/)
+})

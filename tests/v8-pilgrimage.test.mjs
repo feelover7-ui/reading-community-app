@@ -34,6 +34,15 @@ test('a fresh visitor begins at arrival while an existing lantern owner returns 
   assert.equal(journey.stageFor({lanterns: [{id: 'old-light'}], profileReady: true}, null), 'complete')
 })
 
+test('an in-progress checkpoint wins over the newly stored lantern on refresh', () => {
+  const journey = loadPilgrimage()
+  for (const stage of ['carry', 'tower', 'hall', 'hang', 'finale']) {
+    const saved = {version: 1, stage, lanternId: 'new-light', startedAt: 1000, handled: []}
+    assert.equal(journey.stageFor({lanterns: [{id: 'new-light'}], profileReady: true}, saved), stage)
+  }
+  assert.equal(journey.stageFor({lanterns: [{id: 'old-light'}], profileReady: true}, null), 'complete')
+})
+
 test('the first journey advances once through craft carry tower hall hang and finale', () => {
   const journey = loadPilgrimage()
   let state = journey.createState(1000)
@@ -125,6 +134,43 @@ test('arrival asks for presentation but defers the visitor name until hanging', 
 test('pilgrimage entry suppresses the redundant legacy touch coach', () => {
   const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
   assert.match(source, /localStorage\?\.setItem\('hanmaum-journey-touch-hint-v1', '1'\)/)
+})
+
+test('participant names are rendered as text and never interpolated into HTML', () => {
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /personName\.textContent = person\.name/)
+  assert.doesNotMatch(source, /\$\{person\.name\}/)
+})
+
+test('first-journey lantern sharing waits until the final hanging vow', () => {
+  const journey = loadPilgrimage()
+  assert.equal(journey.shouldDeferLanternShare('craft'), true)
+  assert.equal(journey.shouldDeferLanternShare('carry'), true)
+  assert.equal(journey.shouldDeferLanternShare('hang'), true)
+  assert.equal(journey.shouldDeferLanternShare('complete'), false)
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /controller\.publishLantern\?\.\(lantern\)/)
+})
+
+test('first craft defers name and vow fields until the hanging sheet', () => {
+  const html = fs.readFileSync('public/v8.html', 'utf8')
+  assert.match(html, /pilgrimageCraft=!isGrand&&window\.HanmaumPilgrimageRuntime/)
+  assert.match(html, /이름과 발원은 탑돌이와 삼배를 마친 뒤/)
+})
+
+test('pilgrimage sheets trap focus, inert the world, restore focus and close with Escape', () => {
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /appRoot\.inert = true/)
+  assert.match(source, /event\.key === 'Escape'/)
+  assert.match(source, /previousFocus\.focus/)
+  assert.match(source, /event\.key !== 'Tab'/)
+})
+
+test('reduced-motion pilgrimage completes rituals without animated walking or bows', () => {
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /reducedMotion[\s\S]*completeTowerRitual/)
+  assert.match(source, /HanmaumHallPhoto\?\.bowSequence/)
+  assert.match(source, /reducedMotion[\s\S]*completeBowRitual/)
 })
 
 test('anonymous entry creates a compatible modern profile without replacing an existing one', () => {

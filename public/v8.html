@@ -7510,9 +7510,15 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       }
       function showFinish(){
         const average=Math.round(draft.scores.reduce((n,s)=>n+(s||0),0)/5);
+        const pilgrimageCraft=!isGrand&&window.HanmaumPilgrimageRuntime?.state?.stage==='craft';
         const xp=(isGrand?40:55)+Math.round(average*(isGrand ? .7 : .9)),coins=(isGrand?18:25)+Math.floor(average*(isGrand ? .24 : .3));
         tools.insertAdjacentHTML('beforeend',`<div class="activity-hero"><h3>${isGrand?'네 공정의 손길을 보탰어요':'골조부터 채색까지 등을 완성했어요'}</h3>${isGrand?'<p class="activity-note">이번에는 장엄등의 한 부분을 작업했습니다.<br>전체 장엄등은 계속 만들어지는 과정입니다.</p>':'<div class="workshop-preview">'+lantern(draft.shape,draft.color)+'</div>'}</div><div class="workshop-results">${draft.scores.map((score,i)=>`<div>${names[i]}<b>${score}점</b></div>`).join('')}</div><div class="workshop-total"><strong>${average}</strong><span> / 100점</span><p>완료 보상 · 경험치 +${xp} · 마음잎 +${coins}</p></div>${isGrand?'':`<label class="activity-label" for="activity-lantern-name">등 이름</label><input class="activity-field" id="activity-lantern-name" maxlength="18" value="${escape(draft.name||shapeList.find(s=>s.id===draft.shape)?.label||'나의 발원등')}" autocomplete="off"><label class="activity-label" for="activity-lantern-vow">함께 밝히고 싶은 발원</label><textarea class="activity-field" id="activity-lantern-vow" maxlength="100" placeholder="예: 오늘 만나는 이들에게 따뜻한 마음을 전하겠습니다.">${escape(draft.vow)}</textarea><div class="activity-counter"><span data-chars>${draft.vow.length}</span> / 100</div>`}${btn(isGrand?'작업 기여 기록하고 보상 받기':'발원등 전시하고 보상 받기','finish','wide')}<p class="paper-hint">${isGrand?'이 기기의 장엄등 작업 기록에 기여가 저장됩니다.':'완성한 등은 등불사장 전시장에서 하나씩 볼 수 있어요.'}</p>`);
-        if(!isGrand){
+        if(pilgrimageCraft){
+          const nameField=q('#activity-lantern-name'),vowField=q('#activity-lantern-vow');
+          nameField?.previousElementSibling?.remove();vowField?.previousElementSibling?.remove();nameField?.remove();vowField?.remove();q('.activity-counter')?.remove();
+          tools.querySelector('.workshop-total')?.insertAdjacentHTML('afterend','<p class="paper-hint">이름과 발원은 탑돌이와 삼배를 마친 뒤, 등을 걸 때 처음 적습니다.</p>');
+        }
+        if(!isGrand&&!pilgrimageCraft){
           on(q('#activity-lantern-name'),'input',()=>{draft.name=q('#activity-lantern-name').value;persist();});
           on(q('#activity-lantern-vow'),'input',()=>{draft.vow=q('#activity-lantern-vow').value;q('[data-chars]').textContent=draft.vow.length;persist();});
         }
@@ -7521,8 +7527,9 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
           const data={score:average,stageScores:phaseIds.map((phase,i)=>({phase,name:names[i],score:draft.scores[i]})),draftId:draft.id};
           if(isGrand){data.phase='paint';data.phases={frame:1,light:1,thread:1,paper:1,paint:1};data.contribution=1;}
           else{
-            draft.name=q('#activity-lantern-name').value.trim()||'나의 발원등';draft.vow=q('#activity-lantern-vow').value.trim();persist();
-            if(draft.vow.length<2){toast('발원을 두 글자 이상 적어주세요.');q('#activity-lantern-vow').focus();return;}
+            if(pilgrimageCraft){draft.name='나의 발원등';draft.vow='';persist();}
+            else{draft.name=q('#activity-lantern-name').value.trim()||'나의 발원등';draft.vow=q('#activity-lantern-vow').value.trim();persist();
+            if(draft.vow.length<2){toast('발원을 두 글자 이상 적어주세요.');q('#activity-lantern-vow').focus();return;}}
             data.lantern={id:draft.id,shape:draft.shape,color:draft.color,name:draft.name,vow:draft.vow,createdAt:new Date().toISOString(),pattern:'dancheong'};
           }
           q('[data-action="finish"]').disabled=true;
@@ -9105,7 +9112,7 @@ async function initLanternShare(){
    예전에는 typeof 검사로 감싸 두어 안 보이는 채로 조용히 건너뛰었다. */
 function shareNewLantern(l){
  if(!l)return;
- (async()=>{
+ return (async()=>{
   try{
    const c=await initLanternShare();
    if(!c)return;

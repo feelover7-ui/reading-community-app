@@ -113,6 +113,8 @@
     P.hall = function () {
       const result = original.apply(this, arguments)
       this.items = (this.items || []).filter(item => item.kind !== 'cushion' || Math.abs(item.x) >= 8)
+      for (const hotspot of this.hotspots || []) if (hotspot.kind === 'cushion' && Math.abs(hotspot.x) < 8) hotspot.element?.remove?.()
+      this.hotspots = (this.hotspots || []).filter(hotspot => hotspot.kind !== 'cushion' || Math.abs(hotspot.x) >= 8)
       this.add?.('photoHallMat', 0, 1.5, {width: PLAN.centralMat.width, depth: PLAN.centralMat.depth, ceilingHeight: PLAN.ceilingHeight})
       return result
     }

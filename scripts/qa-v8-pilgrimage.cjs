@@ -46,11 +46,23 @@ const assert = require('node:assert/strict')
       await page.waitForFunction(() => window.__HANMAUM_APP__ && document.getElementById('pilgrimageReturnHUD'))
       console.error(`[qa] ${mode.name}: returning ready`)
       assert.equal(await page.locator('[data-return="online"]').textContent(), '1명 접속')
-      await page.locator('[data-return="online"]').click()
+      await page.evaluate(() => {
+        window.__HANMAUM_APP__.features.social.peers.set('xss-review', {
+          scene: 'campus',
+          name: '<img src=x onerror=alert(1)>',
+          position: {x: 0, y: 0.12, z: 0},
+          seen: Date.now()
+        })
+        document.querySelector('[data-return="online"]').click()
+      })
       await page.waitForSelector('#pilgrimageParticipants')
-      assert.equal(await page.locator('#pilgrimageParticipants h2').textContent(), '1명 접속')
+      assert.equal(await page.locator('#pilgrimageParticipants h2').textContent(), '2명 접속')
+      assert.equal(await page.locator('#pilgrimageParticipants img').count(), 0)
+      assert.match(await page.locator('#pilgrimageParticipants').textContent(), /<img src=x o/)
       assert.equal(await page.locator('#pilgrimageParticipants').textContent().then(text => /방 이름|방이름/.test(text)), false)
-      await page.locator('#pilgrimageParticipants .btn').click()
+      await page.keyboard.press('Escape')
+      await page.waitForFunction(() => !document.getElementById('pilgrimageParticipants'))
+      assert.equal(await page.evaluate(() => document.getElementById('app').inert), false)
 
       await page.locator('[data-return="map"]').click()
       await page.waitForSelector('.destination-map-board')

@@ -60,3 +60,10 @@ test('v8 loads landmark stories after courtyard geometry and before the app', ()
   assert.ok(courtyard > 0 && courtyard < stories && stories < app)
   assert.match(html, /case'seven':HanmaumLandmarkStories\.open\('seven'/)
 })
+
+test('landmark story dialog traps focus and restores the world on close', () => {
+  const source = fs.readFileSync('public/v8-landmark-stories.js', 'utf8')
+  assert.match(source, /appRoot\.inert = true/)
+  assert.match(source, /event\.key === 'Escape'/)
+  assert.match(source, /previousFocus\.focus/)
+})

@@ -31,11 +31,17 @@
     return story ? Object.freeze({label: story.label, continueLabel: story.continueLabel}) : null
   }
 
+  let dialogState = null
+
   function close () {
     const root = typeof document === 'undefined' ? null : document.getElementById('landmarkStory')
     if (!root) return
+    if (dialogState?.onKeydown) root.removeEventListener('keydown', dialogState.onKeydown)
     root.remove()
     document.body.classList.remove('has-landmark-story')
+    if (dialogState?.appRoot) dialogState.appRoot.inert = dialogState.appWasInert
+    if (dialogState?.previousFocus?.isConnected) dialogState.previousFocus.focus?.({preventScroll: true})
+    dialogState = null
     window.__hanmaumWorld?.setPaused?.(document.hidden)
   }
 
@@ -60,6 +66,21 @@
       next.addEventListener('click', () => { close(); options.onContinue(story) }); actions.append(next)
     }
     root.addEventListener('click', event => { if (event.target === root) close() })
+    const previousFocus = document.activeElement
+    const appRoot = document.getElementById('app')
+    const appWasInert = !!appRoot?.inert
+    const onKeydown = event => {
+      if (event.key === 'Escape') { event.preventDefault(); close(); return }
+      if (event.key !== 'Tab') return
+      const items = [...root.querySelectorAll('button:not(:disabled),a[href]')]
+      if (!items.length) { event.preventDefault(); return }
+      const first = items[0], last = items[items.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    dialogState = {previousFocus, appRoot, appWasInert, onKeydown}
+    root.addEventListener('keydown', onKeydown)
+    if (appRoot) appRoot.inert = true
     document.body.append(root); document.body.classList.add('has-landmark-story')
     window.__hanmaumWorld?.setPaused?.(true); dismiss.focus()
     return true
