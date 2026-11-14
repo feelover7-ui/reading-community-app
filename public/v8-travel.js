@@ -45,7 +45,7 @@
     }
     state.previous=position; return hit;
   }
-  const names={campus:'전체 도량',workshop:'등불사장',temple1:'본원 1층 무진향',lobby2:'본원 2층 로비',lobby3:'본원 3층 로비',hall5:'5층 대법당',terrace2:'2층 바깥마당',terrace3:'3층 구정탑·동상',seosan:'서산정·부도탑'};
+  const names={campus:'전체 도량',workshop:'등불사장',temple1:'본원 1층 무진향',lobby2:'본원 2층 승강기 전환',lobby3:'본원 3층 출입·승강기 전환',hall5:'5층 대법당',terrace2:'2층 바깥마당',terrace3:'3층 구정탑·동상',seosan:'서산정·부도탑'};
   const api=window.HanmaumTravel={graph,next,crossed,createGateState,advance,names};
   const app=()=>window.__HANMAUM_APP__;
   const position=w=>{const p=w.player?.position;return {x:p?.x||0,z:p?.z||0,y:(p?.y||.12)-.12};};

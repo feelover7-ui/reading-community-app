@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#244c3b">
-<meta name="description" content="캐릭터와 함께 도량을 거닐고, 등을 만들고, 마음을 살피는 한마음선원 도량여행 게임.">
-<title>한마음 도량여행 v8 · 함께 밝히는 등불</title>
+<meta name="description" content="한마음선원 온라인 참배. 도량을 걷고 등을 밝히며 탑돌이와 법당 참배를 이어갑니다.">
+<title>한마음선원 온라인 참배 · 함께 밝히는 등불</title>
 <!-- 첨부 게임의 오프라인 업그레이드. 원본 내장 Three.js r187 재사용. 파일 단독 실행을 지원하며 현재 날씨를 자동으로 확인합니다. 온라인 만남은 이용자가 선택할 때 시작합니다.
 Three.js is licensed under the MIT License. Copyright (c) 2010-2026 three.js authors.
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software
@@ -7266,9 +7266,11 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
 })();
 
 </script>
+<script src="/v8-space-evidence.js"></script>
 <link rel="stylesheet" href="/v8-craft-view.css">
 <link rel="stylesheet" href="/v8-director.css">
 <link rel="stylesheet" href="/v8-pilgrimage.css">
+<link rel="stylesheet" href="/v8-quiet-ui.css">
 <script src="/v8-craft-view.js"></script>
 <script data-source="activities.js">
 /* Hanmaum · self-contained, touch-friendly activities. No network requests. */
@@ -7508,9 +7510,15 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       }
       function showFinish(){
         const average=Math.round(draft.scores.reduce((n,s)=>n+(s||0),0)/5);
+        const pilgrimageCraft=!isGrand&&window.HanmaumPilgrimageRuntime?.state?.stage==='craft';
         const xp=(isGrand?40:55)+Math.round(average*(isGrand ? .7 : .9)),coins=(isGrand?18:25)+Math.floor(average*(isGrand ? .24 : .3));
         tools.insertAdjacentHTML('beforeend',`<div class="activity-hero"><h3>${isGrand?'네 공정의 손길을 보탰어요':'골조부터 채색까지 등을 완성했어요'}</h3>${isGrand?'<p class="activity-note">이번에는 장엄등의 한 부분을 작업했습니다.<br>전체 장엄등은 계속 만들어지는 과정입니다.</p>':'<div class="workshop-preview">'+lantern(draft.shape,draft.color)+'</div>'}</div><div class="workshop-results">${draft.scores.map((score,i)=>`<div>${names[i]}<b>${score}점</b></div>`).join('')}</div><div class="workshop-total"><strong>${average}</strong><span> / 100점</span><p>완료 보상 · 경험치 +${xp} · 마음잎 +${coins}</p></div>${isGrand?'':`<label class="activity-label" for="activity-lantern-name">등 이름</label><input class="activity-field" id="activity-lantern-name" maxlength="18" value="${escape(draft.name||shapeList.find(s=>s.id===draft.shape)?.label||'나의 발원등')}" autocomplete="off"><label class="activity-label" for="activity-lantern-vow">함께 밝히고 싶은 발원</label><textarea class="activity-field" id="activity-lantern-vow" maxlength="100" placeholder="예: 오늘 만나는 이들에게 따뜻한 마음을 전하겠습니다.">${escape(draft.vow)}</textarea><div class="activity-counter"><span data-chars>${draft.vow.length}</span> / 100</div>`}${btn(isGrand?'작업 기여 기록하고 보상 받기':'발원등 전시하고 보상 받기','finish','wide')}<p class="paper-hint">${isGrand?'이 기기의 장엄등 작업 기록에 기여가 저장됩니다.':'완성한 등은 등불사장 전시장에서 하나씩 볼 수 있어요.'}</p>`);
-        if(!isGrand){
+        if(pilgrimageCraft){
+          const nameField=q('#activity-lantern-name'),vowField=q('#activity-lantern-vow');
+          nameField?.previousElementSibling?.remove();vowField?.previousElementSibling?.remove();nameField?.remove();vowField?.remove();q('.activity-counter')?.remove();
+          tools.querySelector('.workshop-total')?.insertAdjacentHTML('afterend','<p class="paper-hint">이름과 발원은 탑돌이와 삼배를 마친 뒤, 등을 걸 때 처음 적습니다.</p>');
+        }
+        if(!isGrand&&!pilgrimageCraft){
           on(q('#activity-lantern-name'),'input',()=>{draft.name=q('#activity-lantern-name').value;persist();});
           on(q('#activity-lantern-vow'),'input',()=>{draft.vow=q('#activity-lantern-vow').value;q('[data-chars]').textContent=draft.vow.length;persist();});
         }
@@ -7519,8 +7527,9 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
           const data={score:average,stageScores:phaseIds.map((phase,i)=>({phase,name:names[i],score:draft.scores[i]})),draftId:draft.id};
           if(isGrand){data.phase='paint';data.phases={frame:1,light:1,thread:1,paper:1,paint:1};data.contribution=1;}
           else{
-            draft.name=q('#activity-lantern-name').value.trim()||'나의 발원등';draft.vow=q('#activity-lantern-vow').value.trim();persist();
-            if(draft.vow.length<2){toast('발원을 두 글자 이상 적어주세요.');q('#activity-lantern-vow').focus();return;}
+            if(pilgrimageCraft){draft.name='나의 발원등';draft.vow='';persist();}
+            else{draft.name=q('#activity-lantern-name').value.trim()||'나의 발원등';draft.vow=q('#activity-lantern-vow').value.trim();persist();
+            if(draft.vow.length<2){toast('발원을 두 글자 이상 적어주세요.');q('#activity-lantern-vow').focus();return;}}
             data.lantern={id:draft.id,shape:draft.shape,color:draft.color,name:draft.name,vow:draft.vow,createdAt:new Date().toISOString(),pattern:'dancheong'};
           }
           q('[data-action="finish"]').disabled=true;
@@ -8892,14 +8901,19 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
 })();
 </script>
 <script src="/v8-courtyard-photo.js"></script>
+<script src="/v8-landmark-stories.js"></script>
 <script src="/v8-seosan-photo.js"></script>
 <link rel="stylesheet" href="/v8-travel.css">
 <script src="/v8-travel.js"></script>
+<script src="/v8-building-transition.js"></script>
 <script src="/v8-view.js"></script>
 <script src="/v8-ui.js"></script>
 <script src="/v8-director.js"></script>
+<script src="/v8-workshop-photo.js"></script>
+<script src="/v8-hall-photo.js"></script>
 <script src="/v8-ambience.js"></script>
 <script src="/v8-map.js"></script>
+<script src="/v8-quiet-ui.js"></script>
 <script src="/v8-pilgrimage.js"></script>
 <script data-source="app.js">
 (function(){
@@ -8964,7 +8978,7 @@ lobby3:{title:'본원 3층 로비',eyebrow:'한마음선원 · 3층',sub:'구정
 seosan:{title:'서산정',eyebrow:'깊고 깊은 곳에서 지은 집',sub:'입구에서 길을 따라 오르면 부도탑과 서산정이 있습니다.',actions:[['budo','대행선사 부도탑 참배','lotus'],['seosanjeong','서산정 둘러보기','temple'],['loop','끝이 없는 길 · 둘레길','scenery']]},
 workshop:{title:'등불사장',eyebrow:'불교문화회관 · 1층',sub:'손끝의 정성이 모여, 하나의 빛이 됩니다.',actions:[['craft','내 발원등 만들기','lantern'],['contribute','장엄등 함께 만들기','frame'],['exhibit','발원등 전시장','lotus'],['wheel','한마음의 불바퀴등','sun'],['monk','스님과 등불사 이야기','heart'],['planner','기획팀장 · 공정 안내','frame']]},
 temple1:{title:'무진향',eyebrow:'한마음선원 · 1층',sub:'정성을 담아, 공양을 준비합니다.',actions:[['shop','무진향 상점','bag'],['elevator','2층 · 3층 · 5층으로','temple']]},
-terrace3:{title:'구정탑과 대행선사 동상',eyebrow:'한마음선원 · 3층 외부',sub:'3층 출입구에서 이어지는 광장과 잔디 정원.',actions:[['tower','도량탑 활동','tower'],['reflection','대행선사 동상','heart'],['panorama','도량 풍경 감상','scenery'],['enterTerrace2','2층 바깥도량','lotus'],['elevator','본원 3층 로비로','temple'],['hillDown','언덕길로 내려가기','back']]},
+terrace3:{title:'구정탑과 대행선사 동상',eyebrow:'한마음선원 · 3층 외부',sub:'3층 출입구에서 이어지는 광장과 잔디 정원.',actions:[['tower','구정탑','tower'],['reflection','대행선사 동상','heart'],['seven','칠보탑','tower'],['panorama','도량 풍경 감상','scenery'],['enterTerrace2','2층 바깥도량','lotus'],['elevator','본원 3층 로비로','temple'],['hillDown','언덕길로 내려가기','back']]},
 terrace2:{title:'배움과 쉼의 도량',eyebrow:'한마음선원 · 2층 외부',sub:'어린이법당, 심주관, 승탑으로 이어지는 길.',actions:[['children','어린이법당','lotus'],['simju','심주관','music'],['stupa','승탑','tower'],['panorama','산사의 풍경','scenery'],['enterTerrace3','3층 바깥도량','temple'],['elevator','본원 2층 로비로','temple'],['hillDown','언덕길로 내려가기','back']]},
 hall5:{title:'대법당',eyebrow:'한마음선원 · 5층',sub:'정성으로 공양하고, 고요히 마음을 살핍니다.',actions:[['offer','공양 올리기','candle'],['bow','삼배하기','lotus'],['breathe','좌선하기','leaf'],['teaching','대행큰스님 법문 읽기','book'],['elevator','1층 · 2층 · 3층으로','temple']]}
 };
@@ -9011,7 +9025,7 @@ window.HanmaumMenuKeys=function(e){
  return false;                               // Enter 는 단추가 알아서 누른다
 };
 
-function setNear(n){near=n;document.body.classList.toggle('has-near',!!n);const a=n?SCENES[sceneId].actions.find(x=>x[0]===n.id):null;$('interactSymbol').innerHTML=icon(a?.[2]||'hand');$('interactEyebrow').textContent=n?SCENES[sceneId].title:'도량 탐방';$('interactTitle').textContent=n?.label||'가고 싶은 장소로 걸어보세요';$('interactSub').textContent=n?.sub||'이동키 또는 조이스틱으로 걷습니다.';$('interactBtn').disabled=!n;const label=n?.id==='elevator'&&!n?.targetScene?'층 선택':n?.kind==='stairs'?'이동':['backCampus','exitOut','hillDown'].includes(n?.id)?'나가기':n?.targetScene?'입장':['monk','planner'].includes(n?.id)?'대화':'작업';$('interactBtn').innerHTML=label+' <kbd>Space</kbd>·<kbd>E</kbd>';}
+function setNear(n){near=n;document.body.classList.toggle('has-near',!!n);const a=n?SCENES[sceneId].actions.find(x=>x[0]===n.id):null,story=n?HanmaumLandmarkStories?.action(n.id):null;$('interactSymbol').innerHTML=icon(a?.[2]||'hand');$('interactEyebrow').textContent=n?SCENES[sceneId].title:'도량 탐방';$('interactTitle').textContent=n?.label||'가고 싶은 장소로 걸어보세요';$('interactSub').textContent=story?'개체의 공식 설명을 가까이에서 읽을 수 있습니다.':n?.sub||'이동키 또는 조이스틱으로 걷습니다.';$('interactBtn').disabled=!n;const label=story?.label||(n?.id==='elevator'&&!n?.targetScene?'층 선택':n?.kind==='stairs'?'이동':['backCampus','exitOut','hillDown'].includes(n?.id)?'나가기':n?.targetScene?'입장':['monk','planner'].includes(n?.id)?'대화':'작업');$('interactBtn').innerHTML=label+' <kbd>Space</kbd>·<kbd>E</kbd>';}
 function onScene(id){sceneId=id;store.data.scene=id;if(!store.data.visited.includes(id))store.data.visited.push(id);store.save();const s=SCENES[id];$('roomTitle').textContent=s.title;$('roomEyebrow').textContent=s.eyebrow;$('roomSub').textContent=s.sub;$('backMap').hidden=id==='campus';const actions=[...s.actions,['sceneryHere','이곳 둘러보기','scenery'],...(id==='campus'?[]:[['backCampus','도량으로 나가기','back']])];$('sceneToolsList').innerHTML=actions.map(([key,label,ic])=>`<button data-ui="${key==='sceneryHere'?'sceneryHere':'walk'}" data-value="${key}">${icon(ic)}<span>${label}</span><small>${key==='sceneryHere'?'보기':'이동'}</small></button>`).join('');setNear(null);$('firstGuide').hidden=id!=='campus'||guideDismissed();updateHUD();exploration?.onScene(id);if(id==='workshop'){refreshExhibitWall();initLanternShare().catch(()=>{});}}
 function guideDismissed(){try{return localStorage.getItem('hanmaum-journey-guide-seen')==='1'||store.data.lanterns.length>0||store.data.visited.length>1;}catch(_){return store.data.visited.length>1;}}
 function dismissGuide(){try{localStorage.setItem('hanmaum-journey-guide-seen','1');}catch(_){}$('firstGuide').hidden=true;}
@@ -9098,7 +9112,7 @@ async function initLanternShare(){
    예전에는 typeof 검사로 감싸 두어 안 보이는 채로 조용히 건너뛰었다. */
 function shareNewLantern(l){
  if(!l)return;
- (async()=>{
+ return (async()=>{
   try{
    const c=await initLanternShare();
    if(!c)return;
@@ -9156,7 +9170,7 @@ function showHelp(){const b=openModal('help','도량여행을 시작하는 법',
 function exportSave(){try{const blob=new Blob([store.exportJSON()],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`한마음여정-기록-${new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'})}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('여정 기록을 내보냈어요. JSON 파일을 보관해 주세요.');}catch(_){toast('기록을 내보내지 못했어요. 브라우저 다운로드 권한을 확인해 주세요.');}}
 function requestImport(text){let json;try{json=JSON.parse(text);}catch(_){toast('JSON 기록 파일을 읽을 수 없어요.');return;}if(json.format!=='hanmaum-journey'||!json.state){toast('한마음 도량여행 기록 파일을 선택해 주세요.');return;}importText=text;const d=json.state,b=openModal('importConfirm','이 여정 기록을 불러올까요?','현재 브라우저의 진행 기록이 선택한 파일의 기록으로 바뀝니다.','narrow');b.innerHTML=`<div class="quote-card"><b>${esc(d.name||'법우')} · Lv. ${esc(d.level)}</b><br>발원등 ${Array.isArray(d.lanterns)?d.lanterns.length:0}개 · ${formatDate(json.savedAt)}</div><p class="section-note">현재 기록을 남기고 싶다면 먼저 내보내 주세요. 형식이 올바르지 않은 파일은 불러오지 않습니다.</p><div class="modal-footer">${actButton('현재 기록 내보내기','export','','secondary')}${actButton('불러오기','confirmImport','','primary')}</div>`;}
 function taskRoute(id){if(id==='craft')routeTo('workshop','craft');else if(id==='contribute')routeTo('workshop','contribute');else if(id==='defense')routeTo('terrace3','tower');else routeTo('hall5','breathe');}
-function handleInteraction(){if(modalKey||scenic)return;const n=world?.interact();if(!n)return;sound();if(n.kind==='cushion'){runActivity('breathe',{seat:n.seat});return;}if(n.targetScene||n.id==='elevator'){travelThrough(n.id);return;}if(['monk','planner'].includes(n.id)){features?.showNPC(n.id);return;}if(n.id==='teaching'){features?.showTeaching();return;}switch(n.id){case'enterWorkshop':enterScene('workshop');break;case'enterTemple':enterScene('temple1');break;case'enterTerrace3':enterScene('terrace3');break;case'enterTerrace2':enterScene('terrace2');break;case'enterSeosan':enterScene('seosan');break;case'backCampus':enterScene('campus');break;case'budo':showPlacePractice('대행선사 부도탑','budo');break;case'seosanjeong':showSeosanjeong();break;case'loop':showScenery();break;case'craft':runActivity('craft');break;case'contribute':runActivity('contribute');break;case'exhibit':showGallery();break;case'wheel':showWheel();break;case'shop':showShop();break;case'elevator':showElevator();break;case'offer':showOffer();break;case'bow':runActivity('bow');break;case'breathe':runActivity('breathe');break;case'tower':showTower();break;case'reflection':showPlacePractice('대행선사 동상','reflection');break;case'children':runActivity('memory');break;case'simju':runActivity('sound');break;case'stupa':showPlacePractice('승탑','stupa');break;case'panorama':showScenery();break;}}
+function handleInteraction(){if(modalKey||scenic)return;const n=world?.interact();if(!n)return;sound();if(n.kind==='cushion'){runActivity('breathe',{seat:n.seat});return;}if(n.targetScene||n.id==='elevator'){travelThrough(n.id);return;}if(['monk','planner'].includes(n.id)){features?.showNPC(n.id);return;}if(n.id==='teaching'){features?.showTeaching();return;}switch(n.id){case'enterWorkshop':enterScene('workshop');break;case'enterTemple':enterScene('temple1');break;case'enterTerrace3':enterScene('terrace3');break;case'enterTerrace2':enterScene('terrace2');break;case'enterSeosan':enterScene('seosan');break;case'backCampus':enterScene('campus');break;case'budo':showPlacePractice('대행선사 부도탑','budo');break;case'seosanjeong':showSeosanjeong();break;case'loop':showScenery();break;case'craft':runActivity('craft');break;case'contribute':runActivity('contribute');break;case'exhibit':showGallery();break;case'wheel':showWheel();break;case'shop':showShop();break;case'elevator':showElevator();break;case'offer':showOffer();break;case'bow':runActivity('bow');break;case'breathe':runActivity('breathe');break;case'tower':HanmaumLandmarkStories.open('tower',{onContinue:showTower});break;case'reflection':HanmaumLandmarkStories.open('reflection',{onContinue:()=>showPlacePractice('대행선사 동상','reflection')});break;case'seven':HanmaumLandmarkStories.open('seven');break;case'children':runActivity('memory');break;case'simju':runActivity('sound');break;case'stupa':showPlacePractice('승탑','stupa');break;case'panorama':showScenery();break;}}
 function showSeosanjeong(){const b=openModal('seosanjeong','서산정','깊고 깊은 곳에서 지은 집','narrow');b.innerHTML=`<div class="place-practice"><span>${icon('temple')}</span><h3>서산정(西山亭)</h3><p>대행큰스님께서 머무시던 곳입니다. ‘깊고 깊은 곳에서 지은 집’이라는 뜻이라 하셨습니다.<br>숲으로 둘러싸인 언덕 위 한옥 앞에는 큰스님의 부도탑이 모셔져 있고, 가르침을 따르는 법우들과 참배객들의 발걸음이 사시사철 이어집니다.</p><div class="practice-actions">${actButton('부도탑으로 가기','walk','budo','primary wide')}${actButton('이곳 둘러보기','sceneryHere','','ghost wide')}</div></div>`;}
 function onUIClick(action,value,button){if(features?.handleUI(action,value,button))return;switch(action){
 case'walk':closeModal();dismissGuide();world?.walkTo(value);break;

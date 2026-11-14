@@ -34,6 +34,15 @@ test('a fresh visitor begins at arrival while an existing lantern owner returns 
   assert.equal(journey.stageFor({lanterns: [{id: 'old-light'}], profileReady: true}, null), 'complete')
 })
 
+test('an in-progress checkpoint wins over the newly stored lantern on refresh', () => {
+  const journey = loadPilgrimage()
+  for (const stage of ['carry', 'tower', 'hall', 'hang', 'finale']) {
+    const saved = {version: 1, stage, lanternId: 'new-light', startedAt: 1000, handled: []}
+    assert.equal(journey.stageFor({lanterns: [{id: 'new-light'}], profileReady: true}, saved), stage)
+  }
+  assert.equal(journey.stageFor({lanterns: [{id: 'old-light'}], profileReady: true}, null), 'complete')
+})
+
 test('the first journey advances once through craft carry tower hall hang and finale', () => {
   const journey = loadPilgrimage()
   let state = journey.createState(1000)
@@ -56,6 +65,28 @@ test('the first journey advances once through craft carry tower hall hang and fi
   assert.equal(state.completedAt, 1700)
 })
 
+test('the primary pilgrimage skips optional craft and completes after pagoda and hall', () => {
+  const journey = loadPilgrimage()
+  let state = journey.createState(1000)
+  state = journey.transition(state, {type: 'start-pilgrimage', id: 'start-pilgrimage-1', at: 1100})
+  assert.equal(state.stage, 'tower')
+  assert.equal(state.lanternId, '')
+  state = journey.transition(state, {type: 'tower-complete', id: 'tower-1', at: 1200})
+  assert.equal(state.stage, 'hall')
+  state = journey.transition(state, {type: 'bow-complete', id: 'bow-1', at: 1300})
+  assert.equal(state.stage, 'finale')
+  state = journey.transition(state, {type: 'finale-close', id: 'done-1', at: 1400})
+  assert.equal(state.stage, 'complete')
+})
+
+test('free exploration is persisted without falsely completing the ritual', () => {
+  const journey = loadPilgrimage()
+  const free = journey.transition(journey.createState(1000), {type: 'explore', id: 'explore-1', at: 1100})
+  assert.equal(free.stage, 'free')
+  assert.equal(journey.normalize(free, {hasLantern: false}).stage, 'free')
+  assert.equal(free.completedAt, 0)
+})
+
 test('duplicate or out-of-order completion events never skip a ritual stage', () => {
   const journey = loadPilgrimage()
   let state = journey.transition(journey.createState(1000), {type: 'start', id: 'start-1', at: 1100})
@@ -69,8 +100,9 @@ test('duplicate or out-of-order completion events never skip a ritual stage', ()
 test('corrupt checkpoints fall back to the nearest safe stage without inventing a lantern', () => {
   const journey = loadPilgrimage()
   assert.equal(journey.normalize({stage: 'made-up'}, {hasLantern: false}).stage, 'arrival')
-  assert.equal(journey.normalize({stage: 'tower', lanternId: ''}, {hasLantern: false}).stage, 'craft')
-  assert.equal(journey.normalize({stage: 'hall', lanternId: 'lost'}, {hasLantern: false}).stage, 'craft')
+  assert.equal(journey.normalize({stage: 'tower', lanternId: ''}, {hasLantern: false}).stage, 'tower')
+  assert.equal(journey.normalize({stage: 'hall', lanternId: 'lost'}, {hasLantern: false}).stage, 'hall')
+  assert.equal(journey.normalize({stage: 'carry', lanternId: ''}, {hasLantern: false}).stage, 'craft')
   assert.equal(journey.normalize({stage: 'hang', lanternId: 'saved'}, {hasLantern: true}).stage, 'hang')
 })
 
@@ -92,11 +124,53 @@ test('refresh resume keeps a valid in-progress stage and bounded handled event i
 test('arrival asks for presentation but defers the visitor name until hanging', () => {
   const journey = loadPilgrimage()
   const model = journey.arrivalModel('female')
-  assert.equal(model.title, '등 하나를 밝히러 가기')
-  assert.equal(model.primary, '도량 들어가기')
+  assert.equal(model.title, '온라인 참배 시작하기')
+  assert.equal(model.primary, '참배 시작')
   assert.equal(model.selected, 'female')
   assert.deepEqual(Array.from(model.choices, choice => choice.id), ['male', 'female'])
   assert.equal(model.fields.includes('name'), false)
+})
+
+test('pilgrimage entry suppresses the redundant legacy touch coach', () => {
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /localStorage\?\.setItem\('hanmaum-journey-touch-hint-v1', '1'\)/)
+})
+
+test('participant names are rendered as text and never interpolated into HTML', () => {
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /personName\.textContent = person\.name/)
+  assert.doesNotMatch(source, /\$\{person\.name\}/)
+})
+
+test('first-journey lantern sharing waits until the final hanging vow', () => {
+  const journey = loadPilgrimage()
+  assert.equal(journey.shouldDeferLanternShare('craft'), true)
+  assert.equal(journey.shouldDeferLanternShare('carry'), true)
+  assert.equal(journey.shouldDeferLanternShare('hang'), true)
+  assert.equal(journey.shouldDeferLanternShare('complete'), false)
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /controller\.publishLantern\?\.\(lantern\)/)
+})
+
+test('first craft defers name and vow fields until the hanging sheet', () => {
+  const html = fs.readFileSync('public/v8.html', 'utf8')
+  assert.match(html, /pilgrimageCraft=!isGrand&&window\.HanmaumPilgrimageRuntime/)
+  assert.match(html, /이름과 발원은 탑돌이와 삼배를 마친 뒤/)
+})
+
+test('pilgrimage sheets trap focus, inert the world, restore focus and close with Escape', () => {
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /appRoot\.inert = true/)
+  assert.match(source, /event\.key === 'Escape'/)
+  assert.match(source, /previousFocus\.focus/)
+  assert.match(source, /event\.key !== 'Tab'/)
+})
+
+test('reduced-motion pilgrimage completes rituals without animated walking or bows', () => {
+  const source = fs.readFileSync('public/v8-pilgrimage.js', 'utf8')
+  assert.match(source, /reducedMotion[\s\S]*completeTowerRitual/)
+  assert.match(source, /HanmaumHallPhoto\?\.bowSequence/)
+  assert.match(source, /reducedMotion[\s\S]*completeBowRitual/)
 })
 
 test('anonymous entry creates a compatible modern profile without replacing an existing one', () => {

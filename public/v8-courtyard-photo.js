@@ -4,6 +4,9 @@
  */
 (function () {
   'use strict';
+  window.HanmaumCourtyardPhoto = Object.freeze({
+    surfacePolicy: Object.freeze(['round-pagoda-apron', 'curved-workshop-connector', 'statue-garden-to-left-edge', 'no-hall-path'])
+  });
   const W = window.HanmaumWorld, T = window.THREE;
   if (!W || !T || W.prototype.buildSite.photoSurfaces) return;
   const build = W.prototype.buildSite;
