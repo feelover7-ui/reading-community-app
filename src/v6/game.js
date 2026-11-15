@@ -3,11 +3,21 @@
 import { normalizeLantern, isSupabaseConfigured, fetchLanterns, insertLantern, subscribeLanterns } from '../deungbul/lanternsApi.js'
 import { canHash, hashPassword, fetchPosts, insertPost, deletePost, fetchMessages, insertMessage, subscribeBoard } from '../deungbul/boardApi.js'
 import { joinYard } from '../deungbul/presence.js'
+import { createCharacters, CHARACTER_HEIGHT } from './character.js'
+import { createArrivalNotices, visibleChat } from './arrival.js'
 
 (()=>{
 'use strict';
 const T=40,W=36,H=26;
 const cv=document.getElementById('game'),ctx=cv.getContext('2d');
+const characters=createCharacters();
+characters.ready.then(loaded=>{
+  if(!loaded)return;
+  for(const sex of ['m','f']){
+    const preview=document.getElementById('preview-'+sex);
+    if(preview)characters.draw(preview.getContext('2d'),preview.width/2,preview.height-6,{sex,height:preview.height-16,shadow:false});
+  }
+});
 const isTouch=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;
 if(isTouch){document.body.classList.add('touch');document.getElementById('ctlhint').textContent='왼쪽 조이스틱으로 이동 · 오른쪽 버튼으로 작업 · 위쪽 💬 로 이야기';}
 const motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
@@ -658,6 +668,10 @@ const PEER_COLORS=['#5d7fb8','#3f7a5c','#a4603f','#8f6fb5','#c4733f','#3f7a7a','
 const strHash=t=>{let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return Math.abs(h);};
 const peerColor=id=>PEER_COLORS[strHash(id)%PEER_COLORS.length];
 const peers=new Map();
+const arrivalNotices=[];
+const arrivals=createArrivalNotices(notice=>{
+  arrivalNotices.push(notice);trimHead(arrivalNotices,30);renderChatLog();
+});
 const SAY_MS=6000;
 /* 위치는 '추측 항법'으로 주고받는다.
    속도까지 같이 보내면 받는 쪽이 그 방향으로 이어서 그릴 수 있어서,
@@ -769,13 +783,14 @@ function startYard(){
   if(!shared||yard)return;
   yard=joinYard({transport:'supabase',channel:'v6-deungbul-yard',
     ownerId:YARD_ID,
-    onReady:()=>{pushPose(true);updateHere();},
-    onJoin:(id,meta)=>{seat(id,meta);updateHere();setTimeout(()=>pushPose(true),120);},
+    onReady:()=>{arrivals.ready(nickNow());pushPose(true);updateHere();},
+    onJoin:(id,meta)=>{seat(id,meta);arrivals.join(id,meta.nick);updateHere();setTimeout(()=>pushPose(true),120);},
     onLeave:id=>{peers.delete(id);updateHere();},
     onSync:list=>{
       const alive=new Set();
       list.forEach(({id,meta})=>{alive.add(id);seat(id,meta);});
       for(const id of [...peers.keys()])if(!alive.has(id))peers.delete(id);
+      arrivals.sync(list);
       updateHere();
     },
     onPose:(id,pose)=>applyPose(id,pose),
@@ -788,6 +803,7 @@ function startYard(){
   if(yard)yard.track({nick:nickNow(),sx:mySex,x:player.x,y:player.y,dir:player.dir});
 }
 function stopYard(){
+  arrivals.pause();
   if(yard){yard.leave();yard=null;}
   peers.clear();
   updateHere();
@@ -795,7 +811,7 @@ function stopYard(){
 let lastJoined=false;
 function updatePeers(dt){
   const nowJoined=!!(yard&&yard.joined);
-  if(nowJoined!==lastJoined){lastJoined=nowJoined;hereDirty=true;}
+  if(nowJoined!==lastJoined){lastJoined=nowJoined;hereDirty=true;if(!nowJoined)arrivals.pause();}
   if(hereDirty)updateHere();
   const now=Date.now();
   for(const [id,p] of peers){
@@ -811,8 +827,8 @@ function updatePeers(dt){
   }
 }
 // 머리 위 이름표. 내 것은 붉은색이라 한눈에 구분된다.
-const TAG_Y=62;      // 이름표 윗변
-const CARRY_Y=88;    // 들고 있는 소원등 (이름표 위로 올린다)
+const TAG_Y=CHARACTER_HEIGHT+24;
+const CARRY_Y=CHARACTER_HEIGHT+51;
 function nameTag(px,py,name,night,mine){
   const t=(name||'법우').slice(0,12);
   ctx.font='700 11px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
@@ -823,7 +839,7 @@ function nameTag(px,py,name,night,mine){
 }
 function drawPeer(p,night){
   const px=p.x*T,py=p.y*T;
-  drawPerson(px,py,{body:p.color,hair:'#2b1d14',pants:'#3b3b48',long:isLong(p.sex)},p.dir,p.moving,p.walk);
+  drawVisitor(px,py,p.sex,p.dir,p.moving,p.walk);
   nameTag(px,py,p.nick,night,false);
 }
 function sayStyle(night){
@@ -835,12 +851,12 @@ const chatlog=document.getElementById('chatlog');
 const LOG_LINES=6;
 function renderChatLog(){
   if(!chatlog)return;
-  if(!started||!shared||!msgs.length){chatlog.classList.remove('show');chatlog.innerHTML='';return;}
+  if(!started||(!msgs.length&&!arrivalNotices.length)){chatlog.classList.remove('show');chatlog.innerHTML='';return;}
   chatlog.classList.add('show');
   chatlog.innerHTML='';
   const me=nickNow();
-  msgs.slice(-LOG_LINES).forEach(m=>{
-    const d=el('div',m.nick===me?'mine':null);
+  visibleChat(msgs,arrivalNotices,isTouch?3:LOG_LINES).forEach(m=>{
+    const d=el('div',m.system?'system':m.nick===me?'mine':null);
     d.append(el('b',null,m.nick),el('span',null,m.body));
     chatlog.append(d);
   });
@@ -861,6 +877,7 @@ function closeChat(){
   if(!chatOpen)return;
   chatOpen=false;chatbar.classList.remove('show');
   try{chatnick.blur();chatmsg.blur();}catch(e){}
+  cv.focus({preventScroll:true});
 }
 function showMyLine(text){myLine=text;myLineUntil=Date.now()+SAY_MS;}
 async function sendChatLine(){
@@ -1097,6 +1114,11 @@ function drawStone(o,lit){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0
 function drawBoardSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-50,y-62,100,32,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('방명록',x,y-52);ctx.fillStyle='#bba169';ctx.font='400 10px "Noto Sans KR",sans-serif';ctx.fillText('글 남기기 · 이야기',x,y-39);}
 function drawSign(o){const x=(o.x+.5)*T,y=(o.y+1)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-3,12,4);ctx.fillStyle='#5a3b26';ctx.fillRect(x-3,y-34,6,32);ctx.fillStyle='#3b2618';rr(ctx,x-46,y-58,92,28,5);ctx.fill();ctx.strokeStyle='#d9a531';ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle='#f0cf73';ctx.font='700 13px "Noto Sans KR",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('소원등 걸이대',x,y-44);}
 function drawTree(o){const x=(o.x+1)*T,y=(o.y+2)*T;ctx.fillStyle='rgba(0,0,0,.2)';ell(ctx,x,y-6,30,9);ctx.fillStyle='#6b4630';ctx.fillRect(x-6,y-34,12,30);[['#3f6e46',0,-58,34],['#4f8456',-14,-66,24],['#5a9461',12,-72,22],['#67a36d',2,-80,16]].forEach(([c,dx,dy,r])=>{ctx.fillStyle=c;circ(ctx,x+dx,y+dy,r);});}
+function drawVisitor(px,py,sex,dir,moving,t){
+  if(characters.draw(ctx,px,py,{sex,direction:dir,moving:moving&&!reducedMotion,elapsed:t}))return;
+  // A failed asset request must not stop movement or hide the player.
+  drawPerson(px,py,{body:sex==='f'?'#b9827c':'#7c8871',hair:'#382920',pants:'#343b48',long:isLong(sex)},dir,moving,t);
+}
 function drawPerson(px,py,o,dir,moving,t){
   const bob=moving?Math.abs(Math.sin(t*11))*2.2:0;const step=moving?Math.sin(t*11)*3:0;
   ctx.fillStyle='rgba(0,0,0,.22)';ell(ctx,px,py,11,4.5);
@@ -1138,7 +1160,7 @@ function render(t){
   const dr=objects.map(o=>({y:o.sortY,f:()=>{if(o.kind==='table')drawTable(o,t);else if(o.kind==='shelf')drawShelf(o);else if(o.kind==='rack')drawRack(o);else if(o.kind==='dragon')drawDragon();else if(o.kind==='big')drawBig(ctx,night,t);else if(o.kind==='stone')drawStone(o,night);else if(o.kind==='sign')drawSign(o);else if(o.kind==='board')drawBoardSign(o);else if(o.kind==='tree')drawTree(o);}}));
   NPCS.forEach(n=>dr.push({y:n.y*T,f:()=>drawPerson(n.x*T,n.y*T,n.o,n.dir,false,t)}));
   peers.forEach(p=>{if(p.x>=x0-2&&p.x<=x1+2&&p.y>=y0-2&&p.y<=y1+3)dr.push({y:p.y*T,f:()=>drawPeer(p,night)});});
-  dr.push({y:player.y*T,f:()=>{drawPerson(player.x*T,player.y*T,{body:'#e3a83f',hair:'#2b1d14',pants:'#3b3b48',long:isLong(mySex)},player.dir,player.moving,player.walk);if(started)nameTag(player.x*T,player.y*T,nickNow()||'나',night,true);if(state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-CARRY_Y,26,state.craft,{lit:state.stage>=4,wire:1,paper:state.stage>=2?1:0});}});
+  dr.push({y:player.y*T,f:()=>{drawVisitor(player.x*T,player.y*T,mySex,player.dir,player.moving,player.walk);if(started)nameTag(player.x*T,player.y*T,nickNow()||'나',night,true);if(state.stage>=1)drawLantern(ctx,player.x*T,player.y*T-CARRY_Y,26,state.craft,{lit:state.stage>=4,wire:1,paper:state.stage>=2?1:0});}});
   dr.sort((a,b)=>a.y-b.y).forEach(d=>d.f());
   const hung=hungList();
   drawRopes(false,t,hung);
@@ -1164,13 +1186,13 @@ function render(t){
   if(!dialog&&!modalOpen){for(const h of hung){const ry=ropeY(h.slot.r,h.slot.x);if(Math.abs(h.slot.x-player.x)<.55&&player.y>ry+.2&&player.y<ry+2.3){drawBubble(h.slot.x*T,(ry+.12)*T,wrap(h.L.wish||'',12),{font:'700 14px "Gowun Batang",serif',bg:night?'rgba(30,24,48,.94)':'rgba(251,244,228,.97)',color:night?'#ffe7a8':'#2b1d14',stroke:night?'#d9a531':'#6b4a2f'});break;}}}
   // 말풍선
   const sayNow=Date.now(),sst=sayStyle(night);
-  peers.forEach(p=>{if(p.say&&p.sayUntil>sayNow&&p.x>=x0-3&&p.x<=x1+3&&p.y>=y0-3&&p.y<=y1+3)drawBubble(p.x*T,p.y*T-64,wrap(p.say,14),sst);});
+  peers.forEach(p=>{if(p.say&&p.sayUntil>sayNow&&p.x>=x0-3&&p.x<=x1+3&&p.y>=y0-3&&p.y<=y1+3)drawBubble(p.x*T,p.y*T-TAG_Y-4,wrap(p.say,14),sst);});
   const myBubble=myLine&&myLineUntil>sayNow;
-  if(myBubble)drawBubble(player.x*T,player.y*T-(state.stage>=1?110:72),wrap(myLine,14),sst);
+  if(myBubble)drawBubble(player.x*T,player.y*T-(state.stage>=1?CARRY_Y+24:TAG_Y+6),wrap(myLine,14),sst);
   // target marker
   const tk=targetKey();if(tk&&started){const it=INTERACT.find(i=>i.key===tk);if(it){const mx=it.mark[0]*T,my=it.mark[1]*T+Math.sin(t*4)*5;ctx.fillStyle='#f2c037';ctx.strokeStyle='#5a3b26';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(mx-9,my-12);ctx.lineTo(mx+9,my-12);ctx.lineTo(mx,my);ctx.closePath();ctx.fill();ctx.stroke();}}
   // prompt
-  if(started&&!dialog&&!modalOpen&&!myBubble){const it=nearest();if(it){const label=(isTouch?'작업 버튼 · ':'Space · ')+it.name;ctx.font='700 13px "Noto Sans KR",sans-serif';const w=ctx.measureText(label).width+22;const px=player.x*T,py=player.y*T-(state.stage>=1?118:82);ctx.fillStyle='rgba(200,64,47,.95)';rr(ctx,px-w/2,py-13,w,26,13);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,px,py);}}
+  if(started&&!dialog&&!modalOpen&&!myBubble){const it=nearest();if(it){const label=(isTouch?'작업 버튼 · ':'Space · ')+it.name;ctx.font='700 13px "Noto Sans KR",sans-serif';const w=ctx.measureText(label).width+22;const px=player.x*T,py=player.y*T-(state.stage>=1?CARRY_Y+35:TAG_Y+24);ctx.fillStyle='rgba(200,64,47,.95)';rr(ctx,px-w/2,py-13,w,26,13);ctx.fill();ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(label,px,py);}}
 }
 
 /* ---------- loop ---------- */
