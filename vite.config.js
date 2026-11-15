@@ -56,6 +56,7 @@ export default defineConfig({
       input: {
         v8Network: fileURLToPath(new URL('./src/v8/network.js', import.meta.url)),
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        v6: fileURLToPath(new URL('./v6.html', import.meta.url)),
         deungbul: fileURLToPath(new URL('./deungbul.html', import.meta.url)),
         doryang: fileURLToPath(new URL('./doryang.html', import.meta.url)),
         beopdang: fileURLToPath(new URL('./beopdang.html', import.meta.url)),

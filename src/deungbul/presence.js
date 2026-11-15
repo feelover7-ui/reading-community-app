@@ -25,8 +25,8 @@ function cleanMeta(meta = {}, bounds = DEFAULT_BOUNDS) {
 // - presence: 누가 들어오고 나갔는지, 닉네임이 무엇인지
 // - broadcast 'pos': 걸어다니는 위치 (DB에 저장하지 않는다)
 // - broadcast 'say': 말풍선에 띄울 한 줄 (기록은 messages 테이블이 따로 맡는다)
-export function joinYard({ ownerId, channel: channelName = DEFAULT_CHANNEL, bounds = DEFAULT_BOUNDS, onJoin, onLeave, onSync, onPose, onSay, onLit, onReady }) {
-  if(relayUrl())return joinRelay({url:relayUrl(),channelName,onSync,onPose,onSay,onLit,onReady})
+export function joinYard({ ownerId, transport = 'auto', channel: channelName = DEFAULT_CHANNEL, bounds = DEFAULT_BOUNDS, onJoin, onLeave, onSync, onPose, onSay, onLit, onReady }) {
+  if(transport !== 'supabase' && relayUrl())return joinRelay({url:relayUrl(),channelName,onSync,onPose,onSay,onLit,onReady})
   if (!supabase) return null
 
   const channel = supabase.channel(channelName, {
