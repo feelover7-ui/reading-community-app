@@ -91,6 +91,10 @@ test('등불사장 한 마당뿐 — 나가는 문이 없다', () => {
   assert.ok(game.includes('for(let x=1;x<=34;x++){setWall(x,1);'), '위쪽 벽이 뚫려 있다')
   // 살펴볼 곳 목록에도 없어야 한다
   assert.equal(game.includes('본원 도량으로 나가기'), false)
+  // 화면 안내에도 없는 문을 적어 두지 않는다 (drawGate 안의 간판 글자는 죽은 코드라 뺀다)
+  const page = read('v7.html')
+  assert.equal(/문으로 나가|도량으로 나가|본원 도량/.test(page), false,
+    'v7.html 안내에 없어진 문이 남아 있다')
 })
 
 test('2D 로 그린다 — three 를 쓰지 않는다', () => {
