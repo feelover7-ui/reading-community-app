@@ -1331,4 +1331,5 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 사용자가 예전 2D 등불사장만 있는 버전을 `v6.html`로 만들어 배포하도록 요청했다. 이 복원 작업은 앞선 v8 한정 규칙의 예외이며 기존 v8은 보존한다.
 - 기준 원본은 `5e67b2c`의 `deungbul.html`/`src/deungbul/game.js`다. 복원 게임은 `src/v6/game.js`, Vite 진입점은 루트 `v6.html`이다.
 - 공유 API와 기존 저장 데이터를 재사용한다. v6만 `transport:'supabase'`를 지정하고 다른 호출자의 기본 relay 선택을 유지한다.
+- v6 접속·위치 채널은 `v6-deungbul-yard`다. 다른 크기의 3D 맵 접속 좌표와 섞지 않는다. 클로드의 v7/v9 폴더를 수정하지 않는다.
 - 운영 DB 쓰기를 QA로 만들지 않는다. 실제 기기·실제 다중 사용자 시험과 격리 브라우저 시험을 구분한다. 기록: docs/V6_CLASSIC_RESTORE_2026-11-15.md.

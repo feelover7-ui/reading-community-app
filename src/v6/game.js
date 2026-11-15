@@ -767,7 +767,7 @@ function pushPose(force){
 }
 function startYard(){
   if(!shared||yard)return;
-  yard=joinYard({transport:'supabase',
+  yard=joinYard({transport:'supabase',channel:'v6-deungbul-yard',
     ownerId:YARD_ID,
     onReady:()=>{pushPose(true);updateHere();},
     onJoin:(id,meta)=>{seat(id,meta);updateHere();setTimeout(()=>pushPose(true),120);},
