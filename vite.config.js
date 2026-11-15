@@ -1,11 +1,46 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
+import { existsSync, statSync, readFileSync, cpSync } from 'node:fs'
+import { extname } from 'node:path'
+
+/* /v9/ 는 클로드 전용 폴더입니다. 코덱스의 v8 과 코드를 하나도 나누지 않습니다.
+   Vite 가 안을 들여다보거나 고치지 않고 파일을 그대로 내보내기만 합니다.
+   그래서 한쪽을 고쳐도 다른 쪽 빌드가 깨지지 않습니다. */
+const V9_DIR = fileURLToPath(new URL('./v9/', import.meta.url))
+const V9_TYPES = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.webp': 'image/webp', '.woff2': 'font/woff2',
+}
+const v9Standalone = {
+  name: 'v9-standalone',
+  configureServer (server) {
+    server.middlewares.use((req, res, next) => {
+      const path = (req.url || '').split('?')[0]
+      if (path !== '/v9' && !path.startsWith('/v9/')) return next()
+      const rel = path === '/v9' || path === '/v9/' ? 'index.html' : path.slice(4)
+      const file = fileURLToPath(new URL(rel, new URL('./v9/', import.meta.url)))
+      // 폴더 밖으로 새어 나가지 않게 막는다
+      if (!file.startsWith(V9_DIR) || !existsSync(file) || statSync(file).isDirectory()) return next()
+      res.setHeader('Content-Type', V9_TYPES[extname(file)] || 'application/octet-stream')
+      res.end(readFileSync(file))
+    })
+  },
+  writeBundle () {
+    // 시험과 설명 문서는 배포본에 올리지 않는다
+    if (existsSync(V9_DIR)) cpSync(V9_DIR, fileURLToPath(new URL('./dist/v9/', import.meta.url)), {
+      recursive: true,
+      filter: src => !/[\\/]tests([\\/]|$)/.test(src) && !src.endsWith('.md'),
+    })
+  },
+}
 
 // index.html: 독서 커뮤니티 앱
 // deungbul.html: 한마음선원 등불사장 (정적 페이지 1개, /deungbul.html 로 열림)
 export default defineConfig({
-  plugins: [react(), {
+  plugins: [react(), v9Standalone, {
     name: 'v8-network-dev-entry',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
@@ -29,6 +64,8 @@ export default defineConfig({
         sitePreview: fileURLToPath(new URL('./site-preview.html', import.meta.url)),
         siteCompare: fileURLToPath(new URL('./site-compare.html', import.meta.url)),
         original: fileURLToPath(new URL('./original.html', import.meta.url)),
+        // v7: 3D 로 바꾸기 전의 2D 등불사장. 코드는 v7/ 폴더 안에만 있습니다.
+        v7: fileURLToPath(new URL('./v7.html', import.meta.url)),
       },
     },
   },
