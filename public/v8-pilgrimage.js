@@ -746,6 +746,8 @@
       app.features?.social?.announce?.()
       app.features?.social?.autoConnect?.()
       overlay.remove()
+      // Close the controller too; merely hiding its DOM leaves keyboard input blocked.
+      app.features?.ctx?.closeModal?.()
       document.body.classList.remove('pilgrimage-arrival-open')
       if (mode === 'explore') { setupReturning(app); return }
       document.body.classList.add('pilgrimage-first')
