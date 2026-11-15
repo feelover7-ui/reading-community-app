@@ -107,13 +107,13 @@
   if(editing&&ui.historyOpen){ui.historyOpen=false;ui.history.hidden=true}
   const entries=chat.messages.map(message=>{if(!ui.seen.has(message))ui.seen.set(message,now);return{message,seenAt:ui.seen.get(message)}}),recent=feedEntries(entries,now,mobile()),keep=new Set(recent.map(e=>e.message));
   for(const[m,row]of ui.feedRows)if(!keep.has(m)){row.remove();ui.feedRows.delete(m)}
-  for(const[index,e]of recent.entries()){let row=ui.feedRows.get(e.message);if(!row){row=line(chat,e.message);ui.feedRows.set(e.message,row)}else row.firstChild.textContent=who(chat,e.message);if(ui.feed.children[index]!==row)ui.feed.insertBefore(row,ui.feed.children[index]||null);row.classList.toggle('fading',e.fading)}
+  for(const[index,e]of recent.entries()){let row=ui.feedRows.get(e.message);if(!row){row=line(chat,e.message);ui.feedRows.set(e.message,row)}else{const label=who(chat,e.message);if(row.firstChild.textContent!==label)row.firstChild.textContent=label}if(ui.feed.children[index]!==row)ui.feed.insertBefore(row,ui.feed.children[index]||null);row.classList.toggle('fading',e.fading)}
   clearTimeout(ui.timer);if(recent.length){const next=Math.min(...recent.map(e=>e.seenAt+(e.fading?9000:8000)));ui.timer=setTimeout(()=>render(chat),Math.max(1,next-now))}
   updateHistory(chat,ui);
   ui.panel.classList.toggle('writing',editing);ui.write.hidden=editing||ui.historyOpen;ui.feed.hidden=ui.historyOpen;
   document.body.classList.toggle('chat-composing',editing);document.body.classList.toggle('chat-reading',ui.historyOpen);
   document.getElementById('mChat')?.setAttribute('aria-expanded',String(editing||ui.historyOpen));document.getElementById('mChat')?.setAttribute('aria-controls','quickChat');ui.write.setAttribute('aria-expanded',String(editing));
-  const notice=document.getElementById('talkNotice');notice.textContent=chat.network.state==='online'?'':chat.network.state==='connecting'?'대화 연결 중':'이 브라우저의 대화';notice.hidden=!notice.textContent;
+  const notice=document.getElementById('talkNotice'),status=chat.network.state==='online'?'':chat.network.state==='connecting'?'대화 연결 중':'이 브라우저의 대화';if(notice.textContent!==status)notice.textContent=status;notice.hidden=!status;
   viewport(chat);
  }
  function dispose(chat){
