@@ -28,6 +28,8 @@ export default defineConfig({
         sitePreview: fileURLToPath(new URL('./site-preview.html', import.meta.url)),
         siteCompare: fileURLToPath(new URL('./site-compare.html', import.meta.url)),
         original: fileURLToPath(new URL('./original.html', import.meta.url)),
+        // v7: 3D 로 바꾸기 전의 2D 등불사장. 코드는 v7/ 폴더 안에만 있습니다.
+        v7: fileURLToPath(new URL('./v7.html', import.meta.url)),
       },
     },
   },

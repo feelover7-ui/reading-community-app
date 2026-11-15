@@ -1245,3 +1245,36 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 모바일 입력 중 하단 이동/활동 버튼을 숨기고 캔버스 높이를 보존한다. 키보드가 닫히면 원래 크기로 복원한다. 창 크기가 바뀌어도 피드는 시간순으로 유지한다.
 - 채팅 키 처리는 다른 모달에 우선권을 양보하며 Ctrl/Cmd 복사 등 브라우저 기본 동작을 막지 않는다. dispose에서 타이머·이벤트·캔버스 높이를 정리한다.
 - 검증: scripts/qa-v8-enter-chat.cjs, scripts/qa-v8-chat-dom.cjs. 기록: docs/V8_TRANSIENT_CHAT_2026-11-15.md.
+
+## v7 은 3D 로 바꾸기 전의 2D 등불사장입니다 (2026-11-15)
+
+사용자 요청: **"예전 2D 버전으로 돌아가자 v7.html로 만들어줘. 불사장만 있는 버전으로."**
+상세는 `v7/ORIGIN.md` 와 `docs/V7_2D_YARD_2026-11-15.md`.
+
+- **주소는 `/v7.html`, 코드는 `v7/` 폴더 안에만 있습니다.** 코덱스의 `public/v8*`·`src/v8/`
+  과도, 운영 세 화면의 `src/deungbul/` 과도 코드를 나누지 않습니다. 폴더 밖을 가져오는
+  것은 `@supabase/supabase-js` 하나뿐입니다.
+- **출처는 커밋 `d886cfa`**(= `95930ab^`, *세 화면을 모두 3D로 바꾸기* 직전)의
+  `deungbul.html` + `src/deungbul/*.js` 입니다. **`/original.html`(사용자가 보낸 3D 원본)과
+  다릅니다.** 이쪽은 우리가 만들었던 2D 화면입니다.
+- `lanternsApi.js`·`boardApi.js`·`pixelCharacter.js`·`supabaseClient.js` 는 **한 글자도
+  고치지 않았고** `v7/tests/standalone.test.mjs` 가 SHA-256 으로 지킵니다. 일부러 고칠 때는
+  그 해시와 `ORIGIN.md` 를 같이 고칩니다. **해시만 바꿔 통과시키지 않습니다.**
+- 공용 엔진 `sceneKit.js` 를 통째로 베끼지 않고 실제로 쓰던 `releaseFocus` 하나만
+  `v7/focus.js` 로 옮겼습니다. 더 필요해져도 공용 파일을 가져오지 않고 그 함수만 옮깁니다.
+- **저장소 키 5 개에 `v7-` 접두사**를 붙였습니다(`v7-hanmaum-deungbul-v1` 등). 같은 출처라
+  안 붙이면 `/deungbul.html`·`/v8.html` 의 진행을 덮습니다. **새 키도 `v7-` 로 시작합니다.**
+- **접속 채널은 `v7-deungbul-yard`** 입니다. v7 의 마당은 **36×26 칸**이고 운영 맵은
+  126×70 이라 같은 채널을 쓰면 서로의 좌표가 엉뚱한 자리에 찍힙니다.
+- **나가는 문이 없습니다**(사용자 요청: 불사장만). 위쪽 벽의 구멍(`x=15,16`)을 메웠고
+  문 물체·`살펴볼 곳` 항목·`travelTo()`·`?from=doryang` 을 지웠습니다. **`drawGate()` 는
+  남겨 두었습니다** — 나중에 문을 다시 열 때 씁니다.
+- **`traveling` 과 `fadeEl` 선언은 지우지 않습니다.** 걷기 루프·입력 판정·BFCache 복귀가
+  그 값을 봅니다. 나갈 곳이 없어 늘 `false` 지만, 지우면 첫 프레임에
+  `traveling is not defined` 로 화면이 멈춥니다. 실제로 그랬습니다.
+- 소원등·방명록·대화는 **운영 Supabase 의 같은 표**(`public.lanterns`·`posts`·`messages`)를
+  씁니다. 이 2D 화면이 원래 그 표를 쓰던 쪽이라 같은 등이 보이는 것이 맞습니다.
+  v8 의 `v8_lantern` 과는 상관이 없습니다. **쓰기는 로컬에서 누르지 않습니다.**
+- **`vercel.json` 을 건드리지 않습니다.** v7 은 Vite 진입점이라 번들되고 기존
+  `script-src 'self'` 로 그대로 돕니다(v9 는 한 파일이라 CSP 규칙이 따로 있습니다).
+- 시험은 따로 돌립니다: `node --test 'v7/tests/*.test.mjs'`.
