@@ -1216,3 +1216,10 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 문화회관/등불사장 내부의 보이는 출입문은 기존 backCampus 자동 통과 좌표에 둔다. `doorHalfWidth`는 문 개구부에 맞추되 다른 출입문의 기본 폭은 유지한다.
 - 카메라 충돌은 `cameraHits()`로 후보를 먼저 거른다. 스킨 캐릭터까지 intersectObjects 재귀 검사한 뒤 결과만 필터링하면 캐릭터당 수십 ms의 낭비가 생길 수 있다. 실내·실외 카메라 모두 같은 경로를 사용한다.
 - 성능 진단의 격리 CPU 시간은 기기 FPS 보장으로 표현하지 않는다. 기록은 docs/V8_DOOR_MOTION_FIX_2026-11-15.md.
+
+## 2026-11-15 v8 모바일 제작 화면
+
+- 제작 중 `.craft-active`는 미리보기·작업판·진행 버튼을 함께 보여준다. 짧은 세로/가로 화면도 확인한다. 일반 선택/입력 화면의 스크롤은 유지한다.
+- 공정 변경에 `scrollIntoView()`를 다시 넣지 않는다. 같은 공정 갱신은 본문 스크롤과 키보드 초점을 보존한다.
+- 한지 바탕과 붙이기는 네 공정 중 한지의 두 작업이다. 단계 번호는 01/02/03·1/03·2/04다. 완성 즉시 전시됐다고 안내하지 않는다.
+- 실제 터치 경로와 진행 복구 검증: scripts/qa-v8-mobile-craft.cjs. 상세 검토: docs/V8_MOBILE_CRAFT_REVIEW_2026-11-15.md.
