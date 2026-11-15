@@ -6,3 +6,9 @@ test('crossing requires forward motion through doorway and correct height',()=>{
 test('arrival latch blocks until player leaves doorway and prevents stationary bounce',()=>{assert.ok(travel);const p={id:'back',x:0,z:0,nx:0,nz:1,width:1.2,y:0};const state=travel.createGateState({x:0,z:-1.5,y:0},'back');assert.equal(travel.advance(state,[p],{x:0,z:.1,y:0},.1),null);travel.advance(state,[p],{x:0,z:-2.5,y:0},.6);assert.equal(travel.advance(state,[p],{x:0,z:.1,y:0},.1)?.id,'back');assert.equal(travel.advance(state,[p],{x:0,z:.1,y:0},.1),null);});
 test('arrival may turn around and leave after settling, without taking a detour',()=>{const p={id:'back',x:0,z:0,nx:0,nz:1,width:1.2,y:0};const state=travel.createGateState({x:0,z:-1.6,y:0},'back');travel.advance(state,[p],{x:0,z:-1.6,y:0},.2);assert.equal(travel.advance(state,[p],{x:0,z:.1,y:0},.2)?.id,'back');});
 test('floor clicks cancel previous portal intent while portal walk planning preserves it',()=>{let cancels=0;class World{setScene(){}update(){}goTo(){return true;}walkTo(){this.goTo(0,0);return true;}}const ctx={window:{HanmaumWorld:World,__HANMAUM_APP__:{cancelTravel(){cancels++;}}},document:{}};vm.createContext(ctx);vm.runInContext(fs.readFileSync(file,'utf8'),ctx);const w=new World();w.travelGates=[{id:'door',x:0,z:0,hotspot:{x:0,z:0}}];assert.ok(w.walkTo('door'));assert.equal(w.travelIntent,'door');assert.equal(cancels,0);w.goTo(3,4);assert.equal(w.travelIntent,null);assert.equal(cancels,1);});
+test('a wide visible workshop doorway accepts off-centre exits inside its opening',()=>{
+ const w={hotspots:[{id:'backCampus',targetScene:'campus',x:0,z:16.3,doorHalfWidth:2.3}],currentScene:'workshop',bounds:{minX:-24,maxX:24,minZ:-18,maxZ:18},groundHeight:()=>0};
+ const [g]=travel.gates(w);
+ for(const x of [-2,0,2])assert.ok(travel.crossed(g,{x,y:0,z:16},{x,y:0,z:16.6}));
+ assert.equal(travel.crossed(g,{x:3,y:0,z:16},{x:3,y:0,z:16.6}),false);
+});

@@ -67,3 +67,24 @@ test('the old low ceiling is disabled so the raised trusses and lights are visib
   assert.match(source, /legacyCeiling\.visible = false/)
   assert.match(source, /this\.immersiveOnly = \(this\.immersiveOnly \|\| \[\]\)\.filter\(item => item !== legacyCeiling\)/)
 })
+
+test('workshop entrance has visible door frames at the automatic exit and a clear opening',()=>{
+ class World {
+  constructor(){this.shapes=[];this.hotspots=[{id:'backCampus',x:0,z:16.3,anchor:{set(...v){this.value=v}}}];this.roomTarget={set(){}}}
+  buildWorkshop(){}
+  group(x,y,z,parent){const g={position:{x,y,z},children:[],userData:{}};parent?.children.push(g);return g}
+  mat(color){return color}
+  box(w,h,d,material,x,y,z,parent){const o={w,h,d,position:{x,y,z},material,userData:{}};parent?.children.push(o);this.shapes.push(o);return o}
+  cyl(){return {}}
+  plaque(text,w,x,y,z,parent){const o={text,position:{x,y,z},userData:{}};parent?.children.push(o);return o}
+  obstacle(){}
+ }
+ const window={HanmaumWorld:World};vm.runInNewContext(fs.readFileSync('public/v8-workshop-photo.js','utf8'),{window,Object,Math,Number})
+ const w=new World();w.buildWorkshop()
+ assert.ok(w.workshopEntrance,'visible entrance should exist')
+ assert.equal(w.workshopEntrance.position.z,16.3)
+ assert.ok(w.shapes.filter(o=>o.name?.startsWith('workshop-door')).length>=3)
+ // No vertical door panel occupies the passage; threshold is underfoot.
+ const center=w.workshopEntrance.children.filter(o=>o.h>.2&&o.position.y-o.h/2<2&&Math.abs(o.position.x)<o.w/2+.9)
+ assert.equal(center.length,0,'walking through the opening remains possible')
+})

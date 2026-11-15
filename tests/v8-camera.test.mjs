@@ -10,6 +10,7 @@ test('chase hides the local avatar when a wall forces camera close, restores it 
  let blocked=true
  const player={position:new THREE.Vector3(10,.12,14),visible:true}
  const world={player,roomTarget:new THREE.Vector3(),scenic:false,viewMode:'chase',indoor:true,currentScene:'hall5',lookYaw:0,lookPitch:.06,eyeCamera:new THREE.PerspectiveCamera(),content:{children:[]},_camRay:{set(){},intersectObjects(){return blocked?[{distance:.8,object:{userData:{}}}]:[]}},isAvatarPart:()=>false}
+ Object.setPrototypeOf(world,window.HanmaumWorld.prototype)
  window.HanmaumWorld.prototype.updateCamera.call(world,0,true)
  assert.equal(player.visible,false)
  blocked=false
