@@ -1,0 +1,51 @@
+#travelMapButton{position:fixed;right:16px;top:78px;z-index:39;width:56px;min-height:60px;display:grid;place-items:center;gap:2px;padding:8px;border:1px solid #e0e5d9;border-radius:17px;background:#fbfaf0f5;color:#285b49;box-shadow:0 5px 20px #12372825;font:700 11px sans-serif;cursor:pointer}
+#travelMapButton svg{width:26px;height:26px}
+#travelMapButton:focus-visible{outline:3px solid #bc793e;outline-offset:3px}
+body.has-modal #travelMapButton,body.pilgrimage-arrival-open #travelMapButton{display:none!important}
+.modal-card:has(.overview-map){width:min(980px,calc(100vw - 24px))}
+.destination-map-board.overview-map{display:block;position:relative;width:100%;height:min(65vh,620px);min-height:390px;border-radius:20px;overflow:hidden;background:#dbe4cb}
+.overview-map>img{width:100%;height:100%;object-fit:fill;display:block}
+.overview-map-pins{position:absolute;inset:0}
+.overview-map .destination-map-place{position:absolute;display:flex;align-items:center;justify-content:center;min-height:48px;height:auto;width:146px;padding:8px 10px;border:1px solid #c7d3bf;border-radius:13px;background:#fffdf5ef;box-shadow:0 3px 13px #1c3c3030;transform:translate(-50%,-50%);gap:6px;text-align:center}
+.overview-map .destination-map-place>svg{width:22px;height:22px;min-width:22px}
+.overview-map .destination-map-copy{gap:1px}.overview-map .destination-map-copy strong{font-size:12px;min-height:0}
+.overview-map .destination-map-meta,.overview-map .destination-map-copy>span{display:none!important}
+.overview-map .destination-map-copy em{font-size:9px}
+.overview-map [data-value=workshop]{left:79%;top:64%}
+.overview-map [data-value=terrace3]{left:30%;top:29%}
+.overview-map [data-value=terrace2]{left:22%;top:46%}
+.overview-map [data-value=hall5]{left:50%;top:52%}
+.overview-map [data-value=temple1]{left:49%;top:72%}
+.overview-map [data-value=campus]{left:78%;top:86%}
+.overview-map [data-value=seosan]{left:80%;top:44%}
+.overview-map .is-current{background:#e1eed9;border:2px solid #426f51}
+@media(max-width:600px){
+ #travelMapButton{right:14px;top:76px;width:50px;min-height:54px}
+ .destination-map-board.overview-map{height:min(62vh,530px);min-height:380px}
+ .overview-map>img{object-fit:fill}
+ .overview-map .destination-map-place{width:112px;padding:7px 5px;gap:3px;min-height:50px}
+ .overview-map .destination-map-place>svg{display:none}
+ .overview-map [data-value=workshop]{left:77%}.overview-map [data-value=terrace3]{left:25%}
+ .overview-map [data-value=hall5]{left:48%;top:57%}.overview-map [data-value=temple1]{left:46%;top:77%}
+ .overview-map [data-value=seosan]{left:78%;top:40%}
+ .overview-map [data-value=campus]{left:78%;top:91%}
+ .overview-map .destination-map-copy strong{font-size:11px}
+}
+
+.overview-map [data-value=lobby2]{left:22%;top:65%}
+.overview-map [data-value=lobby3]{left:48%;top:32%}
+body:has(#pilgrimageReturnHUD) .quiet-context-action{bottom:calc(88px + env(safe-area-inset-bottom))}
+@media(max-width:600px){.overview-map [data-value=lobby2]{left:22%;top:65%}.overview-map [data-value=lobby3]{left:50%;top:13%}.overview-map [data-value=terrace3]{top:30%}.overview-map [data-value=hall5]{left:69%;top:57%}}
+.youth-model-portrait{width:100%;height:100%;object-fit:contain;display:block}.director-entry-preview .youth-model-portrait{max-height:210px}
+@media(max-width:600px){
+ .overview-map .destination-map-place{width:clamp(76px,24vw,100px)}
+ .overview-map [data-value=terrace3]{left:18%;top:26%}
+ .overview-map [data-value=terrace2]{left:18%;top:45%}
+ .overview-map [data-value=lobby2]{left:18%;top:64%}
+ .overview-map [data-value=lobby3]{left:50%;top:14%}
+ .overview-map [data-value=hall5]{left:50%;top:48%}
+ .overview-map [data-value=temple1]{left:50%;top:83%}
+ .overview-map [data-value=seosan]{left:82%;top:26%}
+ .overview-map [data-value=workshop]{left:82%;top:64%}
+ .overview-map [data-value=campus]{left:82%;top:88%}
+}

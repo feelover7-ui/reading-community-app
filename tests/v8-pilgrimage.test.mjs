@@ -43,7 +43,7 @@ test('an in-progress checkpoint wins over the newly stored lantern on refresh', 
   assert.equal(journey.stageFor({lanterns: [{id: 'old-light'}], profileReady: true}, null), 'complete')
 })
 
-test('the first journey advances once through craft carry tower hall hang and finale', () => {
+test('craft reaches the rack before optional pilgrimage and completes exactly once', () => {
   const journey = loadPilgrimage()
   let state = journey.createState(1000)
   assert.equal(state.stage, 'arrival')
@@ -52,14 +52,17 @@ test('the first journey advances once through craft carry tower hall hang and fi
   state = journey.transition(state, {type: 'craft-complete', id: 'craft-1', lanternId: 'lantern-1', at: 1200})
   assert.equal(state.stage, 'carry')
   assert.equal(state.lanternId, 'lantern-1')
-  state = journey.transition(state, {type: 'tower-start', id: 'tower-start-1', at: 1300})
+  state = journey.transition(state, {type: 'rack-arrive', id: 'rack-1', at: 1250})
+  assert.equal(state.stage, 'hang')
+  state = journey.transition(state, {type: 'hang-complete', id: 'hang-1', at: 1270})
+  assert.equal(state.stage, 'finale')
+  state = journey.transition(state, {type: 'start-pilgrimage', id: 'tower-start-1', at: 1300})
   assert.equal(state.stage, 'tower')
   state = journey.transition(state, {type: 'tower-complete', id: 'tower-1', at: 1400})
   assert.equal(state.stage, 'hall')
   state = journey.transition(state, {type: 'bow-complete', id: 'bow-1', at: 1500})
-  assert.equal(state.stage, 'hang')
-  state = journey.transition(state, {type: 'hang-complete', id: 'hang-1', at: 1600})
   assert.equal(state.stage, 'finale')
+  assert.equal(state.ritualDone, true)
   state = journey.transition(state, {type: 'finale-close', id: 'finale-1', at: 1700})
   assert.equal(state.stage, 'complete')
   assert.equal(state.completedAt, 1700)
@@ -154,8 +157,8 @@ test('first-journey lantern sharing waits until the final hanging vow', () => {
 
 test('first craft defers name and vow fields until the hanging sheet', () => {
   const html = fs.readFileSync('public/v8.html', 'utf8')
-  assert.match(html, /pilgrimageCraft=!isGrand&&window\.HanmaumPilgrimageRuntime/)
-  assert.match(html, /이름과 발원은 탑돌이와 삼배를 마친 뒤/)
+  assert.match(html, /pilgrimageCraft=!isGrand&&!!window\.HanmaumPilgrimageRuntime/)
+  assert.match(html, /완성한 등을 등걸이대로 가져가/)
 })
 
 test('pilgrimage sheets trap focus, inert the world, restore focus and close with Escape', () => {
@@ -188,7 +191,7 @@ test('anonymous entry creates a compatible modern profile without replacing an e
   assert.equal(created.ok, true)
   assert.equal(calls[0].name, '방문자')
   assert.deepEqual(JSON.parse(JSON.stringify(calls[0].appearance)), {
-    gender: 'female', hair: 'bob', skin: '#e9ba91', hairColor: '#3b3931', robeColor: '#819985'
+    gender: 'female', hair: 'bob', skin: '#e9ba91', hairColor: '#3b3931', robeColor: '#bd8f92'
   })
   assert.equal(journey.createAnonymousProfile(store, 'male').existing, true)
   assert.equal(calls.length, 1)
@@ -221,4 +224,24 @@ test('visitor name is cleaned only at the hanging stage', () => {
   assert.equal(journey.visitorName('  마음\u0000빛  '), '마음빛')
   assert.equal(journey.visitorName(''), '방문자')
   assert.equal(journey.visitorName('열두글자를넘는아주긴이름입니다'), '열두글자를넘는아주긴이름')
+})
+
+test('hanging is claimed once across sheets and rejects an already hung lantern',()=>{
+ const api=loadPilgrimage(),controller={state:{stage:'hang',lanternId:'lamp'}},lamp={id:'lamp',pendingHang:true}
+ assert.equal(typeof api.claimHang,'function')
+ assert.equal(api.claimHang(controller,lamp),true)
+ assert.equal(api.claimHang(controller,lamp),false)
+ controller.hangInFlight=false;lamp.pendingHang=false
+ assert.equal(api.claimHang(controller,lamp),false)
+})
+
+test('legacy in-progress lantern resumes at the rack without changing completed lanterns',()=>{
+ const api=loadPilgrimage();assert.equal(typeof api.recoverLegacyJourney,'function')
+ for(const stage of ['tower','hall','hang']){
+  const lamp={id:'legacy'},store={lanterns:[lamp]},saved={stage,lanternId:'legacy'}
+  const next=api.recoverLegacyJourney(store,saved)
+  assert.equal(lamp.pendingHang,true);assert.equal(next.stage,'carry')
+ }
+ const lamp={id:'done'},saved={stage:'complete',lanternId:'done'}
+ assert.equal(api.recoverLegacyJourney({lanterns:[lamp]},saved),saved);assert.equal(lamp.pendingHang,undefined)
 })

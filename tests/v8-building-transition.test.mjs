@@ -25,15 +25,15 @@ test('map fast travel stays immediate while lobby save ids remain safe but hidde
   assert.equal(transition.normalizeSaved('invented-room'), 'campus')
   assert.equal(transition.presentation('lobby2').claim, 'transition-only')
   assert.equal(transition.presentation('lobby3').claim, 'transition-only')
-  assert.equal(transition.visibleDestinations.includes('lobby2'), false)
-  assert.equal(transition.visibleDestinations.includes('lobby3'), false)
+  assert.equal(transition.visibleDestinations.includes('lobby2'), true)
+  assert.equal(transition.visibleDestinations.includes('lobby3'), true)
 })
 
-test('destination map no longer presents duplicated unverified lobbies', () => {
+test('destination map includes explicitly labelled transfer spaces', () => {
   const context = {window: {}}
   vm.runInContext(fs.readFileSync('public/v8-map.js', 'utf8'), vm.createContext(context))
   const ids = Array.from(context.window.HanmaumDestinationMap.destinations, item => item.id)
-  assert.deepEqual(ids, ['campus', 'workshop', 'temple1', 'terrace2', 'terrace3', 'hall5', 'seosan'])
+  assert.deepEqual(ids, ['campus', 'workshop', 'temple1', 'lobby2', 'lobby3', 'terrace2', 'terrace3', 'hall5', 'seosan'])
 })
 
 test('v8 loads building transition after travel and before pilgrimage', () => {

@@ -10,11 +10,11 @@
   const EVENTS = Object.freeze({
     arrival: Object.freeze({start: 'craft', 'start-pilgrimage': 'tower', explore: 'free'}),
     craft: Object.freeze({'craft-complete': 'carry'}),
-    carry: Object.freeze({'tower-start': 'tower'}),
+    carry: Object.freeze({'rack-arrive': 'hang', 'tower-start': 'tower'}),
     tower: Object.freeze({'tower-complete': 'hall'}),
-    hall: Object.freeze({'bow-complete': 'hang'}),
+    hall: Object.freeze({'bow-complete': 'finale'}),
     hang: Object.freeze({'hang-complete': 'finale'}),
-    finale: Object.freeze({'finale-close': 'complete'}),
+    finale: Object.freeze({'finale-close': 'complete', 'start-pilgrimage': 'tower'}),
     free: Object.freeze({}),
     complete: Object.freeze({})
   })
@@ -43,6 +43,7 @@
       lanternId: safeStage === 'craft' && !hasLantern ? '' : lanternId,
       startedAt: finiteTime(source.startedAt),
       completedAt: safeStage === 'complete' ? finiteTime(source.completedAt) : 0,
+      ritualDone: source.ritualDone === true,
       handled: [...new Set(handled)].slice(-32)
     }
   }
@@ -53,6 +54,7 @@
     const hasLantern = !!savedLanternId && lanterns.some(item => cleanId(item?.id) === savedLanternId)
     const state = normalize(saved, {hasLantern})
     const validCheckpoint = saved && typeof saved === 'object' && STAGE_SET.has(saved.stage)
+    if (state.stage === 'hang' && lanterns.some(item => item.id === state.lanternId && item.pendingHang === false)) return 'finale'
     if (validCheckpoint && state.stage !== 'arrival') return state.stage
     if (lanterns.length > 0) return 'complete'
     return state.stage
@@ -72,6 +74,7 @@
       ...state,
       stage: next,
       lanternId,
+      ritualDone: event.type === 'bow-complete' || state.ritualDone,
       startedAt: state.startedAt || at,
       completedAt: next === 'complete' ? at : 0,
       handled: [...state.handled, id].slice(-32)
@@ -101,7 +104,7 @@
       hair: gender === 'female' ? 'bob' : 'short',
       skin: '#e9ba91',
       hairColor: '#3b3931',
-      robeColor: gender === 'female' ? '#819985' : '#526b62'
+      robeColor: gender === 'female' ? '#bd8f92' : '#657f97'
     }
     return store.setProfile('방문자', appearance)
   }
@@ -166,7 +169,21 @@
     }
   }
 
-  const api = Object.freeze({VERSION, STAGES, STORAGE_KEY, createState, normalize, stageFor, transition, arrivalModel, createAnonymousProfile, selectJourneyLantern, ceremonialRoute, visitorName, participantCount, participantLabel, shouldDeferLanternShare})
+  function recoverLegacyJourney (store, saved) {
+    if (!saved || !['tower','hall','hang'].includes(saved.stage) || !saved.lanternId) return saved
+    const lamp = store.lanterns?.find(item => item.id === saved.lanternId)
+    if (!lamp || Object.prototype.hasOwnProperty.call(lamp, 'pendingHang')) return saved
+    lamp.pendingHang = true
+    return {...saved, stage: 'carry', ritualDone: saved.ritualDone === true || saved.stage === 'hang'}
+  }
+
+  function claimHang (controller, lantern) {
+    if (controller.hangInFlight || controller.state.stage !== 'hang' || !lantern || lantern.pendingHang === false || lantern.id !== controller.state.lanternId) return false
+    controller.hangInFlight = true
+    return true
+  }
+
+  const api = Object.freeze({VERSION, STAGES, STORAGE_KEY, createState, normalize, stageFor, transition, arrivalModel, createAnonymousProfile, selectJourneyLantern, ceremonialRoute, visitorName, participantCount, participantLabel, shouldDeferLanternShare, claimHang, recoverLegacyJourney})
   root.HanmaumPilgrimage = api
   installRewardHook()
   installCarryPose()
@@ -287,6 +304,7 @@
   }
 
   function attachCarriedLantern (world, lantern = {}) {
+    if (lantern.pendingHang === false) return
     detachCarriedLantern(world)
     const T = root.THREE
     const rig = world?._avatarRig || world?.player?.userData?.rig
@@ -439,18 +457,41 @@
     else { app.enterScene('hall5'); begin() }
   }
 
+  function guideToRack (app, controller) {
+    if (app.scene !== 'workshop') app.enterScene('workshop')
+    const rack = app.world.hotspots.find(item => item.id === 'exhibit')
+    if (!rack) return
+    const lantern = lanternById(app, controller.state.lanternId)
+    if (lantern) attachCarriedLantern(app.world, lantern)
+    showObjective('완성한 등을 등걸이대에 걸어요', '걸이대 앞에서 이름과 발원을 적고 불을 밝힙니다.', () => {
+      const w = app.world
+      if (app.scene !== 'workshop') { guideToRack(app, controller); return }
+      w.path = []; w.target = null
+      const y = (w.groundHeight?.(rack.x, rack.z) || 0) + .12
+      if (w.player.position?.set) w.player.position.set(rack.x, y, rack.z)
+      w.player.x = rack.x; w.player.z = rack.z
+      const origin = w.exhibit?.origin || {x: rack.x + 2.6, z: rack.z}
+      w.lookYaw = Math.atan2(origin.x - rack.x, rack.z - origin.z)
+      w.player.rotation.y = Math.atan2(origin.x - rack.x, origin.z - rack.z)
+      w.updateCamera?.(0, true)
+      controller.advance('rack-arrive')
+      showHangSheet(app, controller)
+    }, '등걸이대로 이동')
+  }
+
   function showHangSheet (app, controller) {
-    if (document.getElementById('pilgrimageHang')) return
+    if (controller.hangInFlight || controller.state.stage !== 'hang' || lanternById(app, controller.state.lanternId)?.pendingHang === false || document.getElementById('pilgrimageHang')) return
     closeLegacyModal()
     const overlay = document.createElement('section')
     overlay.id = 'pilgrimageHang'
     overlay.className = 'pilgrimage-sheet'
     overlay.setAttribute('role', 'dialog')
     overlay.setAttribute('aria-modal', 'true')
-    overlay.innerHTML = '<form class="pilgrimage-sheet-card"><span>마지막 걸음</span><h2>이름과 발원을 적고 등을 걸어요</h2><p>완성한 등은 도량의 불빛으로 남고, 다음 방문에도 다시 볼 수 있습니다.</p><label>도량에서 불릴 이름<input maxlength="12" autocomplete="nickname" value="" placeholder="이름 또는 별명"></label><label>등에 남길 발원<textarea maxlength="120" rows="3" placeholder="마음에 품은 발원을 적어주세요."></textarea></label><button class="btn primary" type="submit">내 등 걸기</button><small role="status"></small></form>'
+    overlay.innerHTML = '<form class="pilgrimage-sheet-card"><span>등걸이대</span><h2>이름과 발원을 적고 등을 걸어요</h2><p>손으로 만든 등이 이 등걸이대에 남습니다.</p><label>도량에서 불릴 이름<input maxlength="12" autocomplete="nickname" value="" placeholder="이름 또는 별명"></label><label>등에 남길 발원<textarea maxlength="120" rows="3" placeholder="마음에 품은 발원을 적어주세요."></textarea></label><button class="btn primary" type="submit">내 등 걸기</button><small role="status"></small></form>'
     const closeSheet = mountDialog(overlay, {escape: false})
     overlay.querySelector('form').onsubmit = async event => {
       event.preventDefault()
+      if (overlay.dataset.saving) return
       const name = visitorName(overlay.querySelector('input').value)
       const result = app.store.setProfile(name, app.store.data.appearance)
       if (!result?.ok) {
@@ -458,15 +499,52 @@
         return
       }
       const lantern = lanternById(app, controller.state.lanternId)
+      if (!claimHang(controller, lantern)) return
+      overlay.dataset.saving = 'true'
+      overlay.querySelector('button').disabled = true
       const vow = overlay.querySelector('textarea').value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 120)
-      if (lantern && vow) { lantern.vow = vow; app.store.save?.() }
+      lantern.vow = vow
+      app.store.save?.()
+      root.HanmaumQuietUI?.hideContext?.()
+      closeSheet()
+      const carried = app.world.__pilgrimageCarry
+      const exhibit = app.world.exhibit
+      if (carried?.isObject3D && exhibit && !app.store.data.settings?.reducedMotion) {
+        const T = root.THREE
+        const slot = exhibit.slots[Math.min(exhibit.placed.length, exhibit.slots.length - 1)]
+        const target = exhibit.group.localToWorld(new T.Vector3(-.19, slot.y, slot.z))
+        const world = app.world
+        world.content.attach(carried)
+        const start = carried.position.clone()
+        world.content.worldToLocal(target)
+        await new Promise(resolve => {
+          const since = performance.now()
+          const step = now => {
+            const t = Math.min(1, (now - since) / 850)
+            if (app.world !== world || app.scene !== 'workshop') { resolve(); return }
+            carried.position.lerpVectors(start, target, t*t*(3-2*t))
+            carried.position.y += Math.sin(t*Math.PI)*.35
+            carried.scale.setScalar(.82*(1-t)+.45*t)
+            if (t < 1) requestAnimationFrame(step)
+            else resolve()
+          }
+          requestAnimationFrame(step)
+        })
+      }
+      lantern.pendingHang = false
+      app.store.save?.()
       if (lantern) { try { await controller.publishLantern?.(lantern) } catch (_) {} }
       controller.advance('hang-complete')
+      controller.hangInFlight = false
       detachCarriedLantern(app.world)
       app.world?.refreshAppearance?.()
       app.features?.social?.announce?.()
-      closeSheet()
-      showFinale(app, controller)
+      app.world.refreshExhibit?.()
+      app.store.data.wheelLit = true
+      app.store.save?.()
+      app.world.setEnvironment?.()
+      document.getElementById('pilgrimageObjective')?.remove()
+      setTimeout(() => showFinale(app, controller), 1300)
     }
     setTimeout(() => overlay.querySelector('input')?.focus(), 80)
   }
@@ -474,13 +552,19 @@
   function showFinale (app, controller) {
     if (document.getElementById('pilgrimageFinale')) return
     closeLegacyModal()
-    if (app.scene !== 'campus') app.enterScene('campus')
+    const ritualDone = controller.state.ritualDone
     document.body.classList.add('pilgrimage-finale-open')
     const overlay = document.createElement('section')
     overlay.id = 'pilgrimageFinale'
     overlay.className = 'pilgrimage-finale'
     const madeLantern = !!controller.state.lanternId
-    overlay.innerHTML = `<div><span>${madeLantern ? '나의 첫 등불 여정' : '나의 첫 온라인 참배'}</span><h2>${madeLantern ? '작은 빛 하나가<br>도량에 남았습니다' : '탑돌이와 삼배로<br>마음을 모았습니다'}</h2><p>${madeLantern ? '등 만들기 · 구정탑 탑돌이 · 법당 삼배를 마쳤어요.' : '구정탑 탑돌이와 대법당 삼배를 마쳤어요. 등 만들기는 언제든 등불사장에서 이어갈 수 있습니다.'}</p><button class="btn primary" type="button">도량 계속 둘러보기</button></div>`
+    overlay.innerHTML = `<div><span>${madeLantern ? '나의 발원등' : '온라인 참배'}</span><h2>${madeLantern && !ritualDone ? '내 손으로 만든 등이<br>걸이대에 걸렸습니다' : '탑돌이와 삼배로<br>마음을 모았습니다'}</h2><p>${ritualDone ? '구정탑 탑돌이와 대법당 삼배를 마쳤어요.' : '등 만들기를 마쳤습니다. 원하면 자동 탑돌이와 법당 참배를 이어갈 수 있어요.'}</p><button class="btn secondary" type="button">자유롭게 둘러보기</button>${!ritualDone ? '<button class="btn primary" type="button" data-continue-ritual>탑돌이·참배 이어가기</button>' : ''}</div>`
+    overlay.querySelector('[data-continue-ritual]')?.addEventListener('click', () => {
+      controller.advance('start-pilgrimage')
+      overlay.remove()
+      document.body.classList.remove('pilgrimage-finale-open')
+      runPagodaLap(app, controller)
+    })
     overlay.querySelector('button').onclick = () => {
       controller.advance('finale-close')
       overlay.remove()
@@ -686,11 +770,13 @@
     if (!app || root.__hanmaumPilgrimageRuntime) return
     root.__hanmaumPilgrimageRuntime = true
     const lanterns = Array.isArray(app.store?.data?.lanterns) ? app.store.data.lanterns : []
-    const saved = readSaved()
+    const previous = readSaved()
+    const saved = recoverLegacyJourney(app.store.data, previous)
+    if(saved !== previous)app.store.save?.()
     const initialStage = stageFor(app.store?.data || {}, saved)
     let state = initialStage === 'complete'
       ? normalize({...saved, stage: 'complete'}, {hasLantern: lanterns.length > 0})
-      : normalize(saved || createState(), {hasLantern: lanterns.some(item => cleanId(item?.id) === cleanId(saved?.lanternId))})
+      : normalize(saved ? {...saved, stage: initialStage} : createState(), {hasLantern: lanterns.some(item => cleanId(item?.id) === cleanId(saved?.lanternId))})
     const save = next => { state = next; writeSaved(state) }
     const controller = {
       ritualToken: 0,
@@ -706,10 +792,19 @@
       }
     }
     root.HanmaumPilgrimageRuntime = controller
+    root.HanmaumDestinationMap?.mount?.(app)
+    controller.openRack = () => {
+      if(controller.hangInFlight)return false
+      const pending = app.store.data.lanterns.find(item => item.pendingHang)
+      if (!pending || app.scene !== 'workshop') return false
+      save({...createState(), stage: 'hang', lanternId: pending.id})
+      showHangSheet(app, controller)
+      return true
+    }
     const publishLantern = typeof root.HanmaumShareLantern === 'function' ? root.HanmaumShareLantern : null
     controller.publishLantern = lantern => publishLantern?.(lantern)
     if (publishLantern) root.HanmaumShareLantern = lantern => {
-      if (shouldDeferLanternShare(state.stage) && cleanId(lantern?.id)) {
+      if ((lantern?.pendingHang || shouldDeferLanternShare(state.stage)) && cleanId(lantern?.id)) {
         controller.deferredLanternId = cleanId(lantern.id)
         return Promise.resolve({ok: true, deferred: true})
       }
@@ -718,8 +813,7 @@
     root.HanmaumQuietUI?.sync?.({scene: app.scene, stage: state.stage, returning: state.stage === 'complete' || state.stage === 'free'})
     if (state.stage === 'complete' || state.stage === 'free') {
       setupReturning(app)
-      return
-    }
+    } else {
     hideLegacyOnboarding(app)
     document.body.classList.add('pilgrimage-first')
     if (state.stage === 'arrival') {
@@ -732,24 +826,26 @@
     } else {
       const lantern = lanternById(app, state.lanternId)
       if (lantern) attachCarriedLantern(app.world, lantern)
-      if (state.stage === 'carry' || state.stage === 'tower') {
+      if (state.stage === 'carry') guideToRack(app, controller)
+      else if (state.stage === 'tower') {
         showObjective('구정탑으로 등을 들고 갑니다', '준비되면 자동으로 구정탑을 한 바퀴 돕니다.', () => runPagodaLap(app, controller), '자동 탑돌이 시작')
       } else if (state.stage === 'hall') beginHallBows(app, controller)
-      else if (state.stage === 'hang') showHangSheet(app, controller)
+      else if (state.stage === 'hang') guideToRack(app, controller)
       else if (state.stage === 'finale') showFinale(app, controller)
+    }
     }
 
     root.addEventListener('hanmaum:pilgrimage-reward', event => {
       const detail = event.detail || {}
-      if (detail.kind === 'craft' && state.stage === 'craft') {
+      if (detail.kind === 'craft') {
         const lantern = selectJourneyLantern(controller.initialLanterns, app.store.data.lanterns, detail.lanternId)
         if (!lantern) return
-        controller.advance('craft-complete', {lanternId: lantern.id})
+        save({...createState(), stage: 'carry', lanternId: lantern.id})
         attachCarriedLantern(app.world, lantern)
         setTimeout(() => {
           closeLegacyModal()
           attachCarriedLantern(app.world, lantern)
-          showObjective('완성한 등을 들고 구정탑으로', '이제 등을 두 손에 들고 구정탑을 한 바퀴 돕니다.', () => runPagodaLap(app, controller), '구정탑으로 가기')
+          guideToRack(app, controller)
         }, 120)
       } else if (detail.kind === 'bow' && state.stage === 'hall') {
         controller.runningBow = false

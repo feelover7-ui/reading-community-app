@@ -17,9 +17,9 @@ test('destination map exposes every verified destination exactly once', () => {
   const map = loadMap()
   assert.ok(Object.isFrozen(map.destinations))
   assert.deepEqual(Array.from(map.destinations, item => item.id), [
-    'campus', 'workshop', 'temple1', 'terrace2', 'terrace3', 'hall5', 'seosan'
+    'campus', 'workshop', 'temple1', 'lobby2', 'lobby3', 'terrace2', 'terrace3', 'hall5', 'seosan'
   ])
-  assert.equal(new Set(map.destinations.map(item => item.id)).size, 7)
+  assert.equal(new Set(map.destinations.map(item => item.id)).size, 9)
 })
 
 test('all destinations render as immediate scene controls with the current place marked', () => {
@@ -28,13 +28,13 @@ test('all destinations render as immediate scene controls with the current place
     icon: name => `<i data-icon="${name}"></i>`,
     actButton: (label, action, value, classes, attrs = '') => `<button class="${classes}" data-ui="${action}" data-value="${value}" ${attrs}>${label}</button>`
   })
-  assert.equal((markup.match(/data-ui="enter"/g) || []).length, 7)
-  assert.equal((markup.match(/data-value="/g) || []).length, 7)
+  assert.equal((markup.match(/data-ui="enter"/g) || []).length, 9)
+  assert.equal((markup.match(/data-value="/g) || []).length, 9)
   assert.match(markup, /data-value="terrace3"[^>]*aria-current="location"/)
   assert.match(markup, /현재 장소/)
-  assert.match(markup, /destination-map-group outdoor[\s\S]*도량·문화회관·서산정/)
-  assert.match(markup, /destination-map-group main-building[\s\S]*본원·바깥도량/)
-  assert.doesNotMatch(markup, /data-value="lobby[23]"/)
+  assert.match(markup, /overview-map/)
+  assert.match(markup, /v8-travel-overview\.png/)
+  assert.match(markup, /data-value="lobby2"/)
   assert.doesNotMatch(markup, /data-ui="(?:walk|route)"/)
 })
 
