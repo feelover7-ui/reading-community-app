@@ -166,6 +166,10 @@
     const s = Math.min(1, V.distOut / h);                        // 막혔으면 그대로 둡니다
     cam.position.set(p.x + ox * s, ty + V.eyeAbove - this.lookPitch * 2.0, p.z + oz * s);
     if (this.content) { try { clearView(this, cam, p.x, ty, p.z); } catch (_) {} }
+    // The base camera hides the actor below a four-unit offset, before this
+    // outdoor pass adjusts height/clearance. Decide from the final camera so
+    // leaving a doorway does not retain a hidden actor at a safe distance.
+    this.player.visible = Math.hypot(cam.position.x - p.x, cam.position.y - ty, cam.position.z - p.z) > 1.2;
     cam.lookAt(p.x + Math.sin(this.lookYaw) * .65, ty + .30, p.z - Math.cos(this.lookYaw) * .65);
     return out;
   };
