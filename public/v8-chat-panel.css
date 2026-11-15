@@ -1,7 +1,7 @@
 /* Recent speech floats over the world; only explicit input/history is interactive. */
 #talkFeed{position:fixed;z-index:33;left:18px;top:110px;width:min(430px,calc(100vw - 100px));pointer-events:none;font:14px/1.5 sans-serif;color:#fffdf2;text-shadow:0 1px 3px #102d20,0 0 4px #102d20}
-#talkFeed *{pointer-events:none}#talkFeed .talk-line{margin:0 0 5px;transition:opacity 1s linear;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
-#talkFeed .talk-line.fading{opacity:0}.talk-line b{color:#f5d997;font-size:.9em;margin-right:7px}.talk-line span{white-space:pre-wrap}
+#talkFeed *{pointer-events:none}#talkFeed .talk-line{margin:0 0 5px;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.talk-line b{color:#f5d997;font-size:.9em;margin-right:7px}.talk-line span{white-space:pre-wrap}
 #talkPanel{position:fixed;z-index:35;left:16px;bottom:calc(90px + env(safe-area-inset-bottom));width:min(580px,calc(100vw - 32px));font:12px/1.5 sans-serif;pointer-events:auto}
 #talkPanel:not(.writing){display:none}
 #talkNotice{display:block;width:max-content;max-width:100%;padding:3px 8px;border-radius:7px;background:#143c2be6;color:#fff5da;margin-bottom:4px;font-size:11px}
@@ -23,8 +23,9 @@ body.has-modal :is(#talkPanel,#talkFeed,#talkHistory,#talkWrite),body.pilgrimage
  #talkHistory{left:8px;bottom:calc(12px + env(safe-area-inset-bottom));width:calc(100vw - 16px);max-height:calc(100dvh - 150px)}
  body:is(.chat-composing,.chat-reading) :is(#pilgrimageReturnHUD,.pilgrimage-objective,.m-social,.m-act,.m-stick,#joystick,#interaction,#lookControls){visibility:hidden!important}
 }
-@media(max-height:500px){#talkFeed{max-height:100px;overflow:hidden}#talkHistory{top:65px;bottom:8px;max-height:none}#talkMessages{min-height:0;flex:1}}
-@media(prefers-reduced-motion:reduce){#talkFeed .talk-line{transition:none}}
+@media(max-height:500px){#talkHistory{top:65px;bottom:8px;max-height:none}#talkMessages{min-height:0;flex:1}}
 
 body.chat-composing #toast{bottom:170px}
 @media(max-width:600px),(pointer:coarse){body.chat-composing #toast{bottom:calc(var(--chat-keyboard,0px) + 92px + env(safe-area-inset-bottom))}}
+
+.talk-line.talk-system b{color:#d9e8ca}#talkMessages .talk-system b{color:#526a47}

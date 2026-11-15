@@ -70,3 +70,14 @@ test('snapshot HTTP failures retry after an overlapping request was suppressed',
 test('a snapshot from a departed session is rejected after that id rejoins',async()=>{const{net,client,c,messages}=await connected();await net.send(pose());const motion=client.channels.find(c=>c.topic.endsWith(':scene:campus')),inbox=client.channels.find(c=>c.topic.includes(':inbox:'));inbox.status('SUBSCRIBED');motion.status('SUBSCRIBED');await tick();const token=motion.sent.find(v=>v.event==='request-presence').payload.token;c.emit('presence','join',{newPresences:[{id:'other',presence_ref:'a',session:'old'}]});c.emit('presence','leave',{leftPresences:[{id:'other',presence_ref:'a'}]});c.emit('presence','join',{newPresences:[{id:'other',presence_ref:'b',session:'new'}]});inbox.emit('broadcast','snapshot',{payload:{token,pose:{...pose(),session:'old'}}});assert.equal(messages.filter(m=>m.type==='presence').length,0);inbox.emit('broadcast','snapshot',{payload:{token,pose:{...pose(),session:'new'}}});assert.equal(messages.filter(m=>m.type==='presence').length,1);net.disconnect()})
 test('rapid return publishes the final scene even when an old scene announcement is pending',async()=>{let time=0;const{net,client,c}=await connected({now:()=>time});await net.send(pose());await tick();let resolve;const send=c.send.bind(c);c.send=v=>{if(v.event==='scene-change'&&v.payload.scene==='hall5'){c.sent.push(v);return new Promise(r=>{resolve=r})}return send(v)};time=2000;await net.send(pose('me','hall5'));await net.send(pose());time=4000;resolve('ok');await tick();assert.equal(c.sent.filter(v=>v.event==='scene-change').at(-1).payload.scene,'campus');net.disconnect()})
 test('unchanged room members survive a transient reconnect without duplicate join events',async()=>{const{net,c}=await connected();c.emit('presence','join',{newPresences:[{id:'other',presence_ref:'stable',session:'s'}]});assert.equal(net.peerCount,1);c.status('CHANNEL_ERROR');c.status('SUBSCRIBED');await tick();assert.equal(net.peerCount,1);c.emit('presence','leave',{leftPresences:[{id:'other',presence_ref:'stable'}]});assert.equal(net.peerCount,0);net.disconnect()})
+
+test('attendance joins distinguish initial presence sync and reset the marker on reconnect',async()=>{
+ const {net,c,messages}=await connected()
+ const join=id=>c.emit('presence','join',{newPresences:[{id,presence_ref:id,session:id}]})
+ join('initial');assert.equal(messages.at(-1).initial,true)
+ c.emit('presence','sync',{});join('new');assert.equal(messages.at(-1).initial,false)
+ c.status('CHANNEL_ERROR');c.status('SUBSCRIBED');await tick()
+ join('reconnected-roster');assert.equal(messages.at(-1).initial,true)
+ c.emit('presence','sync',{});join('later');assert.equal(messages.at(-1).initial,false)
+ net.disconnect()
+})

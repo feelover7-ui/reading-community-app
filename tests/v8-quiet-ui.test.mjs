@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import vm from 'node:vm'
 
-function loadQuietUI () {
+function loadQuietUI (document) {
   const window = {HanmaumSpaceEvidence: {scene: id => ({status: id === 'hall5' ? 'photo-grounded' : 'site-grounded', sources: [`source:${id}`]})}}
-  vm.runInContext(fs.readFileSync('public/v8-quiet-ui.js', 'utf8'), vm.createContext({window, document: undefined, Object, Array, String}))
+  vm.runInContext(fs.readFileSync('public/v8-quiet-ui.js', 'utf8'), vm.createContext({window, document, Object, Array, String}))
   return window.HanmaumQuietUI
 }
 
@@ -50,4 +50,27 @@ test('v8 loads quiet UI before pilgrimage runtime and labels the page as online 
   assert.match(html, /<link rel="stylesheet" href="\/v8-quiet-ui\.css">/)
   assert.match(html, /<title>한마음선원 온라인 참배/)
   assert.match(html, /name="description" content="한마음선원 온라인 참배/)
+})
+
+
+test('context dock hides non-actions and preserves an unrelated landmark action', () => {
+  const nodes = new Map()
+  const document = {
+    readyState: 'complete',
+    body: {dataset: {}, classList: {add () {}}, append (node) { nodes.set(node.id, node) }},
+    getElementById: id => nodes.get(id),
+    createElement: () => ({setAttribute () {}})
+  }
+  const ui = loadQuietUI(document)
+  ui.showContext({id: 'pilgrimage-step', label: '계속하기', onSelect: null})
+  const dock = nodes.get('quietContextAction')
+  assert.equal(dock.hidden, true)
+  let selected = 0
+  ui.showContext({id: 'landmark', label: '살펴보기', onSelect: () => selected++})
+  ui.hideContext('pilgrimage-step')
+  assert.equal(dock.hidden, false)
+  dock.onclick()
+  assert.equal(selected, 1)
+  ui.hideContext('landmark')
+  assert.equal(dock.hidden, true)
 })

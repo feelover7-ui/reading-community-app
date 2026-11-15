@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta name="hanmaum-release" content="2026-11-15-transient-chat-v13">
+<meta name="hanmaum-release" content="2026-11-15-usability-v14">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#244c3b">
@@ -6952,6 +6952,22 @@ class HanmaumLocalChat{
   return {x:m.position.x+(valid?v.x*t:0),y:m.position.y+(valid?v.y*t:0),z:m.position.z+(valid?v.z*t:0)};
  }
  isSelf(id){return this.selfIds.has(id);}
+ // Session-only notices describe observed connections; they are never sent or saved.
+ attendanceKey(id){return (['online','connecting'].includes(this.network.state)?'room:'+this.network.room:'local')+'|'+id;}
+ welcomeSelf(){
+  if(this.selfWelcomed)return;const profile=this.ctx.store.view();if(!profile.profileReady||!profile.name)return;
+  this.selfWelcomed=true;this.append({kind:'notice',noticeLabel:'나의 입장',id:this.id,name:profile.name,text:profile.name+'님, 도량에 오신 것을 환영합니다.',time:Date.now()});
+ }
+ rememberArrival(m){
+  const pending=this.arrivalPending||(this.arrivalPending=new Map());pending.set(this.attendanceKey(m.id),m.initial===false);
+  if(pending.size>512)pending.delete(pending.keys().next().value);
+ }
+ noticePresence(m){
+  const key=this.attendanceKey(m.id),seen=this.attendanceSeen||(this.attendanceSeen=new Set());if(seen.has(key))return;
+  const name=m.name.trim().slice(0,24);if(!name)return;seen.add(key);
+  const local=!['online','connecting'].includes(this.network.state),arrival=this.arrivalPending?.get(key)===true;this.arrivalPending?.delete(key);
+  this.append({kind:'notice',noticeLabel:local?'이 브라우저':'접속 안내',id:m.id,name,scene:m.scene,time:Date.now(),text:name+(local?'님이 이 브라우저에서 함께하고 있습니다.':arrival?'님이 도량에 오셨습니다.':'님이 함께하고 있습니다.')});
+ }
  clearPeers(){for(const id of this.peers.keys())this.ctx.world.clearSpeech?.(id);for(const id of [...this.meshes.keys()])this.removePeer(id);this.peers.clear();this.peerHistory?.clear();this.peerSessions?.clear();this.pendingPeers?.clear();this.pendingScenes?.clear();this.ctx.world.socialPeers=[];}
  networkStatus(state,message){
   this.connectionMessage=message;
@@ -6995,7 +7011,7 @@ class HanmaumLocalChat{
  savedOnline(){try{const v=JSON.parse(globalThis.localStorage?.getItem('hanmaum-journey-online')||'null');return v&&typeof v==='object'?v:null;}catch(_){return null;}}
  savedRoom(){const r=this.savedOnline()?.room;return /^[a-z0-9_-]{1,32}$/.test(r||'')?r:'hanmaum';}
  saveOnlineChoice(room,on){try{globalThis.localStorage?.setItem('hanmaum-journey-online',JSON.stringify({room:String(room||'hanmaum'),on:!!on}));}catch(_){}}
- announce(){if(this.disposed)return;this.idleRelease();this.autoConnect();const m={type:'presence',...this.ownInfo()};if(['online','connecting'].includes(this.network.state))this.network.send(m);else this.channel?.postMessage(m);this.updateStatus();}
+ announce(){if(this.disposed)return;this.welcomeSelf();this.idleRelease();this.autoConnect();const m={type:'presence',...this.ownInfo()};if(['online','connecting'].includes(this.network.state))this.network.send(m);else this.channel?.postMessage(m);this.updateStatus();}
  count(){if(this.network.state==='online'&&Number.isFinite(this.network.peerCount))return this.network.peerCount;return [...this.peers.values()].filter(p=>this.network.state==='online'||Date.now()-p.seen<5000).length;}
  updateStatus(){
   const n=this.count(),online=this.network?.state==='online',connecting=this.network?.state==='connecting',el=$('chatConnection');
@@ -7027,6 +7043,7 @@ class HanmaumLocalChat{
   if(m.type==='scene-change'&&HanmaumStore.SCENES.includes(m.scene)){const key=m.id+'|'+(m.session||''),old=sceneHistory.get(key);if(!old||!Number.isFinite(old.sampleTime)||Number.isFinite(m.sampleTime)&&m.sampleTime>=old.sampleTime)sceneHistory.set(key,m);if(sceneHistory.size>256)sceneHistory.delete(sceneHistory.keys().next().value);}
   const queuePresence=(packet=m)=>{const group=pending.get(packet.id)||new Map(),prior=group.get(packet.session);if(prior&&Number.isFinite(prior.sampleTime)&&Number.isFinite(packet.sampleTime)&&packet.sampleTime<prior.sampleTime)return;group.set(packet.session,{...packet,type:'presence'});if(group.size>3)group.delete(group.keys().next().value);pending.set(packet.id,group);if(pending.size>128)pending.delete(pending.keys().next().value);};
   if(m.type==='join'){
+   this.rememberArrival(m);
    const changed=m.session&&sessions.get(m.id)!==m.session;if(m.session)sessions.set(m.id,m.session);
    if(history.get(m.id)?.left||changed&&history.get(m.id)?.session!==m.session&&this.peers.get(m.id)?.session!==m.session){history.delete(m.id);this.peers.delete(m.id);}
    const queued=pending.get(m.id)?.get(m.session),control=sceneHistory.get(m.id+'|'+(m.session||''));pending.delete(m.id);if(control)this.receive(control);if(queued)this.receive(queued);this.renderPeers();return;
@@ -7053,11 +7070,11 @@ class HanmaumLocalChat{
   const peer={...m,name:m.name.slice(0,24),seen:Date.now()};
   if(m.type==='gesture'&&['hapjang','bow'].includes(m.gesture))peer.gestureUntil=Date.now()+HanmaumAvatar.duration(m.gesture)*1000;
   else if(this.peers.get(m.id)?.gestureUntil){peer.gestureUntil=this.peers.get(m.id).gestureUntil;peer.gesture=this.peers.get(m.id).gesture;}
-  remember({scene:m.scene,sampleTime:m.sampleTime});this.peers.set(m.id,peer);
+  remember({scene:m.scene,sampleTime:m.sampleTime});this.peers.set(m.id,peer);this.noticePresence(peer);
   if(m.type==='chat'&&typeof m.text==='string'&&m.text.trim())this.append({...peer,text:HanmaumAvatar.cleanText(m.text),time:Date.now()});
   this.renderPeers();
  }
- append(m){if(m.messageId&&this.messages.some(x=>x.messageId===m.messageId))return;this.ctx.world.setSpeech?.(m.text,{id:this.isSelf(m.id)?'self':m.id,scene:m.scene,duration:10000});this.messages.push({...m,mine:this.isSelf(m.id)});this.messages=this.messages.slice(-60);if(this.talkCollapsed&&!this.isSelf(m.id))this.unread++;this.renderMessages();this.renderStream();this.updateStatus();}
+ append(m){if(m.messageId&&this.messages.some(x=>x.messageId===m.messageId))return;if(m.kind!=='notice')this.ctx.world.setSpeech?.(m.text,{id:this.isSelf(m.id)?'self':m.id,scene:m.scene,duration:10000});this.messages.push({...m,mine:this.isSelf(m.id)});this.messages=this.messages.slice(-60);if(this.talkCollapsed&&!this.isSelf(m.id))this.unread++;this.renderMessages();this.renderStream();this.updateStatus();}
  renderMessages(){const el=$('chatMessages');if(!el)return;el.innerHTML=this.messages.length?this.messages.map(m=>`<div class="chat-line ${m.mine?'mine':''}"><div><strong>${esc(m.name)}${m.mine?' · 나':''}</strong><time>${new Date(m.time).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'})}</time></div><p>${esc(m.text)}</p></div>`).join(''):'<div class="chat-empty">아직 대화가 없어요.<br>첫 인사를 남겨보세요.</div>';el.scrollTop=el.scrollHeight;}
  /* 왼쪽에 최근 다섯 줄만 흘립니다. 도량·대법당의 '한 줄 이야기'와 같은 방식입니다. */
  renderStream(){if(window.HanmaumChatPanel)window.HanmaumChatPanel.render(this);}
@@ -7290,6 +7307,7 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
 <link rel="stylesheet" href="/v8-overview.css">
 <link rel="stylesheet" href="/v8-pilgrimage.css">
 <link rel="stylesheet" href="/v8-quiet-ui.css">
+<link rel="stylesheet" href="/v8-usability.css">
 <script src="/v8-craft-view.js"></script>
 <script data-source="activities.js">
 /* Hanmaum · self-contained, touch-friendly activities. No network requests. */
@@ -7378,7 +7396,7 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       const isGrand=kind==='contribute';
       const shapeList=[...SHAPES,{id:'fish',label:'물고기등',level:1},{id:'square',label:'사각등',level:3}];
       const fresh=()=>({version:1,kind,id:kind+'-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),shape:isGrand?'round':'lotus',color:COLORS[0],stage:-1,errors:[0,0,0,0,0],scores:[null,null,null,null,null],frame:[],circuit:[0,0,0,0,0,0,0,0,0],thread:[0,0,0,0],paper:[false,false,false,false,false,false],paint:[false,false,false,false,false,false],name:'',vow:''});
-      let draft=fresh(),selectedNode=null,selectedThread=null,selectedPaper=null,selectedColor=0,restartArmed=false,saveOkay=true,feedback='';
+      let draft=fresh(),selectedNode=null,selectedThread=null,selectedPaper=null,selectedColor=0,restartArmed=false,saveOkay=true,feedback='',hintIndex=null;
       const saved=state()[isGrand?'contributionDraft':'craftDraft'];
       if(saved&&saved.version===1&&saved.kind===kind&&Number.isInteger(saved.stage)&&saved.stage>=-1&&saved.stage<=5){
         const numberArray=(v,n,max,fill=0)=>Array.from({length:n},(_,i)=>Number.isInteger(v?.[i])&&v[i]>=0&&v[i]<=max?v[i]:fill);
@@ -7404,6 +7422,9 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       root.closest?.('.modal-card')?.classList.add('craft-modal');
       const quietCraft=document.body.classList.contains('quiet-pilgrimage');
       craftObject=window.HanmaumCraftView?.create();let tools=root;
+      const craftTemplate=()=>window.HanmaumCraftView.template(draft.shape);
+      const workLantern=(shape,color)=>{const t=window.HanmaumCraftView.template(shape);return `<svg viewBox="0 0 160 175" aria-hidden="true"><path d="M80 0V16M80 138V165" stroke="#b38c51" stroke-width="3"/><path d="${t.outline}" fill="${color}" stroke="#bca679" stroke-width="2"/><path d="${t.detail}" fill="none" stroke="#fff5de" stroke-width="2"/></svg>`;};
+      const shapeUnderlay=(w,h)=>`<svg class="craft-shape-underlay" data-work-shape="${draft.shape}" viewBox="0 0 160 175" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none"><path d="${craftTemplate().outline}" fill="#eee5cc" stroke="#bca679" stroke-width="2"/><path d="${craftTemplate().detail}" fill="none" stroke="#cfbd95" stroke-width="1"/></svg>`;
       const persist=()=>{
         try{const result=ctx.saveDraft?.(kind,JSON.parse(JSON.stringify(draft)));saveOkay=result!==false&&result?.ok!==false;}catch(_){saveOkay=false;}
       };
@@ -7415,7 +7436,7 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       };
       const countStage=i=>[draft.frame.length,draft.scores[1]===null?0:1,draft.thread.filter(v=>v===2).length,draft.paper.filter(Boolean).length,draft.paint.filter(Boolean).length][i];
       const targetCounts=[8,1,4,6,6];
-      const newWork=()=>{draft=fresh();selectedNode=null;selectedThread=null;selectedPaper=null;selectedColor=0;restartArmed=false;feedback='새로운 작업을 시작합니다.';persist();show();};
+      const newWork=()=>{draft=fresh();selectedNode=null;selectedThread=null;selectedPaper=null;selectedColor=0;hintIndex=null;restartArmed=false;feedback='새로운 작업을 시작합니다.';persist();show();};
       const toolbar=()=>`<div class="workshop-meta"><span>${saveOkay?'진행 기록 자동 저장':'임시 기록 · 자동 저장을 확인해 주세요'}</span><button type="button" data-action="restart">${restartArmed?'진행 지우고 다시 시작':'처음부터 만들기'}</button></div>`;
       const stageFooter=()=>{
         const i=draft.stage,finished=stageDone(i),progress=countStage(i);
@@ -7445,15 +7466,16 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       }
       function showSelection(){
         const scaffold=`<svg viewBox="0 0 480 220" aria-hidden="true"><path d="M48 202H432M72 200V28H408V200M64 70H416M64 127H416M64 181H416" fill="none" stroke="#b5b9a4" stroke-width="5"/><path d="M135 192L154 60L326 60L348 192M115 113H369M132 158H352M194 60V191M281 60V191" fill="none" stroke="#8c9c7c" stroke-width="3"/><path d="M155 70H185V105H149ZM200 117H267V151H200ZM287 163H340L345 190H287Z" fill="#dcc6a0" stroke="#fff5dd" stroke-width="2"/><path d="M173 59V26M310 59V26" stroke="#9e7950" stroke-width="2"/><rect x="29" y="172" width="32" height="27" rx="4" fill="#cbac7d"/></svg>`;
-        tools.insertAdjacentHTML('beforeend',`<div class="activity-hero"><div class="activity-kicker">${isGrand?'ONE PART, MADE TOGETHER':'ONE LANTERN, TAKING SHAPE'}</div><h3>${isGrand?'함께 만드는 장엄등의 한 부분':'내 손으로 완성하는 발원등'}</h3><p class="activity-note">${isGrand?'장엄등은 아직 제작 중입니다.<br>형태를 정하지 않은 부분 작업에 골조·전기·한지·채색의 손길을 보태요.':'먼저 등 모양과 바탕색을 골라주세요.<br>골조부터 채색까지, 눈앞의 등이 골조·전기·한지·채색을 거치며 완성됩니다.'}</p>${isGrand?'<div class="workshop-grand">'+scaffold+'</div>':'<div class="workshop-preview">'+lantern(draft.shape,draft.color)+'</div>'}</div>${isGrand?'':`<div class="activity-shapes">${shapeList.map(s=>`<button type="button" class="activity-choice ${draft.shape===s.id?'active':''}" data-shape="${s.id}" ${level()<s.level?'disabled':''}>${lantern(s.id,draft.color)}${s.label}<small>${level()<s.level?'Lv. '+s.level+'에 열려요':'선택 가능'}</small></button>`).join('')}</div><label class="activity-label" style="text-align:center">완성할 등의 바탕색</label><div class="activity-swatches">${COLORS.map((c,i)=>`<button type="button" class="activity-swatch ${draft.color===c?'active':''}" style="background:${c}" data-color="${c}" aria-label="${['분홍','노랑','초록','파랑','보라'][i]} 바탕색"></button>`).join('')}</div>`}<div class="activity-prompt"><div><strong>골조 → 전기 → 한지 → 채색</strong><br><span class="activity-small">${quietCraft?'한지는 실로 바탕을 잡고 조각을 붙입니다. 시간제한 없이 만들고, 중간에 닫아도 이어갈 수 있어요.':'공정별 정확도를 점수로 기록합니다. 네 공정을 마치면 평균 점수에 따라 경험치와 마음잎을 받아요. 중간에 닫아도 이어갈 수 있어요.'}</span></div></div>${feedback?`<p class="workshop-status" aria-live="polite">${escape(feedback)}</p>`:''}${btn('골조부터 작업 시작','begin','wide')}`);
+        tools.insertAdjacentHTML('beforeend',`<div class="activity-hero"><div class="activity-kicker">${isGrand?'ONE PART, MADE TOGETHER':'ONE LANTERN, TAKING SHAPE'}</div><h3>${isGrand?'함께 만드는 장엄등의 한 부분':'내 손으로 완성하는 발원등'}</h3><p class="activity-note">${isGrand?'장엄등은 아직 제작 중입니다.<br>형태를 정하지 않은 부분 작업에 골조·전기·한지·채색의 손길을 보태요.':'먼저 등 모양과 바탕색을 골라주세요.<br>골조부터 채색까지, 눈앞의 등이 골조·전기·한지·채색을 거치며 완성됩니다.'}</p>${isGrand?'<div class="workshop-grand">'+scaffold+'</div>':'<div class="workshop-preview">'+workLantern(draft.shape,draft.color)+'</div>'}</div>${isGrand?'':`<div class="activity-shapes">${shapeList.map(s=>`<button type="button" class="activity-choice ${draft.shape===s.id?'active':''}" data-shape="${s.id}" ${level()<s.level?'disabled':''}>${workLantern(s.id,draft.color)}${s.label}<small>${level()<s.level?'Lv. '+s.level+'에 열려요':'선택 가능'}</small></button>`).join('')}</div><label class="activity-label" style="text-align:center">완성할 등의 바탕색</label><div class="activity-swatches">${COLORS.map((c,i)=>`<button type="button" class="activity-swatch ${draft.color===c?'active':''}" style="background:${c}" data-color="${c}" aria-label="${['분홍','노랑','초록','파랑','보라'][i]} 바탕색"></button>`).join('')}</div>`}<div class="activity-prompt"><div><strong>골조 → 전기 → 한지 → 채색</strong><br><span class="activity-small">${quietCraft?'한지는 실로 바탕을 잡고 조각을 붙입니다. 시간제한 없이 만들고, 중간에 닫아도 이어갈 수 있어요.':'공정별 정확도를 점수로 기록합니다. 네 공정을 마치면 평균 점수에 따라 경험치와 마음잎을 받아요. 중간에 닫아도 이어갈 수 있어요.'}</span></div></div>${feedback?`<p class="workshop-status" aria-live="polite">${escape(feedback)}</p>`:''}${btn('골조부터 작업 시작','begin','wide')}`);
         qa('[data-shape]').forEach(el=>on(el,'click',()=>{draft.shape=el.dataset.shape;persist();sound();show();}));
         qa('[data-color]').forEach(el=>on(el,'click',()=>{draft.color=el.dataset.color;persist();sound();show();}));
         wireAction('begin',()=>{draft.stage=0;feedback='점선 양끝의 두 점을 선택해 골조를 연결해 주세요.';persist();show();});
       }
-      const framePoints=[[50,12],[82,32],[82,68],[50,88],[18,68],[18,32]];
+
       const frameEdges=[[0,1],[1,2],[2,3],[3,4],[4,5],[5,0],[0,3],[5,2]];
       function showFrame(){
-        tools.insertAdjacentHTML('beforeend',title(0,'점선 위에 골조 잇기','점선 하나의 양끝을 차례로 누르세요. 순서는 자유입니다.')+`<div class="workshop-grid"><div class="frame-board"><svg viewBox="0 0 400 310" preserveAspectRatio="none" aria-hidden="true"><ellipse cx="200" cy="283" rx="121" ry="10" fill="#d9ddc9"/>${frameEdges.map(([a,b],i)=>`<line x1="${framePoints[a][0]*4}" y1="${framePoints[a][1]*3.1}" x2="${framePoints[b][0]*4}" y2="${framePoints[b][1]*3.1}" stroke="${draft.frame.includes(i)?'#ae7c41':'#b8c2a9'}" stroke-width="${draft.frame.includes(i)?7:3}" stroke-dasharray="${draft.frame.includes(i)?'':'6 7'}" stroke-linecap="round"/>`).join('')}</svg>${framePoints.map((p,i)=>`<button type="button" class="frame-node ${selectedNode===i?'is-selected':''}" data-frame-node="${i}" style="left:${p[0]}%;top:${p[1]}%" aria-label="골조 연결점 ${i+1}" aria-pressed="${selectedNode===i}" ${stageDone(0)?'disabled':''}>${i+1}</button>`).join('')}</div></div><div class="workshop-legend"><span><i></i>이어야 할 골조</span><span><i class="complete"></i>연결한 골조</span></div>`+stageFooter());
+        const framePoints=craftTemplate().frame;
+        tools.insertAdjacentHTML('beforeend',title(0,'점선 위에 골조 잇기','점선 하나의 양끝을 차례로 누르세요. 순서는 자유입니다.')+`<div class="workshop-grid"><div class="frame-board"><svg viewBox="0 0 400 310" preserveAspectRatio="none" aria-hidden="true">${shapeUnderlay(400,310)}${frameEdges.map(([a,b],i)=>`<line x1="${framePoints[a][0]*4}" y1="${framePoints[a][1]*3.1}" x2="${framePoints[b][0]*4}" y2="${framePoints[b][1]*3.1}" stroke="${draft.frame.includes(i)?'#ae7c41':'#b8c2a9'}" stroke-width="${draft.frame.includes(i)?7:3}" stroke-dasharray="${draft.frame.includes(i)?'':'6 7'}" stroke-linecap="round"/>`).join('')}</svg>${framePoints.map((p,i)=>`<button type="button" class="frame-node ${selectedNode===i?'is-selected':''}" data-frame-node="${i}" style="left:${p[0]}%;top:${p[1]}%" aria-label="골조 연결점 ${i+1}" aria-pressed="${selectedNode===i}" ${stageDone(0)?'disabled':''}>${i+1}</button>`).join('')}</div></div><div class="workshop-legend"><span><i></i>이어야 할 골조</span><span><i class="complete"></i>연결한 골조</span></div>`+stageFooter());
         qa('[data-frame-node]').forEach(el=>on(el,'click',()=>{
           const index=+el.dataset.frameNode;if(stageDone(0))return;
           if(selectedNode===null){selectedNode=index;feedback='이 점과 점선으로 이어진 다른 점을 골라주세요.';sound();show();return;}
@@ -7478,21 +7500,22 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       }
       function showCircuit(){
         const info=circuitInfo(),finished=stageDone(1);
-        tools.insertAdjacentHTML('beforeend',title(1,'전선을 돌려 불빛 연결하기','누르면 90° 회전해요. 9칸 모두 이어 전원에서 전구까지 연결하세요.')+`<div class="circuit-board"><div class="circuit-port source"><span>전원</span><svg viewBox="0 0 32 38" aria-hidden="true"><rect x="3" y="10" width="26" height="18" rx="4" fill="#d6af6a"/><path d="M15 4L10 19H18L14 34L26 15H18L22 4Z" fill="#fff5d9"/></svg><span>→</span></div><div class="circuit-grid">${info.masks.map((mask,i)=>`<button type="button" class="circuit-tile ${info.reached.includes(i)?'powered':''} ${finished?'solved':''}" data-circuit="${i}" data-rotation="${draft.circuit[i]}" aria-label="전선 ${i+1}번, 누르면 90도 회전" ${finished?'disabled':''}><svg viewBox="0 0 80 80" aria-hidden="true"><path d="${[[1,'M40 40V0'],[2,'M40 40H80'],[4,'M40 40V80'],[8,'M40 40H0']].filter(([b])=>mask&b).map(([,p])=>p).join(' ')}" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"/><circle cx="40" cy="40" r="7" fill="#fff7e1" stroke="currentColor" stroke-width="3"/></svg><small>↻</small></button>`).join('')}</div><div class="circuit-port lamp ${finished||info.solved?'lit':''}"><span>→</span><svg viewBox="0 0 32 38" aria-hidden="true"><path d="M8 20A11 11 0 1 1 24 20L21 28H11Z" fill="${finished||info.solved?'#edc360':'#ced5bf'}"/><path d="M11 30H21M12 34H20" stroke="#788768" stroke-width="3" stroke-linecap="round"/></svg><span>전구</span></div></div>${btn(finished?'점등 확인 완료':'점등 확인하기','checkCircuit',finished?'wide secondary':'wide coral')}`+stageFooter());
+        tools.insertAdjacentHTML('beforeend',title(1,'전선을 돌려 불빛 연결하기','누르면 90° 회전해요. 9칸 모두 이어 전원에서 전구까지 연결하세요.')+`<div class="circuit-board"><div class="circuit-port source"><span>전원</span><svg viewBox="0 0 32 38" aria-hidden="true"><rect x="3" y="10" width="26" height="18" rx="4" fill="#d6af6a"/><path d="M15 4L10 19H18L14 34L26 15H18L22 4Z" fill="#fff5d9"/></svg><span>→</span></div><div class="circuit-grid">${info.masks.map((mask,i)=>`<button type="button" class="circuit-tile ${info.reached.includes(i)?'powered':''} ${finished?'solved':''} ${hintIndex===i?'hinted':''}" data-circuit="${i}" data-rotation="${draft.circuit[i]}" aria-label="전선 ${i+1}번, 누르면 90도 회전" ${finished?'disabled':''}><svg viewBox="0 0 80 80" aria-hidden="true"><path d="${[[1,'M40 40V0'],[2,'M40 40H80'],[4,'M40 40V80'],[8,'M40 40H0']].filter(([b])=>mask&b).map(([,p])=>p).join(' ')}" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"/><circle cx="40" cy="40" r="7" fill="#fff7e1" stroke="currentColor" stroke-width="3"/></svg><small>${i+1} · ↻</small></button>`).join('')}</div><div class="circuit-port lamp ${finished||info.solved?'lit':''}"><span>→</span><svg viewBox="0 0 32 38" aria-hidden="true"><path d="M8 20A11 11 0 1 1 24 20L21 28H11Z" fill="${finished||info.solved?'#edc360':'#ced5bf'}"/><path d="M11 30H21M12 34H20" stroke="#788768" stroke-width="3" stroke-linecap="round"/></svg><span>전구</span></div></div><div class="circuit-actions">${btn(finished?'점등 확인 완료':'점등 확인하기','checkCircuit',finished?'secondary':'coral')}${finished?'':btn('한 곳 힌트','circuitHint','secondary')}</div>`+stageFooter());
+        wireAction('circuitHint',()=>{const hint=window.HanmaumCraftView.circuitHint(circuitInfo());hintIndex=hint.index;feedback=hint.message;show();});
         const check=q('[data-action="checkCircuit"]');if(finished)check.disabled=true;
-        qa('[data-circuit]').forEach(el=>on(el,'click',()=>{const i=+el.dataset.circuit;draft.circuit[i]=(draft.circuit[i]+1)%4;feedback='밝은 전선은 전원과 이어진 부분입니다.';persist();sound();show();}));
+        qa('[data-circuit]').forEach(el=>on(el,'click',()=>{const i=+el.dataset.circuit;draft.circuit[i]=(draft.circuit[i]+1)%4;hintIndex=null;feedback='밝은 전선은 전원과 이어진 부분입니다.';persist();sound();show();}));
         wireAction('checkCircuit',()=>{if(stageDone(1))return;if(circuitInfo().solved){completeStage();show();}else error('아직 전선이 끊긴 곳이 있어요. 9칸을 모두 이어 전구까지 연결해 주세요.');});
       }
       const threadSymbols=['○','△','□','✳'],threadColors=['#c88b74','#a79861','#7d9f90','#9a8eb1'],threadOrder=[2,0,3,1];
       function showThread(){
-        tools.insertAdjacentHTML('beforeend',title(2,'한지 바탕 · 실 걸고 묶기','실과 같은 표식의 고리를 누르고 매듭을 묶어요.')+`<div class="thread-board"><svg viewBox="0 0 420 310" preserveAspectRatio="none" aria-hidden="true"><rect x="40" y="20" width="340" height="270" rx="34" fill="none" stroke="#c7bea4" stroke-width="8"/>${draft.thread.map((n,i)=>{if(!n)return '';const y=51+i*69,yy=51+threadOrder.indexOf(i)*69;return `<path d="M75 ${y}C170 ${y+24} 250 ${yy-24} 345 ${yy}" fill="none" stroke="${threadColors[i]}" stroke-width="${n===2?5:3}" stroke-linecap="round"/>${n===2?`<circle cx="${173+i*23}" cy="${(y+yy)/2}" r="7" fill="${threadColors[i]}" stroke="#fff8e7" stroke-width="2"/>`:''}`;}).join('')}</svg>${threadSymbols.map((sym,i)=>`<button type="button" class="thread-anchor ${selectedThread===i?'selected':''} ${draft.thread[i]?'done':''}" data-thread-left="${i}" style="left:18%;top:${16.5+i*22.25}%;--thread:${threadColors[i]}" aria-label="왼쪽 ${sym} 실 선택" ${draft.thread[i]?'disabled':''}>${sym}</button>`).join('')}${threadOrder.map((i,row)=>`<button type="button" class="thread-anchor ${draft.thread[i]?'done':''}" data-thread-right="${i}" style="left:82%;top:${16.5+row*22.25}%;--thread:${threadColors[i]}" aria-label="오른쪽 ${threadSymbols[i]} 고리에 실 걸기" ${draft.thread[i]?'disabled':''}>${threadSymbols[i]}</button>`).join('')}</div><div class="thread-knots">${draft.thread.map((n,i)=>`<button type="button" class="thread-knot ${n===1?'ready':n===2?'tied':''}" data-knot="${i}" ${n===1?'':'disabled'}><b>${threadSymbols[i]}</b>${n===2?'매듭 완료':n===1?'매듭 묶기':'실 걸기 먼저'}</button>`).join('')}</div>`+stageFooter());
+        tools.insertAdjacentHTML('beforeend',title(2,'한지 바탕 · 실 걸고 묶기','실과 같은 표식의 고리를 누르고 매듭을 묶어요.')+`<div class="thread-board"><svg viewBox="0 0 420 310" preserveAspectRatio="none" aria-hidden="true">${shapeUnderlay(420,310)}${draft.thread.map((n,i)=>{if(!n)return '';const y=51+i*69,yy=51+threadOrder.indexOf(i)*69;return `<path d="M75 ${y}C170 ${y+24} 250 ${yy-24} 345 ${yy}" fill="none" stroke="${threadColors[i]}" stroke-width="${n===2?5:3}" stroke-linecap="round"/>${n===2?`<circle cx="${173+i*23}" cy="${(y+yy)/2}" r="7" fill="${threadColors[i]}" stroke="#fff8e7" stroke-width="2"/>`:''}`;}).join('')}</svg>${threadSymbols.map((sym,i)=>`<button type="button" class="thread-anchor ${selectedThread===i?'selected':''} ${draft.thread[i]?'done':''}" data-thread-left="${i}" style="left:18%;top:${16.5+i*22.25}%;--thread:${threadColors[i]}" aria-label="왼쪽 ${sym} 실 선택" ${draft.thread[i]?'disabled':''}>${sym}</button>`).join('')}${threadOrder.map((i,row)=>`<button type="button" class="thread-anchor ${draft.thread[i]?'done':''}" data-thread-right="${i}" style="left:82%;top:${16.5+row*22.25}%;--thread:${threadColors[i]}" aria-label="오른쪽 ${threadSymbols[i]} 고리에 실 걸기" ${draft.thread[i]?'disabled':''}>${threadSymbols[i]}</button>`).join('')}</div><div class="thread-knots">${draft.thread.map((n,i)=>`<button type="button" class="thread-knot ${n===1?'ready':n===2?'tied':''}" data-knot="${i}" ${n===1?'':'disabled'}><b>${threadSymbols[i]}</b>${n===2?'매듭 완료':n===1?'매듭 묶기':'실 걸기 먼저'}</button>`).join('')}</div>`+stageFooter());
         qa('[data-thread-left]').forEach(el=>on(el,'click',()=>{selectedThread=+el.dataset.threadLeft;feedback='오른쪽에서 같은 '+threadSymbols[selectedThread]+' 표식의 고리를 골라주세요.';sound();show();}));
         qa('[data-thread-right]').forEach(el=>on(el,'click',()=>{const i=+el.dataset.threadRight;if(selectedThread===null){feedback='먼저 왼쪽에서 실을 골라주세요.';show();return;}if(i!==selectedThread){selectedThread=null;error('다른 표식입니다. 같은 표식의 실과 고리를 이어주세요.');return;}draft.thread[i]=1;selectedThread=null;feedback='실을 걸었어요. 아래에서 같은 표식의 매듭을 묶어주세요.';persist();sound('good');show();}));
         qa('[data-knot]').forEach(el=>on(el,'click',()=>{const i=+el.dataset.knot;if(draft.thread[i]!==1)return;draft.thread[i]=2;feedback='매듭 하나가 단단하게 묶였어요.';persist();sound('good');if(draft.thread.every(n=>n===2))completeStage();show();}));
       }
       function paperPiece(i){
         const x=i%3*160/3,y=Math.floor(i/3)*175/2;
-        return lantern(draft.shape,'#dccca9',false).replace('viewBox="0 0 160 175"',`viewBox="${x} ${y} ${160/3} ${175/2}"`);
+        return workLantern(draft.shape,'#dccca9').replace('viewBox="0 0 160 175"',`viewBox="${x} ${y} ${160/3} ${175/2}"`);
       }
       function showPaper(){
         const order=[4,0,5,2,3,1];
@@ -7525,14 +7548,14 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
           on(el,'click',()=>{selectedPaper=+el.dataset.piece;feedback='왼쪽 밑그림에서 이 조각이 들어갈 자리를 골라주세요.';sound();show();});
         });
       }
-      const paintPaths=['M170 32C110 32 65 62 56 147H170Z','M170 32V147H284C275 62 230 32 170 32Z','M56 147C53 186 62 218 86 244L170 147Z','M284 147H170L254 244C278 218 287 186 284 147Z','M86 244C107 270 139 283 170 284V147Z','M254 244L170 147V284C201 283 233 270 254 244Z'];
-      const paintCenters=[[123,100],[217,100],[92,190],[248,190],[143,231],[197,231]];
       const paintCodes=[0,1,2,2,1,0];
       function showPaint(){
         const colors=[draft.color,'#ddb85e','#84a487'];
-        tools.insertAdjacentHTML('beforeend',title(4,'번호에 맞춰 한지 채색하기','아래에서 번호 색을 고른 뒤, 같은 번호가 적힌 부분을 칠해주세요.')+`<div class="paint-board"><svg viewBox="0 0 340 330" role="img" aria-label="여섯 부분을 채색하는 등"><path d="M170 0V30M150 285H190M170 285V317" stroke="#ba9354" stroke-width="6" stroke-linecap="round"/>${paintPaths.map((path,i)=>`<path d="${path}" data-region="${i}" fill="${draft.paint[i]?colors[paintCodes[i]]:'#e6e9dc'}" role="button" tabindex="${draft.paint[i]?-1:0}" aria-label="${i+1}번째 부분, ${paintCodes[i]+1}번 색으로 채색" aria-disabled="${draft.paint[i]}"/><text x="${paintCenters[i][0]}" y="${paintCenters[i][1]}" fill="${draft.paint[i]?'#fff8e7':'#9aa58d'}">${draft.paint[i]?'✓':paintCodes[i]+1}</text>`).join('')}</svg></div><div class="paint-palette">${colors.map((c,i)=>`<button type="button" class="paint-color ${selectedColor===i?'active':''}" data-paint-color="${i}" aria-pressed="${selectedColor===i}" style="--paint-color:${c}"><i></i>${i+1}번 색</button>`).join('')}</div>`+stageFooter());
+        const shape=craftTemplate();
+        tools.insertAdjacentHTML('beforeend',title(4,'번호에 맞춰 한지 채색하기','아래에서 번호 색을 고른 뒤, 같은 번호가 적힌 부분을 칠해주세요.')+`<div class="paint-board" data-work-shape="${draft.shape}"><svg viewBox="0 0 160 175" role="group" aria-label="${shape.label} 여섯 부분 채색"><defs><clipPath id="craft-paint-shape"><path d="${shape.outline}"/></clipPath></defs><path d="M80 0V16M80 138V165" stroke="#ba9354" stroke-width="3"/><g clip-path="url(#craft-paint-shape)">${draft.paint.map((filled,i)=>`<rect x="${i%3*160/3}" y="${Math.floor(i/3)*87.5}" width="${160/3}" height="87.5" data-region="${i}" fill="${filled?colors[paintCodes[i]]:'#e6e9dc'}" role="button" tabindex="${filled?-1:0}" aria-label="${i+1}번째 부분, ${paintCodes[i]+1}번 색으로 채색" aria-disabled="${filled}"/>`).join('')}</g><path class="paint-shape-outline" d="${shape.outline}" fill="none" stroke="#bca679" stroke-width="1.5"/><path class="paint-shape-outline" d="${shape.detail}" fill="none" stroke="#fff5de" stroke-width="1"/>${shape.centers.map(([x,y],i)=>`<text x="${x}" y="${y}" fill="${draft.paint[i]?'#fff8e7':'#627356'}">${draft.paint[i]?'✓':paintCodes[i]+1}</text>`).join('')}</svg></div><div class="paint-palette">${colors.map((c,i)=>`<button type="button" class="paint-color ${selectedColor===i?'active':''}" data-paint-color="${i}" aria-pressed="${selectedColor===i}" style="--paint-color:${c}"><i></i>${i+1}번 색</button>`).join('')}</div><div class="paint-parts" aria-label="작은 부분도 버튼으로 채색할 수 있어요">${draft.paint.map((filled,i)=>`<button type="button" data-paint-part="${i}" aria-label="${i+1}번째 부분, ${paintCodes[i]+1}번 색으로 채색" ${filled?'disabled':''}><b>${i+1}칸</b><span>${filled?'완료':paintCodes[i]+1+'번 색'}</span></button>`).join('')}</div>`+stageFooter());
         qa('[data-paint-color]').forEach(el=>on(el,'click',()=>{selectedColor=+el.dataset.paintColor;feedback=(selectedColor+1)+'번 색을 골랐어요. 같은 번호의 부분을 칠해주세요.';sound();show();}));
         const paint=i=>{if(draft.paint[i])return;if(selectedColor!==paintCodes[i]){error('이 부분은 '+(paintCodes[i]+1)+'번 색입니다. 색을 골라 다시 칠해주세요.');return;}draft.paint[i]=true;feedback='한 부분을 고르게 칠했어요.';persist();sound('good');if(draft.paint.every(Boolean))completeStage();show();};
+        qa('[data-paint-part]').forEach(el=>on(el,'click',()=>paint(+el.dataset.paintPart)));
         qa('[data-region]').forEach(el=>{on(el,'click',()=>paint(+el.dataset.region));on(el,'keydown',e=>{if(e.key==='Enter'||e.code==='Space'){e.preventDefault();paint(+el.dataset.region);}});});
       }
       function showFinish(){

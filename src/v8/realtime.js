@@ -31,6 +31,7 @@ export function normalizeV8Message(m) {
 }
 
 export function createV8RealtimeClient({client,id=globalThis.crypto.randomUUID(),onMessage=()=>{},onStatus=()=>{},now=()=>Date.now()}) {
+  let presenceSynced=false
   let channel=null,generation=0,state='offline',room='hanmaum',members=new Map(),lastPose=null,tracking=false,trackTimer=0,trackAttempt=0,trackGeneration=0
   let globalReady=false,motion=null,inbox=null,motionReady=false,inboxReady=false,scene=null,sceneGeneration=0,sending=false,snapshotDone=false,snapshotAttempt=0,requestVersion=0,snapshotTimer=0,announcementTimer=0,opening=false,announcedScene=null,announcing=false,lastAnnouncement=-Infinity
   let session=globalThis.crypto?.randomUUID?.()||Math.random().toString(36)
@@ -48,7 +49,7 @@ export function createV8RealtimeClient({client,id=globalThis.crypto.randomUUID()
   }
   function clearMembers(){for(const other of members.keys())onMessage({type:'leave',id:other});members.clear()}
   function disconnect(){
-    generation++;clearTimeout(announcementTimer);announcementTimer=0;globalReady=false;sceneGeneration++;opening=false;cancelReplyWaits();clearTimeout(snapshotTimer);snapshotTimer=0;remove(motion);remove(inbox);ephemeral.forEach(remove);ephemeral.clear();motion=inbox=null;motionReady=inboxReady=false;scene=null;sending=false;resetSnapshot();announcedScene=null;announcing=false;lastAnnouncement=-Infinity;replies.clear();peerSessions.clear();predictor.reset();trackGeneration++;clearTimeout(trackTimer);trackTimer=0;tracking=false;trackAttempt=0
+    presenceSynced=false;generation++;clearTimeout(announcementTimer);announcementTimer=0;globalReady=false;sceneGeneration++;opening=false;cancelReplyWaits();clearTimeout(snapshotTimer);snapshotTimer=0;remove(motion);remove(inbox);ephemeral.forEach(remove);ephemeral.clear();motion=inbox=null;motionReady=inboxReady=false;scene=null;sending=false;resetSnapshot();announcedScene=null;announcing=false;lastAnnouncement=-Infinity;replies.clear();peerSessions.clear();predictor.reset();trackGeneration++;clearTimeout(trackTimer);trackTimer=0;tracking=false;trackAttempt=0
     const old=channel;channel=null;clearMembers();lastPose=null;
     remove(old)
     status('offline','함께 접속을 마쳤습니다.')
@@ -86,8 +87,10 @@ export function createV8RealtimeClient({client,id=globalThis.crypto.randomUUID()
       for(const meta of Array.isArray(newPresences)?newPresences:[]){
         if(typeof meta?.id!=='string'||!meta.id||meta.id===id||meta.id.length>100||typeof meta.presence_ref!=='string'||!meta.presence_ref||meta.presence_ref.length>200)continue
         const joined=!members.has(meta.id),refs=members.get(meta.id)||new Set(),fresh=!refs.has(meta.presence_ref),nextSession=typeof meta.session==='string'&&meta.session.length<=80?meta.session:undefined,changed=nextSession&&nextSession!==peerSessions.get(meta.id)
-        refs.add(meta.presence_ref);members.set(meta.id,refs);if(fresh&&nextSession)peerSessions.set(meta.id,nextSession);if(joined||fresh&&changed)onMessage({type:'join',id:meta.id,session:nextSession})
+        refs.add(meta.presence_ref);members.set(meta.id,refs);if(fresh&&nextSession)peerSessions.set(meta.id,nextSession);if(joined||fresh&&changed)onMessage({type:'join',id:meta.id,session:nextSession,initial:!presenceSynced})
       }
+    }).on('presence',{event:'sync'},()=>{
+      if(current(c,g))presenceSynced=true
     }).on('presence',{event:'leave'},({leftPresences})=>{
       if(!current(c,g))return
       for(const meta of Array.isArray(leftPresences)?leftPresences:[]){
@@ -100,7 +103,7 @@ export function createV8RealtimeClient({client,id=globalThis.crypto.randomUUID()
       if(next==='SUBSCRIBED'){trackGeneration++;tracking=false;void track(c,g)}
       else if(next==='CLOSED'){disconnect();status('unavailable','접속이 종료됐어요. 함께 접속을 눌러 다시 들어와 주세요.')}
       else if(['CHANNEL_ERROR','TIMED_OUT'].includes(next)){
-        globalReady=false;predictor.reset();snapshotDone=false;trackGeneration++
+        presenceSynced=false;globalReady=false;predictor.reset();snapshotDone=false;trackGeneration++
         clearTimeout(trackTimer);trackTimer=0;tracking=false
         status('connecting','연결이 끊겨 다시 접속하고 있어요. 대화 초안은 남아 있습니다.')
       }

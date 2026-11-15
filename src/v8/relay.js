@@ -52,7 +52,7 @@ export function createV8RelayClient ({ id, url, onMessage = () => {}, onStatus =
 
   /* 명단 한 줄을 v8 의 presence 로 바꿔 올립니다. 내 것은 올리지 않습니다.
      이름·생김새가 실려 있으면 기억하고, 없으면 기억해 둔 것과 합칩니다. */
-  function applyRecord (rec) {
+  function applyRecord (rec, initial = false) {
     if (!rec || typeof rec.id !== 'string' || rec.id === participantId) return
     if (!SCENES.has(rec.scene)) return
     if (typeof rec.nick === 'string' && rec.nick) {
@@ -63,19 +63,19 @@ export function createV8RelayClient ({ id, url, onMessage = () => {}, onStatus =
     const full = { ...look, ...rec, linkState: rec.linkState || 'live' }
     const known = members.get(rec.id)
     members.set(rec.id, full)
-    if (!known) onMessage({ type: 'join', id: rec.id, session: rec.id })
+    if (!known) onMessage({ type: 'join', id: rec.id, session: rec.id, initial })
     else if (known.scene !== full.scene) onMessage({ type: 'scene-change', id: rec.id, scene: full.scene })
     onMessage(v8PresenceOf(full))
   }
 
-  function applySnapshot (snap) {
+  function applySnapshot (snap, initial = false) {
     if (!snap) return
     if (snap.full) {
       // 전체 명단이 오면 그 안에 없는 사람은 나간 것입니다.
       const seen = new Set((snap.records || []).map(r => r && r.id))
       for (const peer of [...members.keys()]) if (!seen.has(peer)) { members.delete(peer); looks.delete(peer); onMessage({ type: 'leave', id: peer }) }
     }
-    for (const rec of snap.records || []) applyRecord(rec)
+    for (const rec of snap.records || []) applyRecord(rec, initial)
     for (const peer of snap.removed || []) {
       if (peer === participantId) continue
       looks.delete(peer)
@@ -93,7 +93,7 @@ export function createV8RelayClient ({ id, url, onMessage = () => {}, onStatus =
       resumeToken = typeof m.resumeToken === 'string' ? m.resumeToken : null
       attempt = 0
       setState('online')
-      applySnapshot(m.snapshot)
+      applySnapshot(m.snapshot, true)
       if (lastPose) sendPose(lastPose, true)
       return
     }

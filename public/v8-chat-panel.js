@@ -1,4 +1,4 @@
-/* Transient room-wide chat. No database writes or new network subscription. */
+/* Persistent recent room-wide chat. No database writes or new network subscription. */
 (function(){
  const names={campus:'도량',workshop:'등불사장',temple1:'무진향',lobby2:'2층 로비',lobby3:'3층 로비',terrace2:'2층 바깥',terrace3:'구정탑 마당',hall5:'대법당',seosan:'서산정'}
  function bindComposer(chat,form,input,close){
@@ -23,11 +23,11 @@
  }
  const mobile=()=>window.matchMedia?.('(pointer:coarse)').matches||window.innerWidth<=600;
  function feedEntries(entries,now,isMobile){
-  return entries.filter(e=>now-e.seenAt<9000).slice(isMobile?-3:-5).map(e=>({...e,fading:now-e.seenAt>=8000}));
+  return entries.slice(isMobile?-3:-5);
  }
- function who(chat,m){return(m.scene!==chat.ctx.getScene?.()?(names[m.scene]||'도량')+' · ':'')+m.name+(m.mine?' · 나':'')}
+ function who(chat,m){if(m.kind==='notice')return m.noticeLabel||'접속 안내';return(m.scene!==chat.ctx.getScene?.()?(names[m.scene]||'도량')+' · ':'')+m.name+(m.mine?' · 나':'')}
  function line(chat,m){
-  const row=document.createElement('div');row.className='talk-line';const name=document.createElement('b'),text=document.createElement('span');name.textContent=who(chat,m);text.textContent=m.text;row.append(name,text);return row;
+  const row=document.createElement('div');row.className='talk-line'+(m.kind==='notice'?' talk-system':'');const name=document.createElement('b'),text=document.createElement('span');name.textContent=who(chat,m);text.textContent=m.text;row.append(name,text);return row;
  }
  function viewport(chat){
   const ui=chat._talkUI;if(!ui)return;
@@ -60,7 +60,7 @@
   app.append(feed,panel,history,write);
   const form=document.getElementById('quickChat'),input=document.getElementById('quickChatInput'),record=document.createElement('button');
   record.id='talkHistoryButton';record.type='button';record.textContent='기록';record.setAttribute('aria-controls','talkHistory');form.insertBefore(record,document.getElementById('quickChatClose'));panel.append(form);
-  const ui=chat._talkUI={panel,feed,history,write,record,log:document.getElementById('talkMessages'),seen:new WeakMap(),feedRows:new Map(),historyRows:new Map(),historyOpen:false,newCount:0,listeners:[]};
+  const ui=chat._talkUI={panel,feed,history,write,record,log:document.getElementById('talkMessages'),feedRows:new Map(),historyRows:new Map(),historyOpen:false,newCount:0,listeners:[]};
   const on=(target,event,fn,options)=>{target.addEventListener(event,fn,options);ui.listeners.push(()=>target.removeEventListener(event,fn,options))};
   bindComposer(chat,form,input,document.getElementById('quickChatClose'));
   document.getElementById('chatStream').hidden=true;
@@ -103,12 +103,11 @@
   const latest=document.getElementById('talkNewMessages');latest.hidden=!ui.historyOpen||!ui.newCount;latest.textContent=`새 대화 ${ui.newCount}개 · 최신으로`;
  }
  function render(chat){
-  if(chat.disposed)return;mount(chat);const ui=chat._talkUI,now=Date.now(),editing=chat.quickOpen();
+  if(chat.disposed)return;mount(chat);const ui=chat._talkUI,editing=chat.quickOpen();
   if(editing&&ui.historyOpen){ui.historyOpen=false;ui.history.hidden=true}
-  const entries=chat.messages.map(message=>{if(!ui.seen.has(message))ui.seen.set(message,now);return{message,seenAt:ui.seen.get(message)}}),recent=feedEntries(entries,now,mobile()),keep=new Set(recent.map(e=>e.message));
+  const entries=chat.messages.map(message=>({message})),recent=feedEntries(entries,Date.now(),mobile()),keep=new Set(recent.map(e=>e.message));
   for(const[m,row]of ui.feedRows)if(!keep.has(m)){row.remove();ui.feedRows.delete(m)}
-  for(const[index,e]of recent.entries()){let row=ui.feedRows.get(e.message);if(!row){row=line(chat,e.message);ui.feedRows.set(e.message,row)}else{const label=who(chat,e.message);if(row.firstChild.textContent!==label)row.firstChild.textContent=label}if(ui.feed.children[index]!==row)ui.feed.insertBefore(row,ui.feed.children[index]||null);row.classList.toggle('fading',e.fading)}
-  clearTimeout(ui.timer);if(recent.length){const next=Math.min(...recent.map(e=>e.seenAt+(e.fading?9000:8000)));ui.timer=setTimeout(()=>render(chat),Math.max(1,next-now))}
+  for(const[index,e]of recent.entries()){let row=ui.feedRows.get(e.message);if(!row){row=line(chat,e.message);ui.feedRows.set(e.message,row)}else{const label=who(chat,e.message);if(row.firstChild.textContent!==label)row.firstChild.textContent=label}if(ui.feed.children[index]!==row)ui.feed.insertBefore(row,ui.feed.children[index]||null)}
   updateHistory(chat,ui);
   ui.panel.classList.toggle('writing',editing);ui.write.hidden=editing||ui.historyOpen;ui.feed.hidden=ui.historyOpen;
   document.body.classList.toggle('chat-composing',editing);document.body.classList.toggle('chat-reading',ui.historyOpen);
@@ -117,7 +116,7 @@
   viewport(chat);
  }
  function dispose(chat){
-  const ui=chat._talkUI;if(!ui)return;clearTimeout(ui.timer);ui.listeners.forEach(off=>off());
+  const ui=chat._talkUI;if(!ui)return;ui.listeners.forEach(off=>off());
   if(ui.stage)document.getElementById('app').style.height=ui.stage.style;
   document.body.classList.remove('chat-composing','chat-reading');document.body.style.removeProperty('--chat-keyboard');[ui.feed,ui.panel,ui.history,ui.write].forEach(el=>el.remove());delete chat._talkUI;
  }
