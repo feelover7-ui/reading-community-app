@@ -42,3 +42,6 @@ body.quiet-pilgrimage .pilgrimage-objective{bottom:max(18px,env(safe-area-inset-
  body.quiet-pilgrimage .room-info{top:max(72px,calc(env(safe-area-inset-top) + 60px));max-width:calc(100% - 28px)}
  body.quiet-pilgrimage .interaction{bottom:max(84px,calc(env(safe-area-inset-bottom) + 66px))}
 }
+/* A landmark action remains available above the journey, never over its text. */
+body.pilgrimage-objective-active .quiet-context-action{bottom:max(242px,calc(env(safe-area-inset-bottom) + 224px));width:min(360px,calc(100% - 28px))}
+body.has-modal .quiet-context-action{display:none!important}

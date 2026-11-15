@@ -154,8 +154,81 @@
     }
   }
 
+  function towerRitual (world) {
+    const ritual = window.HanmaumPilgrimageRuntime;
+    return ritual?.runningLap && ritual.state?.stage === 'tower' && world.currentScene === 'terrace3' ? ritual : null;
+  }
+
+  /* A fixed composition keeps both the entire walking circuit and the pagoda
+     in view. Fit the route envelope, not the actor's changing heading. Nothing
+     rotates automatically, including when reduced motion is enabled. */
+  function frameTower (world) {
+    const route = world.getTowerRoute?.(), c = route?.center, radius = route?.radius;
+    if (!c || ![c.x, c.z, radius].every(Number.isFinite) || radius <= 0 || radius > 20) return null;
+    const cam = world.eyeCamera, base = world.groundHeight?.(c.x, c.z) || 0;
+    // Static merging removes most pagoda children, so Box3(towerGroup) is not
+    // its complete silhouette. The current nine-orb model fits below 10 units.
+    const top = base + 10, target = new T.Vector3(c.x, (base + top) / 2, c.z);
+    const half = radius + .85, tanV = Math.tan(cam.fov * Math.PI / 360), tanH = tanV * cam.aspect;
+    if (!(tanV > 0 && tanH > 0)) return null;
+    const ray = world._ritualRay || (world._ritualRay = new T.Raycaster());
+    const bounds = world.bounds;
+    for (const lift of [.56, .72, .86]) {
+      const forward = new T.Vector3(0, lift, Math.sqrt(1 - lift * lift));
+      const up = new T.Vector3(0, forward.z, -forward.y);
+      let distance = 0;
+      // Solve each frustum-plane inequality with room around UI and silhouette.
+      for (const x of [-half, half]) for (const z of [-half, half]) for (const y of [-5, 5]) {
+        const depth = y * forward.y + z * forward.z;
+        distance = Math.max(distance, depth + Math.abs(x) / (tanH * .78), depth + Math.abs(y * up.y + z * up.z) / (tanV * .64));
+      }
+      const position = target.clone().addScaledVector(forward, distance + .5);
+      if (bounds && (position.x < bounds.minX + .5 || position.x > bounds.maxX - .5 || position.z < bounds.minZ + .5 || position.z > bounds.maxZ - .5)) continue;
+      if (world.content && world.cameraHits) {
+        ray.set(position, forward.clone().negate()); ray.near = .05; ray.far = distance; ray.camera = cam;
+        const blocked = world.cameraHits(ray).some(hit => {
+          const o = hit.object, p = hit.point;
+          if (o?.isSprite || o?.userData?.cameraIgnore || o === world.targetMarker || world.isAvatarPart?.(o)) return false;
+          // Hits on the subject itself are expected, including merged meshes.
+          return !p || Math.hypot(p.x - c.x, p.z - c.z) > 2.3 || p.y > top;
+        });
+        if (blocked) continue;
+      }
+      return {position, target};
+    }
+    return null; // Keep the existing collision-aware chase if no safe frame fits.
+  }
+
+  // Explicit look/turn input owns the camera for the remainder of this lap.
+  for (const method of ['look', 'turnView']) {
+    const previous = W.prototype[method];
+    if (!previous) continue;
+    W.prototype[method] = function () {
+      const ritual = towerRitual(this);
+      if (ritual && !this.paused && !this.scenic && this.viewMode === 'chase' && Array.from(arguments).some(v => Number(v))) {
+        this._ritualManual = {ritual, token: ritual.ritualToken};
+      }
+      return previous.apply(this, arguments);
+    };
+  }
+
   const prevUpdateCamera = W.prototype.updateCamera;
   W.prototype.updateCamera = function (dt, immediate) {
+    const ritual = towerRitual(this), manual = this._ritualManual;
+    if (!ritual) { this._ritualFrame = null; this._ritualManual = null; }
+    if (ritual && !this.scenic && this.viewMode === 'chase' && this.player && !(manual?.ritual === ritual && manual.token === ritual.ritualToken)) {
+      let cached = this._ritualFrame;
+      if (!cached || cached.ritual !== ritual || cached.token !== ritual.ritualToken || cached.width !== this.width || cached.height !== this.height || cached.content !== this.content) {
+        cached = this._ritualFrame = {ritual, token: ritual.ritualToken, width: this.width, height: this.height, content: this.content, frame: frameTower(this)};
+      }
+      if (cached.frame) {
+        this.eyeCamera.position.copy(cached.frame.position);
+        this.eyeCamera.lookAt(cached.frame.target);
+        this.player.visible = true;
+        this.chaseReady = false;
+        return;
+      }
+    }
     const out = prevUpdateCamera.call(this, dt, immediate);
     if (this.scenic || this.viewMode !== 'chase' || !this.player || this.indoor) return out;
     const p = this.player.position, cam = this.eyeCamera;

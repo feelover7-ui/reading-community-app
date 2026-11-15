@@ -10,7 +10,7 @@ function setup(state='online'){
  const context=vm.createContext({window:{},document:{},HanmaumAvatar:{cleanText:v=>v.trim()},$:id=>id==='chatInput'?input:null,Date,Math,JSON,Map,Set,Number,Promise,esc:v=>v})
  vm.runInContext(source+';globalThis.Chat=HanmaumLocalChat',context)
  const chat=Object.create(context.Chat.prototype)
- Object.assign(chat,{id:'self',disposed:false,sendPending:false,ctx:{toast:m=>toasts.push(m)},network:{state,send:async()=>false},ownInfo:()=>({id:'self',name:'법우',scene:'campus',position:{x:0,y:0,z:0}}),append:m=>received.push(m),channel:{postMessage:m=>sent.push(m)}})
+ Object.assign(chat,{id:'self',disposed:false,sendPending:false,ctx:{toast:m=>toasts.push(m),store:{view:()=>({name:'법우',profileReady:true})}},network:{state,send:async()=>false},ownInfo:()=>({id:'self',name:'법우',scene:'campus',position:{x:0,y:0,z:0}}),append:m=>received.push(m),channel:{postMessage:m=>sent.push(m)}})
  return {chat,input,sent,received,toasts}
 }
 test('온라인 전송 실패와 연결 중에는 초안을 지우거나 보낸 것으로 표시하지 않는다',async()=>{for(const state of['online','connecting']){const{chat,input,received}=setup(state);await chat.send();assert.equal(input.value,'보낼 대화');assert.equal(received.length,0)}})
@@ -31,7 +31,7 @@ test('received motion predicts movement, clamps stale extrapolation and ignores 
  chat.receive({...m,position:{x:0,y:0,z:0},sampleTime:5});assert.equal(chat.peers.get('other').position.x,2)
  chat.receive({type:'scene-change',id:'other',scene:'hall5'});assert.equal(chat.peers.size,0)
 })
-test('local and online announce paths remain valid after motion polling changes',()=>{const{chat}=setup();chat.ownInfo=()=>({id:'self',name:'법우',scene:'campus',position:{x:0,y:0,z:0}});chat.updateStatus=()=>{};chat.announce();chat.network.state='offline';chat.announce()})
+test('local and online announce paths send only presence and welcome the local profile once',()=>{const{chat,sent,received}=setup();const online=[];chat.network.send=m=>online.push(m);chat.updateStatus=()=>{};chat.announce();chat.network.state='offline';chat.announce();assert.equal(received.length,1);assert.equal(received[0].noticeLabel,'나의 입장');assert.deepEqual(online.map(m=>m.type),['presence']);assert.deepEqual(sent.map(m=>m.type),['presence'])})
 test('departed and scene-switched peers cannot be recreated by delayed snapshots; rejoin works',()=>{
  const context=vm.createContext({window:{},document:{},HanmaumStore:{SCENES:['campus','hall5']},HanmaumAvatar:{duration:()=>1,cleanText:v=>v},$:()=>null,Date,Math,JSON,Map,Set,Number,Promise,esc:v=>v});vm.runInContext(source+';globalThis.Chat=HanmaumLocalChat',context)
  const chat=Object.create(context.Chat.prototype);Object.assign(chat,{selfIds:new Set(['self']),peers:new Map(),meshes:new Map(),network:{state:'online'},ctx:{world:{socialPeers:[]},getScene:()=> 'campus'},renderPeers(){},append(){}})

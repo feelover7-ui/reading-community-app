@@ -44,6 +44,10 @@
       startedAt: finiteTime(source.startedAt),
       completedAt: safeStage === 'complete' ? finiteTime(source.completedAt) : 0,
       ritualDone: source.ritualDone === true,
+      paused: source.paused === true,
+      exploring: source.exploring === true,
+      lapStep: Math.min(12, Math.max(0, Math.floor(Number(source.lapStep) || 0))),
+      towerRewarded: source.towerRewarded === true,
       handled: [...new Set(handled)].slice(-32)
     }
   }
@@ -223,12 +227,12 @@
     objective.id = 'pilgrimageObjective'
     objective.className = 'pilgrimage-objective'
     objective.setAttribute('aria-live', 'polite')
-    objective.innerHTML = '<small>첫 번째 여정</small><strong></strong><p></p><button type="button" class="btn primary"></button>'
+    objective.innerHTML = '<small>참배 여정</small><strong></strong><p></p><button type="button" class="btn primary"></button><div class="pilgrimage-journey-options" hidden><button type="button" data-ritual-restart>이 단계 다시 시작</button><button type="button" data-ritual-explore>자유롭게 둘러보기</button></div>'
     document.body.append(objective)
     return objective
   }
 
-  function mountDialog (overlay, {escape = true} = {}) {
+  function mountDialog (overlay, {escape = true, onClose} = {}) {
     const previousFocus = document.activeElement
     const appRoot = document.getElementById('app')
     if (appRoot) appRoot.inert = true
@@ -237,10 +241,12 @@
       overlay.removeEventListener('keydown', onKeydown)
       overlay.remove()
       if (appRoot) appRoot.inert = false
+      onClose?.()
       if (previousFocus?.isConnected) previousFocus.focus?.({preventScroll: true})
     }
     const onKeydown = event => {
-      if (event.key === 'Escape' && escape) { event.preventDefault(); close(); return }
+      if (event.isComposing) return
+      if (event.key === 'Escape' && escape) { event.preventDefault(); event.stopPropagation(); close(); return }
       if (event.key !== 'Tab') return
       const items = focusables()
       if (!items.length) { event.preventDefault(); return }
@@ -251,10 +257,12 @@
     overlay.addEventListener('keydown', onKeydown)
     overlay.__closeDialog = close
     document.body.append(overlay)
+    focusables()[0]?.focus({preventScroll: true})
     return close
   }
 
   function showCraftObjective (app) {
+    document.body.classList.remove('pilgrimage-exploring')
     const objective = buildObjective()
     objective.querySelector('strong').textContent = '내 손으로 등 하나를 만들어요'
     objective.querySelector('p').textContent = '골조 · 전기 · 한지 · 채색의 네 공정을 차례로 이어갑니다.'
@@ -265,10 +273,14 @@
       setTimeout(() => app.runActivity('craft'), 120)
     }
     objective.hidden = false
+    objective.classList.remove('is-exploring')
+    objective.querySelector('.pilgrimage-journey-options').hidden = true
+    document.body.classList.add('pilgrimage-objective-active')
   }
 
   function showObjective (title, copy, action, label) {
     const objective = buildObjective()
+    objective.classList.remove('is-exploring')
     objective.querySelector('strong').textContent = title
     objective.querySelector('p').textContent = copy
     const button = objective.querySelector('button')
@@ -276,7 +288,9 @@
     button.hidden = typeof action !== 'function'
     button.onclick = typeof action === 'function' ? action : null
     objective.hidden = false
-    root.HanmaumQuietUI?.showContext?.({id: 'pilgrimage-step', label: button.textContent, onSelect: action})
+    objective.querySelector('.pilgrimage-journey-options').hidden = true
+    document.body.classList.add('pilgrimage-objective-active')
+    root.HanmaumQuietUI?.hideContext?.('pilgrimage-step')
     return objective
   }
 
@@ -371,9 +385,61 @@
     })
   }
 
-  function completeTowerRitual (app, controller) {
+  function ritualCurrent (app, controller, token, stage, scene) {
+    return controller.ritualToken === token && controller.state.stage === stage && !controller.state.paused && (!scene || app.scene === scene)
+  }
+
+  function renderRitualObjective (app, controller) {
+    const tower = controller.state.stage === 'tower'
+    const running = controller.runningLap || controller.runningBow
+    const exploring = controller.state.exploring
+    const objective = showObjective(
+      running ? (tower ? '구정탑을 한 바퀴 돕니다' : '법당에서 삼배합니다') : (exploring ? '참배 일시정지' : '참배를 잠시 멈췄어요'),
+      tower ? `자동 탑돌이 · ${controller.state.lapStep || 0} / 12 걸음 저장됨` : '삼배는 이어갈 때 첫 절부터 다시 시작합니다. 마친 탑돌이는 유지됩니다.',
+      running ? () => pauseRitual(app, controller) : () => controller.state.stage === 'tower' ? runPagodaLap(app, controller) : beginHallBows(app, controller),
+      running ? '잠시 멈추기' : '참배 이어가기')
+    objective.classList.toggle('is-exploring', !!exploring)
+    document.body.classList.toggle('pilgrimage-exploring', !!exploring)
+    const choices = objective.querySelector('.pilgrimage-journey-options')
+    choices.hidden = running || exploring
+    objective.querySelector('[data-ritual-restart]').onclick = () => {
+      pauseRitual(app, controller)
+      controller.save({...controller.state, lapStep: tower ? 0 : controller.state.lapStep})
+      if (tower) runPagodaLap(app, controller)
+      else beginHallBows(app, controller)
+    }
+    objective.querySelector('[data-ritual-explore]').onclick = () => {
+      pauseRitual(app, controller)
+      controller.save({...controller.state, exploring: true})
+      renderRitualObjective(app, controller)
+    }
+    return objective
+  }
+
+  function pauseRitual (app, controller) {
+    if (!['tower', 'hall'].includes(controller.state.stage)) return
+    controller.ritualToken++
     controller.runningLap = false
-    app.store.reward({kind: 'tower', xp: 60, coins: 22, stats: {steady: 2, focus: 1}, message: '구정탑을 오른쪽에 두고 시계방향으로 한 바퀴 걸었어요.', data: {laps: 1}})
+    controller.runningBow = false
+    controller.bowStarted = false
+    controller.expectedScenes = []
+    root.HanmaumBuildingTransition?.cancel?.()
+    app.exploration?.stop?.(false)
+    app.cancelTravel?.()
+    if (app.world) { app.world.path = []; app.world.target = null; app.world._autoEnter = null }
+    document.body.classList.remove('pilgrimage-ritual-active')
+    controller.save({...controller.state, paused: true})
+    renderRitualObjective(app, controller)
+  }
+
+  function completeTowerRitual (app, controller, token) {
+    if (!ritualCurrent(app, controller, token, 'tower', 'terrace3')) return
+    controller.runningLap = false
+    // Persist the claim before dispatching the synchronous reward event.
+    if (!controller.state.towerRewarded) {
+      controller.save({...controller.state, towerRewarded: true, lapStep: 12})
+      app.store.reward({kind: 'tower', xp: 60, coins: 22, stats: {steady: 2, focus: 1}, message: '구정탑을 오른쪽에 두고 시계방향으로 한 바퀴 걸었어요.', data: {laps: 1}})
+    }
     controller.advance('tower-complete')
     beginHallBows(app, controller)
   }
@@ -382,48 +448,45 @@
     if (!['carry', 'tower'].includes(controller.state.stage) || controller.runningLap) return
     controller.runningLap = true
     if (controller.state.stage === 'carry') controller.advance('tower-start')
+    document.body.classList.add('pilgrimage-ritual-active')
+    controller.save({...controller.state, paused: false, exploring: false})
+    const token = ++controller.ritualToken
     closeLegacyModal()
+    controller.expectedScenes = app.scene === 'terrace3' ? [] : ['terrace3']
     if (app.scene !== 'terrace3') app.enterScene('terrace3')
     const carriedLantern = lanternById(app, controller.state.lanternId)
     if (carriedLantern) attachCarriedLantern(app.world, carriedLantern)
     const route = ceremonialRoute(app.world?.getTowerRoute?.() || {})
-    const start = route[0]
+    const start = route[(controller.state.lapStep || 0) % route.length]
     app.world._autoEnter = null
     app.world.travelIntent = null
     app.world.path = []
     app.world.target = null
     const startY = app.world.groundHeight?.(start.x, start.z) ?? 0
-    if (app.world.player?.position?.set) {
-      app.world.player.position.set(start.x, startY + 0.12, start.z)
-    } else if (app.world.player) {
-      app.world.player.x = start.x
-      app.world.player.z = start.z
-      if (app.world.player.position) {
-        app.world.player.position.x = start.x
-        app.world.player.position.y = startY + 0.12
-        app.world.player.position.z = start.z
-      }
+    if (app.world.player?.position?.set) app.world.player.position.set(start.x, startY + 0.12, start.z)
+    else if (app.world.player) {
+      app.world.player.x = start.x; app.world.player.z = start.z
+      if (app.world.player.position) Object.assign(app.world.player.position, {x: start.x, y: startY + 0.12, z: start.z})
     }
     app.world.travelState = root.HanmaumTravel?.createGateState?.({x: start.x, y: startY, z: start.z}) || app.world.travelState
-    const token = ++controller.ritualToken
+    const objective = renderRitualObjective(app, controller)
     await new Promise(resolve => setTimeout(resolve, 700))
-    if (controller.ritualToken !== token || controller.state.stage !== 'tower') { controller.runningLap = false; return }
+    if (!ritualCurrent(app, controller, token, 'tower', 'terrace3')) return
     const reducedMotion = !!app.store?.data?.settings?.reducedMotion
     if (reducedMotion) {
-      showObjective('구정탑을 한 바퀴 돕니다', '움직임 줄이기 설정에 따라 걷는 장면을 생략하고 탑돌이의 뜻을 고요히 이어갑니다.', null)
+      objective.querySelector('p').textContent = '움직임 줄이기 · 걷는 장면 없이 탑돌이의 뜻을 이어갑니다.'
       await new Promise(resolve => setTimeout(resolve, 360))
-      if (controller.ritualToken !== token || controller.state.stage !== 'tower') { controller.runningLap = false; return }
-      completeTowerRitual(app, controller)
+      completeTowerRitual(app, controller, token)
       return
     }
-    const objective = showObjective('구정탑을 한 바퀴 돕니다', '캐릭터가 탑을 오른쪽에 두고 시계방향으로 천천히 걷습니다.', null)
-    for (let step = 1; step <= route.length; step++) {
-      const index = step % route.length
+    for (let step = (controller.state.lapStep || 0) + 1; step <= route.length; step++) {
       objective.querySelector('p').textContent = `자동 탑돌이 · ${step} / ${route.length} 걸음`
-      const reached = await waitForPoint(app.world, route[index], token, controller)
-      if (!reached) { controller.runningLap = false; return }
+      const reached = await waitForPoint(app.world, route[step % route.length], token, controller)
+      if (!ritualCurrent(app, controller, token, 'tower', 'terrace3')) return
+      if (!reached) { pauseRitual(app, controller); return }
+      controller.save({...controller.state, lapStep: step})
     }
-    completeTowerRitual(app, controller)
+    completeTowerRitual(app, controller, token)
   }
 
   function completeBowRitual (app, completedBows = 3) {
@@ -433,28 +496,41 @@
   function beginHallBows (app, controller) {
     if (controller.state.stage !== 'hall' || controller.runningBow) return
     controller.runningBow = true
+    controller.bowStarted = false
+    document.body.classList.add('pilgrimage-ritual-active')
+    controller.save({...controller.state, paused: false, exploring: false})
+    const token = ++controller.ritualToken
     closeLegacyModal()
+    renderRitualObjective(app, controller)
     const begin = () => {
-      if (controller.state.stage !== 'hall') { controller.runningBow = false; return }
+      if (!ritualCurrent(app, controller, token, 'hall', 'hall5')) return
       app.world?.focusHallFront?.()
       const carriedLantern = lanternById(app, controller.state.lanternId)
       if (carriedLantern) attachCarriedLantern(app.world, carriedLantern)
-      showObjective('법당에서 삼배합니다', '법당 안 예경 자리로 걸어가 세 번 천천히 절합니다.', null)
       const reducedMotion = !!app.store?.data?.settings?.reducedMotion
       if (reducedMotion) {
         const sequence = root.HanmaumHallPhoto?.bowSequence?.({reducedMotion: true}) || {completedBows: 3}
-        showObjective('법당에서 삼배합니다', '움직임 줄이기 설정에 따라 절 동작을 생략하고 세 번의 예경을 고요히 이어갑니다.', null)
-        setTimeout(() => { if (controller.state.stage === 'hall') completeBowRitual(app, sequence.completedBows) }, 520)
+        setTimeout(() => {
+          if (ritualCurrent(app, controller, token, 'hall', 'hall5')) completeBowRitual(app, sequence.completedBows)
+        }, 520)
         return
       }
       setTimeout(() => {
+        if (!ritualCurrent(app, controller, token, 'hall', 'hall5')) return
         closeLegacyModal()
         app.runActivity('bow')
+        controller.bowStarted = true
       }, 750)
     }
     if (app.scene === 'hall5') begin()
-    else if (root.HanmaumBuildingTransition?.enterHall) root.HanmaumBuildingTransition.enterHall(app).then(ok => { if (ok) begin(); else controller.runningBow = false })
-    else { app.enterScene('hall5'); begin() }
+    else if (root.HanmaumBuildingTransition?.enterHall) {
+      controller.expectedScenes = app.scene === 'terrace3' ? ['lobby3', 'hall5'] : ['hall5']
+      root.HanmaumBuildingTransition.enterHall(app).then(ok => {
+        if (controller.ritualToken !== token) return
+        if (ok) begin()
+        else pauseRitual(app, controller)
+      })
+    } else { controller.expectedScenes = ['hall5']; app.enterScene('hall5'); begin() }
   }
 
   function guideToRack (app, controller) {
@@ -487,8 +563,9 @@
     overlay.className = 'pilgrimage-sheet'
     overlay.setAttribute('role', 'dialog')
     overlay.setAttribute('aria-modal', 'true')
-    overlay.innerHTML = '<form class="pilgrimage-sheet-card"><span>등걸이대</span><h2>이름과 발원을 적고 등을 걸어요</h2><p>손으로 만든 등이 이 등걸이대에 남습니다.</p><label>도량에서 불릴 이름<input maxlength="12" autocomplete="nickname" value="" placeholder="이름 또는 별명"></label><label>등에 남길 발원<textarea maxlength="120" rows="3" placeholder="마음에 품은 발원을 적어주세요."></textarea></label><button class="btn primary" type="submit">내 등 걸기</button><small role="status"></small></form>'
-    const closeSheet = mountDialog(overlay, {escape: false})
+    overlay.innerHTML = '<form class="pilgrimage-sheet-card"><span>등걸이대</span><h2>이름과 발원을 적고 등을 걸어요</h2><p>손으로 만든 등이 이 등걸이대에 남습니다.</p><label>도량에서 불릴 이름<input maxlength="12" autocomplete="nickname" value="" placeholder="이름 또는 별명"></label><label>등에 남길 발원<textarea maxlength="120" rows="3" placeholder="마음에 품은 발원을 적어주세요."></textarea></label><button class="btn primary" type="submit">내 등 걸기</button><button class="btn secondary" type="button" data-hang-later>나중에 걸기</button><small role="status"></small></form>'
+    const closeSheet = mountDialog(overlay)
+    overlay.querySelector('[data-hang-later]').onclick = closeSheet
     overlay.querySelector('form').onsubmit = async event => {
       event.preventDefault()
       if (overlay.dataset.saving) return
@@ -550,29 +627,40 @@
   }
 
   function showFinale (app, controller) {
-    if (document.getElementById('pilgrimageFinale')) return
+    if (controller.state.stage !== 'finale' || document.getElementById('pilgrimageFinale')) return
+    document.getElementById('pilgrimageObjective')?.remove()
+    document.body.classList.remove('pilgrimage-objective-active', 'pilgrimage-ritual-active', 'pilgrimage-exploring')
     closeLegacyModal()
     const ritualDone = controller.state.ritualDone
     document.body.classList.add('pilgrimage-finale-open')
     const overlay = document.createElement('section')
     overlay.id = 'pilgrimageFinale'
     overlay.className = 'pilgrimage-finale'
+    overlay.setAttribute('role', 'dialog')
+    overlay.setAttribute('aria-modal', 'true')
+    overlay.setAttribute('aria-label', '참배 여정 완료')
     const madeLantern = !!controller.state.lanternId
     overlay.innerHTML = `<div><span>${madeLantern ? '나의 발원등' : '온라인 참배'}</span><h2>${madeLantern && !ritualDone ? '내 손으로 만든 등이<br>걸이대에 걸렸습니다' : '탑돌이와 삼배로<br>마음을 모았습니다'}</h2><p>${ritualDone ? '구정탑 탑돌이와 대법당 삼배를 마쳤어요.' : '등 만들기를 마쳤습니다. 원하면 자동 탑돌이와 법당 참배를 이어갈 수 있어요.'}</p><button class="btn secondary" type="button">자유롭게 둘러보기</button>${!ritualDone ? '<button class="btn primary" type="button" data-continue-ritual>탑돌이·참배 이어가기</button>' : ''}</div>`
     overlay.querySelector('[data-continue-ritual]')?.addEventListener('click', () => {
       controller.advance('start-pilgrimage')
-      overlay.remove()
+      overlay.__closeDialog?.()
       document.body.classList.remove('pilgrimage-finale-open')
       runPagodaLap(app, controller)
     })
     overlay.querySelector('button').onclick = () => {
       controller.advance('finale-close')
-      overlay.remove()
+      overlay.__closeDialog?.()
       document.body.classList.remove('pilgrimage-finale-open', 'pilgrimage-first')
       setupReturning(app)
     }
-    document.body.append(overlay)
-    setTimeout(() => overlay.querySelector('button')?.focus(), 80)
+    mountDialog(overlay, {onClose: () => {
+      document.body.classList.remove('pilgrimage-finale-open')
+      if (controller.state.stage === 'finale') {
+        controller.advance('finale-close')
+        document.body.classList.remove('pilgrimage-first')
+        setupReturning(app)
+      }
+    }})
   }
 
   function setupReturning (app) {
@@ -757,7 +845,7 @@
         setTimeout(() => app.runActivity('craft'), 180)
       } else {
         showObjective('구정탑에서 참배를 시작합니다', '캐릭터가 구정탑을 시계방향으로 한 바퀴 돕니다.', () => runPagodaLap(app, root.HanmaumPilgrimageRuntime), '자동 탑돌이 시작')
-        setTimeout(() => runPagodaLap(app, root.HanmaumPilgrimageRuntime), 180)
+        runPagodaLap(app, root.HanmaumPilgrimageRuntime)
       }
     }
     overlay.querySelector('.pilgrimage-enter').onclick = () => begin('start-pilgrimage')
@@ -794,6 +882,25 @@
       }
     }
     root.HanmaumPilgrimageRuntime = controller
+    controller.pause = () => pauseRitual(app, controller)
+    const onScene = app.world.onScene
+    app.world.onScene = function (scene) {
+      const expected = controller.expectedScenes?.[0] === scene
+      if (expected) controller.expectedScenes.shift()
+      else if (controller.runningLap || controller.runningBow) pauseRitual(app, controller)
+      const result = onScene?.apply(this, arguments)
+      root.HanmaumQuietUI?.sync?.({scene, stage: state.stage, returning: ['complete', 'free'].includes(state.stage)})
+      return result
+    }
+    // The existing in-world bow owns its animation. Observe its stop/finish without
+    // creating a second animation or hiding a stop control with no replacement.
+    controller.monitor = setInterval(() => {
+      if (!controller.runningBow || !controller.bowStarted) return
+      if (!app.exploration?.task) { pauseRitual(app, controller); return }
+      const copy = document.getElementById('pilgrimageObjective')?.querySelector('p')
+      if (copy) copy.textContent = document.getElementById('spaceText')?.textContent || '예경 자리로 걸어갑니다.'
+    }, 200)
+    root.addEventListener('pagehide', () => { pauseRitual(app, controller) })
     root.HanmaumDestinationMap?.mount?.(app)
     controller.openRack = () => {
       if(controller.hangInFlight)return false
@@ -830,8 +937,8 @@
       if (lantern) attachCarriedLantern(app.world, lantern)
       if (state.stage === 'carry') guideToRack(app, controller)
       else if (state.stage === 'tower') {
-        showObjective('구정탑으로 등을 들고 갑니다', '준비되면 자동으로 구정탑을 한 바퀴 돕니다.', () => runPagodaLap(app, controller), '자동 탑돌이 시작')
-      } else if (state.stage === 'hall') beginHallBows(app, controller)
+        pauseRitual(app, controller)
+      } else if (state.stage === 'hall') pauseRitual(app, controller)
       else if (state.stage === 'hang') guideToRack(app, controller)
       else if (state.stage === 'finale') showFinale(app, controller)
     }
@@ -849,10 +956,11 @@
           attachCarriedLantern(app.world, lantern)
           guideToRack(app, controller)
         }, 120)
-      } else if (detail.kind === 'bow' && state.stage === 'hall') {
+      } else if (detail.kind === 'bow' && state.stage === 'hall' && controller.runningBow && !state.paused && app.scene === 'hall5') {
         controller.runningBow = false
+        controller.bowStarted = false
         controller.advance('bow-complete')
-        setTimeout(() => controller.state.stage === 'hang' ? showHangSheet(app, controller) : showFinale(app, controller), 120)
+        setTimeout(() => { if (controller.state.stage === 'finale') showFinale(app, controller) }, 120)
       }
     })
   }
