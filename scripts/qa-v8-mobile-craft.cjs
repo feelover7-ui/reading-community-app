@@ -3,7 +3,8 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  fs.mkdirSync('outputs/mobile-craft',{recursive:true});
  const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
  try{for(const size of (process.env.QA_SIZES||'390x844,375x667,375x560,844x390,1280x900').split(',')){
- const [width,height]=size.split('x').map(Number),mobile=width<1000,context=await browser.newContext({viewport:{width,height},isMobile:mobile,hasTouch:mobile});
+ const safeArea=process.env.QA_SAFE_AREA==='1',mode=size+(safeArea?'-safe':''),[width,height]=size.split('x').map(Number),mobile=width<1000,context=await browser.newContext({viewport:{width,height},isMobile:mobile,hasTouch:mobile});
+ if(safeArea)await context.route('**/v8-craft-view.css',async r=>{const response=await r.fetch(),body=(await response.text()).replaceAll('env(safe-area-inset-top)','47px').replaceAll('env(safe-area-inset-bottom)','34px');await r.fulfill({response,body})});
  await context.route('**/rest/v1/**',r=>['GET','HEAD','OPTIONS'].includes(r.request().method())?r.continue():r.abort());
  const page=await context.newPage(),errors=[],reports=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(120000);
  await page.goto(process.env.QA_URL||'http://127.0.0.1:4179/v8.html',{waitUntil:'domcontentloaded'});await page.locator('[data-arrival-choice="explore"]').click();
@@ -12,13 +13,13 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  const fit=async(stage,board)=>{
   await page.locator('.modal-card').evaluate(el=>Promise.all(el.getAnimations().map(a=>a.finished.catch(()=>{}))));
   const r=await page.evaluate(board=>{const box=e=>{const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};const body=document.getElementById('modalBody');return{preview:box(document.querySelector('.craft-object-preview')),board:box(document.querySelector(board)),body:box(body),footer:box(document.getElementById('workshopActions')),scroll:body.scrollTop,overflow:body.scrollHeight-body.clientHeight,controls:[...document.querySelectorAll('.craft-work-tools button:not(:disabled):not(.workshop-source-action),.craft-work-tools [data-region][tabindex="0"]')].filter(e=>e.getClientRects().length).map(box)}},board);
-  console.log(size,stage,JSON.stringify({overflow:r.overflow,scroll:r.scroll,preview:r.preview,board:r.board}));reports.push({stage,...r});
+  console.log(mode,stage,JSON.stringify({overflow:r.overflow,scroll:r.scroll,preview:r.preview,board:r.board}));reports.push({stage,...r});
   assert.ok(r.preview.top>=r.body.top-1&&r.preview.bottom<=r.body.bottom+1,'preview clipped '+stage);
   assert.ok(r.board.top>=r.body.top-1&&r.board.bottom<=r.body.bottom+1,'board clipped '+stage);
   assert.ok(r.overflow<=2,'craft needs scrolling '+stage+': '+r.overflow);
   assert.equal(r.scroll,0,'craft shifted '+stage);
   for(const b of r.controls){assert.ok(b.top>=r.body.top-1&&b.bottom<=r.body.bottom+1,'control clipped '+stage);assert.ok(b.left>=r.body.left-1&&b.right<=r.body.right+1,'horizontal overflow');}
-  await page.screenshot({path:`outputs/mobile-craft/${size}-${stage}.png`});
+  await page.screenshot({path:`outputs/mobile-craft/${mode}-${stage}.png`});
  };
  await tap('#workshopNext');await fit('frame','.frame-board');
  // A wrong pair must give recoverable feedback without moving the board.
@@ -37,6 +38,6 @@ const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=r
  }
  assert.equal(await page.locator('.craft-object-preview').getAttribute('data-paint'),'6');await fit('paint-done','.paint-board');await tap('#workshopNext');await tap('#workshopNext');
  await page.waitForFunction(()=>__HANMAUM_APP__.store.data.lanterns.length===1);assert.equal(await page.evaluate(()=>__HANMAUM_APP__.store.data.lanterns[0].pendingHang),true);assert.deepEqual(errors,[]);
- fs.writeFileSync(`outputs/mobile-craft/${size}.json`,JSON.stringify({reports,errors,completedLantern:true},null,2));await context.close();
+ fs.writeFileSync(`outputs/mobile-craft/${mode}.json`,JSON.stringify({reports,errors,completedLantern:true},null,2));await context.close();
  }}finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
