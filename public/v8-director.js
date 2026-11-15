@@ -43,15 +43,16 @@
       hair: gender === 'female' ? 'bob' : 'short',
       skin: current.skin,
       hairColor: current.hairColor,
-      robeColor: gender === 'female' ? '#819985' : '#526b62'
+      robeColor: gender === 'female' ? '#bd8f92' : '#657f97'
     }
     const name = state.name === '법우' ? '' : String(state.name || '').slice(0, 12)
-    const markup = `<form id="profileForm" data-director-entry="true" onsubmit="return false"><div class="director-entry"><div class="director-entry-promise"><span>한마음 도량여행</span><h3>천천히 걷고, 마음을 밝혀요.</h3><p>마음을 담은 등을 만들어 도량에 남겨보세요</p><ol><li>등불사장에서 첫 등을 만들어요</li><li>완성한 등에 마음을 적어 걸어요</li><li>탑돌이와 법당 참배로 이어가요</li></ol></div><div class="director-entry-form"><div id="profilePreview" class="director-entry-preview">${portrait('hae', 'basic', false, appearance)}</div><label class="form-label" for="setupName">도량에서 불릴 이름</label><input class="text-input" id="setupName" maxlength="12" autocomplete="nickname" placeholder="1~12자로 입력" value="${escapeHtml(name)}"><label class="form-label" for="setupGender">나의 모습</label><select id="setupGender" class="text-input"><option value="male" ${gender === 'male' ? 'selected' : ''}>현대적인 남성 청년</option><option value="female" ${gender === 'female' ? 'selected' : ''}>현대적인 여성 청년</option></select><p class="section-note">머리 모양과 색은 들어간 뒤 캐릭터 메뉴에서 바꿀 수 있어요.</p><button type="button" class="btn primary wide" data-ui="saveProfile">첫 등 만들기 시작</button><p id="profileError" class="profile-error" role="status"></p></div></div></form>`
+    const markup = `<form id="profileForm" data-director-entry="true" onsubmit="return false"><div class="director-entry"><div class="director-entry-promise"><span>한마음 도량여행</span><h3>천천히 걷고, 마음을 밝혀요.</h3><p>마음을 담은 등을 만들어 도량에 남겨보세요</p><ol><li>등불사장에서 첫 등을 만들어요</li><li>완성한 등에 마음을 적어 걸어요</li><li>탑돌이와 법당 참배로 이어가요</li></ol></div><div class="director-entry-form"><div id="profilePreview" class="director-entry-preview">${portrait('hae', 'basic', false, appearance)}</div><label class="form-label" for="setupName">도량에서 불릴 이름</label><input class="text-input" id="setupName" maxlength="12" autocomplete="nickname" placeholder="1~12자로 입력" value="${escapeHtml(name)}"><label class="form-label" for="setupGender">나의 모습</label><select id="setupGender" class="text-input"><option value="male" ${gender === 'male' ? 'selected' : ''}>현대적인 남성 청년</option><option value="female" ${gender === 'female' ? 'selected' : ''}>현대적인 여성 청년</option></select><p class="section-note">피부색·머리색·옷 색은 들어간 뒤 캐릭터 메뉴에서 바꿀 수 있어요.</p><button type="button" class="btn primary wide" data-ui="saveProfile">첫 등 만들기 시작</button><p id="profileError" class="profile-error" role="status"></p></div></div></form>`
     return {promise: '마음을 담은 등을 만들어 도량에 남겨보세요', fields: ['name', 'gender'], appearance, markup}
   }
 
   function portrait (character = 'hae', outfit = 'basic', small = false, value = {}) {
     const a = safeAppearance(value)
+    if(window.HanmaumYouthModel)return `<img class="youth-model-portrait" src="/models/youth-${a.gender==='female'?'female':'male'}-portrait.png" alt="게임 캐릭터 기본 모습" width="320" height="320">`
     const style = characterStyle({gender: a.gender, outfit})
     const c = coat({outfit}, a)
     const female = a.gender === 'female'
@@ -68,6 +69,7 @@
   }
 
   function createActor (state = {}, label = false) {
+    if (window.HanmaumYouthModel) return window.HanmaumYouthModel.createActor(state, label, avatar)
     const a = safeAppearance(state.appearance)
     const f = FACE[a.gender]
     const style = characterStyle({gender: a.gender, outfit: state.outfit})
@@ -253,6 +255,11 @@
       if (!rig || player.userData?.directorStyle?.design !== 'approved-youth') return result
       if (!this.gesture) rig.body.position.y = 0
       player.updateMatrixWorld(true)
+      if(rig.authored){
+        const phase=this.gesture?.kind==='prostrate'?Math.sin(Math.min(1,this.gesture.time/this.gesture.duration)*Math.PI):0
+        if(phase){rig.body.rotation.x=0;rig.torso.rotation.x=phase*1.2;rig.body.position.y=-phase*.55;rig.legs.forEach(b=>b.rotation.x=-phase*1.25);rig.calves.forEach(b=>b.rotation.x=phase*2.15)}
+        rig.root.updateMatrixWorld(true);rig.skeleton.update();return result
+      }
       const floor = player.getWorldPosition(new T.Vector3()).y
       const bounds = new T.Box3()
       for (const part of player.userData.parts || []) bounds.expandByObject(part)

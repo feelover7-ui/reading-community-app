@@ -4,7 +4,7 @@
   if (window.HanmaumBuildingTransition) return
 
   const savedScenes = Object.freeze(['campus', 'workshop', 'temple1', 'lobby2', 'lobby3', 'terrace2', 'terrace3', 'hall5', 'seosan'])
-  const visibleDestinations = Object.freeze(['campus', 'workshop', 'temple1', 'terrace2', 'terrace3', 'hall5', 'seosan'])
+  const visibleDestinations = Object.freeze(['campus', 'workshop', 'temple1', 'lobby2', 'lobby3', 'terrace2', 'terrace3', 'hall5', 'seosan'])
   const transfers = Object.freeze({
     lobby2: Object.freeze({title: '본원 2층 승강기 전환', floor: 2, outside: 'terrace2', claim: 'transition-only'}),
     lobby3: Object.freeze({title: '본원 3층 출입·승강기 전환', floor: 3, outside: 'terrace3', claim: 'transition-only'})

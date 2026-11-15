@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
+<meta name="hanmaum-release" content="2026-11-15-integrated-v7">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#244c3b">
@@ -243,6 +244,7 @@ body.m-simple #spaceActivity{top:calc(110px + env(safe-area-inset-top,0px))!impo
 body.campus-overview #viewControls,body.campus-overview #lookControls{display:none!important}
 body.campus-overview .world-marker{padding:9px 13px!important;font-size:13px!important}
 </style>
+<link rel="stylesheet" href="/v8-chat-panel.css">
 </head>
 <body>
 <main id="app">
@@ -4661,6 +4663,8 @@ globalThis.THREE=lC;
       if (!/^#[0-9a-f]{6}$/i.test(color)) fail('등 색상이 올바르지 않습니다.');
       const result = {id, shape: one(item.shape, SHAPES, '등 모양'), color, vow: text(item.vow, '발원', 180), name: text(item.name, '등 이름', 40), createdAt: iso(item.createdAt, '등 제작일')};
       if (own(item, 'pattern')) result.pattern = one(item.pattern, ['none', 'dots', 'wave', 'dancheong', 'gold'], '등 무늬');
+      if (own(item, 'pendingHang')) result.pendingHang = bool(item.pendingHang, '등 걸기 대기');
+      if (typeof item.sharedId === 'string') result.sharedId = item.sharedId.slice(0, 128);
       return result;
     });
     const grand = obj(source.grand, '장엄등 제작');
@@ -4931,6 +4935,7 @@ globalThis.THREE=lC;
       if (kind === 'craft') {
         const l = info.lantern;
         this.data.lanterns.push({id: l.id.slice(0, 128), shape: l.shape, color: l.color, vow: String(l.vow || '').slice(0, 180), name: String(l.name || '나의 발원등').slice(0, 40), createdAt: Number.isFinite(Date.parse(l.createdAt)) ? new Date(l.createdAt).toISOString() : new Date(this._now()).toISOString()});
+        if (l.pendingHang === true) this.data.lanterns[this.data.lanterns.length - 1].pendingHang = true;
         // app.js 블록에 있는 함수다. window 를 거쳐야 보인다.
         if (typeof window !== 'undefined' && typeof window.HanmaumShareLantern === 'function') window.HanmaumShareLantern(this.data.lanterns[this.data.lanterns.length - 1]);
         record.crafts = Math.min(MAX_RECORD, record.crafts + 1);
@@ -6893,8 +6898,8 @@ function portrait(character='hae',outfit='basic',small=false,appearance){return 
 class HanmaumFeatures{
  constructor(ctx){this.ctx=ctx;this.store=ctx.store;this.world=ctx.world;this.lastQuote=-1;this.social=new HanmaumLocalChat(ctx);this.world.onGestureComplete=e=>this.completeGreeting(e);this.world.onGestureCancel=()=>this.renderGreetingProgress();this.renderGreetingProgress();document.addEventListener('input',e=>{if(e.target.closest('#profileForm'))this.previewProfile();});document.addEventListener('change',e=>{if(e.target.closest('#profileForm'))this.previewProfile();});}
  button(text,action,value='',klass='primary',disabled=false){return `<button type="button" class="btn ${klass}" data-ui="${action}" data-value="${esc(value)}" ${disabled?'disabled':''}>${text}</button>`;}
- showProfile(first=false){const v=this.store.view(),a=v.appearance,b=this.ctx.openModal(first?'onboarding':'profile',first?'도량에서 만날 나를 만들어 주세요':'이름과 외관 바꾸기','이름과 기본 외관은 언제든 다시 바꿀 수 있어요.');$('modalClose').hidden=first;b.innerHTML=`<form id="profileForm" onsubmit="return false"><div class="profile-editor"><div class="profile-preview"><span>나의 첫 걸음</span><div id="profilePreview">${portrait(v.character,v.outfit,false,a)}</div><strong id="profilePreviewName">${esc(v.name==='법우'?'나의 이름':v.name)}</strong><small>성별은 보이는 모습만 정합니다.</small></div><div class="profile-fields"><label class="form-label" for="setupName">도량에서 불릴 이름</label><input class="text-input" id="setupName" maxlength="12" autocomplete="nickname" placeholder="1~12자로 입력" value="${esc(first&&v.name==='법우'?'':v.name)}"><div class="profile-field-grid"><label>성별<select id="setupGender"><option value="male" ${a.gender==='male'?'selected':''}>남성</option><option value="female" ${a.gender==='female'?'selected':''}>여성</option><option value="neutral" ${a.gender==='neutral'?'selected':''}>선택하지 않음</option></select></label><label>머리 모양<select id="setupHair">${[['short','짧은 머리'],['bob','단발머리'],['bun','묶은 머리'],['shaved','민머리']].map(([id,t])=>`<option value="${id}" ${id===a.hair?'selected':''}>${t}</option>`).join('')}</select></label></div><div class="profile-colors">${[['skin','피부색',a.skin],['hairColor','머리색',a.hairColor],['robeColor','기본 조끼색',a.robeColor]].map(([id,t,c])=>`<label>${t}<input id="setup-${id}" type="color" value="${c}" aria-label="${t}"></label>`).join('')}</div><p class="section-note">기본 조끼는 자유롭게 색을 바꿀 수 있어요. 수행복과 다른 의상은 무진향에서 마음잎으로 구매합니다.</p>${this.button(first?'이 모습으로 도량에 들어가기':'이름과 외관 저장','saveProfile','','primary wide')}<p id="profileError" class="profile-error" role="status"></p></div></div></form>`;setTimeout(()=>$('setupName')?.focus(),80);}
- formAppearance(){return {gender:$('setupGender')?.value||'neutral',hair:$('setupHair')?.value||'short',skin:$('setup-skin')?.value||'#e9ba91',hairColor:$('setup-hairColor')?.value||'#3b3931',robeColor:$('setup-robeColor')?.value||'#70a994'};}
+ showProfile(first=false){const v=this.store.view(),a=v.appearance,b=this.ctx.openModal(first?'onboarding':'profile',first?'도량에서 만날 나를 만들어 주세요':'이름과 외관 바꾸기','이름과 기본 외관은 언제든 다시 바꿀 수 있어요.');$('modalClose').hidden=first;b.innerHTML=`<form id="profileForm" onsubmit="return false"><div class="profile-editor"><div class="profile-preview"><span>나의 첫 걸음</span><div id="profilePreview">${portrait(v.character,v.outfit,false,a)}</div><strong id="profilePreviewName">${esc(v.name==='법우'?'나의 이름':v.name)}</strong><small>성별은 보이는 모습만 정합니다.</small></div><div class="profile-fields"><label class="form-label" for="setupName">도량에서 불릴 이름</label><input class="text-input" id="setupName" maxlength="12" autocomplete="nickname" placeholder="1~12자로 입력" value="${esc(first&&v.name==='법우'?'':v.name)}"><div class="profile-field-grid"><label>성별<select id="setupGender"><option value="male" ${a.gender==='male'?'selected':''}>남성</option><option value="female" ${a.gender==='female'?'selected':''}>여성</option><option value="neutral" ${a.gender==='neutral'?'selected':''}>선택하지 않음</option></select></label><label>머리 모양<select id="setupHair">${[[a.gender==='female'?'bob':'short','모델 기본 머리']].map(([id,t])=>`<option value="${id}" ${id===a.hair?'selected':''}>${t}</option>`).join('')}</select></label></div><div class="profile-colors">${[['skin','피부색',a.skin],['hairColor','머리색',a.hairColor],['robeColor','겉옷 색',a.robeColor]].map(([id,t,c])=>`<label>${t}<input id="setup-${id}" type="color" value="${c}" aria-label="${t}"></label>`).join('')}</div><p class="section-note">겉옷 색은 자유롭게 바꿀 수 있어요. 위 사진은 기본 모습이며 선택한 색과 의상은 도량에서 적용됩니다. 수행복과 다른 의상은 무진향에서 마음잎으로 구매합니다.</p>${this.button(first?'이 모습으로 도량에 들어가기':'이름과 외관 저장','saveProfile','','primary wide')}<p id="profileError" class="profile-error" role="status"></p></div></div></form>`;setTimeout(()=>$('setupName')?.focus(),80);}
+ formAppearance(){return {gender:$('setupGender')?.value||'neutral',hair:$('setupGender')?.value==='female'?'bob':'short',skin:$('setup-skin')?.value||'#e9ba91',hairColor:$('setup-hairColor')?.value||'#3b3931',robeColor:$('setup-robeColor')?.value||'#70a994'};}
  previewProfile(){if(!$('profilePreview'))return;const v=this.store.view();$('profilePreview').innerHTML=portrait(v.character,v.outfit,false,this.formAppearance());$('profilePreviewName').textContent=$('setupName').value||'나의 이름';}
  saveProfile(){const r=this.store.setProfile($('setupName')?.value||'',this.formAppearance());if(!r.ok){$('profileError').textContent=r.message;$('setupName')?.focus();return;}this.world.refreshAppearance();this.ctx.updateHUD();this.ctx.closeModal();this.ctx.toast(r.message);this.social.announce();this.social.autoConnect();}
  showShop(){const v=this.store.view(),b=this.ctx.openModal('shop','무진향','마음잎으로 의상과 공양물을 준비합니다. 실제 결제는 없습니다.');b.innerHTML=`<div class="shop-balance">${this.ctx.icon('leaf')}<span>나의 마음잎</span><b>${v.coins.toLocaleString()}</b><small>Lv. ${v.level}</small></div><h3 class="section-title">입고 싶은 수행복과 의상</h3><div class="outfit-shop">${Object.values(HanmaumStore.OUTFITS).map(o=>{const owned=v.ownedOutfits.includes(o.id),locked=v.level<o.level,worn=v.outfit===o.id;return `<article class="outfit-product ${locked?'level-locked':''}"><div class="outfit-preview">${portrait(v.character,o.id,false,v.appearance)}</div><span class="badge">Lv. ${o.level}</span><h4>${o.name}</h4><p>${owned?(worn?'지금 입고 있어요':'구매한 의상'):`마음잎 ${o.price}`}</p>${this.button(worn?'착용 중':locked?`Lv. ${o.level}부터`:owned?'입기':'구매하고 입기',owned?'equipOutfit':'buyOutfit',o.id,owned?'secondary small':'primary small',locked||worn||(!owned&&v.coins<o.price))}</article>`;}).join('')}</div><h3 class="section-title">공양물과 소장품</h3><div class="shop-grid">${Object.values(HanmaumStore.ITEMS).map(it=>{const n=v.inventory[it.id],owned=!it.consumable&&n>0;return `<article class="shop-item"><div class="item-art">${this.ctx.icon(it.icon)}</div><h3>${it.name}</h3><p>${it.description}</p><div class="row"><span class="price">${this.ctx.icon('leaf')}${HanmaumStore.priceFor(it.id,v.level)}${HanmaumStore.priceFor(it.id,v.level)<it.price?' <small>(10% 할인)</small>':''}</span><span class="spacer"></span><span>소지 ${n}</span></div>${this.button(owned?'소장 중':'구매하기','buy',it.id,owned?'secondary':'primary',owned||v.coins<HanmaumStore.priceFor(it.id,v.level))}</article>`;}).join('')}</div><div class="modal-footer">${this.button('소지품 보기','bag','','secondary')}${this.button('5층 공양대로','offerRoute','','primary')}</div>`;}
@@ -6943,7 +6948,7 @@ class HanmaumLocalChat{
   if(['offline','unavailable'].includes(state))this.clearPeers();
   this.updateStatus();
  }
- connectOnline(){const room=$('chatRoom')?.value||'hanmaum';this.autoOff=false;this.saveOnlineChoice(room,true);this.clearPeers();this.network.connect(room);}
+ connectOnline(){const room=$('chatRoom')?.value||this.savedRoom();this.autoOff=false;this.saveOnlineChoice(room,true);this.clearPeers();this.network.connect(room);}
  disconnectOnline(){this.autoOff=true;this.saveOnlineChoice(this.network.room,false);this.network.disconnect();this.announce();}
  /* 자동 접속. 이름을 정한 뒤에만, 직접 끄지 않았을 때만, 아직 안 붙었을 때만 붙는다. */
  autoConnect(){
@@ -6987,16 +6992,15 @@ class HanmaumLocalChat{
   if(el)el.textContent=online?`${this.network.room} 도량 · 다른 법우 ${n}명 연결${this.peerNames()}`:connecting?'도량에 함께 접속하는 중':this.channel?`이 브라우저의 다른 탭 ${n}개 연결`:'혼자 플레이 중 · 다른 이용자 연결 없음';
   const note=$('chatNetworkNote');if(note)note.textContent=online?'같은 실행 주소와 방 이름으로 접속한 컴퓨터·휴대폰에서 메시지, 위치와 인사를 주고받습니다.':this.connectionMessage||(this.sameOrigin?'같은 실행 주소와 방 이름으로 접속하면 다른 기기의 법우와 만날 수 있어요.':'이 HTML 파일은 혼자 실행 중입니다. 온라인 실행 주소로 열면 다른 기기의 법우와 만날 수 있어요.');
   const join=$('chatJoin'),leave=$('chatLeave'),room=$('chatRoom');if(join){join.disabled=connecting||online;join.textContent=connecting?'접속 중':online?'접속 중입니다':'함께 접속';}if(leave){leave.hidden=!(online||connecting);leave.textContent=connecting?'접속 취소':'접속 나가기';}if(room)room.disabled=connecting||online;
+  if(window.HanmaumChatPanel)this.renderStream();
   const badge=$('chatBadge');if(badge){badge.textContent=this.unread?String(this.unread):'';badge.hidden=!this.unread;}
  }
- show(){
-  this.unread=0;const b=this.ctx.openModal('chat','함께 접속 · 대화','위치·대화·인사를 나눕니다. 제작과 성장 기록은 각 기기에 저장됩니다.','chat-modal');
-  b.innerHTML=`<div class="chat-mode"><span class="local-dot"></span><b id="chatConnection"></b></div><section class="chat-online-panel" aria-label="친구와 함께 접속"><label for="chatRoom">함께 만날 방 이름</label><div class="chat-room-row"><input id="chatRoom" class="text-input" maxlength="32" value="${esc(this.network.room)}" placeholder="hanmaum" autocomplete="off" spellcheck="false"><button id="chatJoin" class="btn secondary" data-ui="onlineConnect">함께 접속</button><button id="chatLeave" class="btn ghost" data-ui="onlineDisconnect" hidden>나가기</button></div><p id="chatNetworkNote" class="chat-scope"></p><small>방 이름은 영문·숫자·밑줄·하이픈 사용 · 같은 이름으로 접속해 주세요.</small></section><div id="chatMessages" class="chat-messages" role="log" aria-live="polite"></div><label class="form-label" for="chatInput">채팅 내용</label><div class="chat-composer"><textarea id="chatInput" class="text-input" maxlength="160" rows="2" placeholder="따뜻한 인사를 남겨보세요" autocomplete="off"></textarea><button class="btn primary" data-ui="chatSend">보내기</button></div><p class="section-note">최대 160자 · Shift+Enter 줄바꿈 · 대화는 머리 위에 10초 동안 표시됩니다. 최근 60개 대화는 이 실행 중에만 남아요.</p>`;
-  this.renderMessages();this.updateStatus();setTimeout(()=>$('chatInput')?.focus(),50);
- }
+ show(){this.openQuick();}
  async send(input=$('chatInput')||$('quickChatInput')){if(!input||this.sendPending)return;const draft=input.value,text=HanmaumAvatar.cleanText(draft);if(!text)return;
   if(this.network.state==='connecting'){this.ctx.toast('접속 중입니다. 연결된 뒤 메시지를 다시 보내주세요.');return;}
   const m={type:'chat',messageId:this.id+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),...this.ownInfo(),text,time:Date.now()};
+  const budgetNow=Date.now();this.chatBudget=Math.min(5,(this.chatBudget??5)+Math.max(0,budgetNow-(this.chatBudgetAt??budgetNow))/1000);this.chatBudgetAt=budgetNow;
+  if(this.chatBudget<1){this.ctx.toast('잠시 후 다시 보내주세요. 초안은 유지됩니다.');return;}this.chatBudget-=1;
   this.sendPending=true;let ok=false;
   try{if(this.network.state==='online')ok=await this.network.send(m);else if(this.channel){this.channel.postMessage(m);ok=true;}}
   catch(_){}finally{this.sendPending=false;}
@@ -7041,38 +7045,35 @@ class HanmaumLocalChat{
   if(m.type==='chat'&&typeof m.text==='string'&&m.text.trim())this.append({...peer,text:HanmaumAvatar.cleanText(m.text),time:Date.now()});
   this.renderPeers();
  }
- append(m){if(m.messageId&&this.messages.some(x=>x.messageId===m.messageId))return;this.ctx.world.setSpeech?.(m.text,{id:this.isSelf(m.id)?'self':m.id,scene:m.scene,duration:10000});this.messages.push({...m,mine:this.isSelf(m.id)});this.messages=this.messages.slice(-60);if(!$('chatMessages')&&!this.quickOpen()&&!this.isSelf(m.id))this.unread++;this.renderMessages();this.renderStream();this.updateStatus();}
+ append(m){if(m.messageId&&this.messages.some(x=>x.messageId===m.messageId))return;this.ctx.world.setSpeech?.(m.text,{id:this.isSelf(m.id)?'self':m.id,scene:m.scene,duration:10000});this.messages.push({...m,mine:this.isSelf(m.id)});this.messages=this.messages.slice(-60);if(this.talkCollapsed&&!this.isSelf(m.id))this.unread++;this.renderMessages();this.renderStream();this.updateStatus();}
  renderMessages(){const el=$('chatMessages');if(!el)return;el.innerHTML=this.messages.length?this.messages.map(m=>`<div class="chat-line ${m.mine?'mine':''}"><div><strong>${esc(m.name)}${m.mine?' · 나':''}</strong><time>${new Date(m.time).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'})}</time></div><p>${esc(m.text)}</p></div>`).join(''):'<div class="chat-empty">아직 대화가 없어요.<br>첫 인사를 남겨보세요.</div>';el.scrollTop=el.scrollHeight;}
  /* 왼쪽에 최근 다섯 줄만 흘립니다. 도량·대법당의 '한 줄 이야기'와 같은 방식입니다. */
- renderStream(){
-  const el=$('chatStream');if(!el)return;
-  const recent=this.messages.slice(-5);
-  el.classList.remove('faded');
-  el.innerHTML=recent.map(m=>`<div class="stream-line${m.mine?' mine':''}"><b>${esc(m.name)}${m.mine?' · 나':''}</b>${esc(m.text)}</div>`).join('');
-  clearTimeout(this._streamTimer);
-  if(recent.length)this._streamTimer=setTimeout(()=>{$('chatStream')?.classList.add('faded');},14000);
- }
+ renderStream(){if(window.HanmaumChatPanel)window.HanmaumChatPanel.render(this);}
  /* Enter 로 여는 한 줄 입력. 모달이 아니라서 세계가 멈추지 않습니다. */
  openQuick(){
   const form=$('quickChat');if(!form||this.ctx.isModal?.())return;
-  form.hidden=false;this.unread=0;this.updateStatus();this.renderStream();
+  this.talkCollapsed=false;form.hidden=false;this.unread=0;this.updateStatus();this.renderStream();
   for(const id of ['walkHint','firstGuide']){const el=$(id);if(el)el.style.visibility='hidden';}
   $('quickChatInput')?.focus();
  }
  closeQuick(){
   const form=$('quickChat');if(!form||form.hidden)return;
   const input=$('quickChatInput');if(input){input.blur();}
-  form.hidden=true;
+  form.hidden=(window.innerWidth||390)<=600;
   for(const id of ['walkHint','firstGuide']){const el=$(id);if(el)el.style.visibility='';}
  }
  quickOpen(){return $('quickChat')?.hidden===false;}
  makePeer(m){if(!window.THREE||!this.ctx.world.content||!this.ctx.world.player?.isObject3D)return null;const g=HanmaumAvatar.createActor({name:m.name,appearance:m.appearance,outfit:m.outfit},true);this.ctx.world.content.add(g);return g;}
  removePeer(id,keepSpeech=false){if(!keepSpeech)this.ctx.world.clearSpeech?.(id);const g=this.meshes.get(id);if(!g)return;g.removeFromParent();g.userData.parts?.forEach(p=>p.geometry.dispose());g.userData.materials?.forEach(m=>m.dispose());g.userData.tex?.dispose();g.userData.label?.material?.dispose();this.meshes.delete(id);}
+ visiblePeerIds(){
+  const p=this.ctx.world.getPosition?.()||{x:0,z:0},limit=(window.innerWidth||1200)<700?12:24
+  return new Set([...this.peers.values()].filter(m=>m.scene===this.ctx.getScene()&&Math.hypot(m.position.x-p.x,m.position.z-p.z)<32).sort((a,b)=>Math.hypot(a.position.x-p.x,a.position.z-p.z)-Math.hypot(b.position.x-p.x,b.position.z-p.z)).slice(0,limit).map(m=>m.id))
+ }
  renderPeers(){
-  const world=this.ctx.world,visible=[];
+  const world=this.ctx.world,visible=[],selected=this.visiblePeerIds();
   for(const[id,m]of this.peers){
    if(this.network.state!=='online'&&Date.now()-m.seen>5000){this.peers.delete(id);this.removePeer(id);continue;}
-   if(m.scene!==this.ctx.getScene()){this.removePeer(id);continue;}
+   if(m.scene!==this.ctx.getScene()||!selected.has(id)){this.removePeer(id);continue;}
    visible.push(m);
    let g=this.meshes.get(id);if(g&&(g.parent!==world.content||g.userData.signature!==JSON.stringify([m.name,m.outfit,m.appearance]))){this.removePeer(id,true);g=null;}
    if(!g){g=this.makePeer(m);if(g){this.meshes.set(id,g);g.position.set(m.position.x,m.position.y,m.position.z);g.rotation.y=Number.isFinite(m.rotation)?m.rotation:0;}}
@@ -7089,7 +7090,9 @@ class HanmaumLocalChat{
    g.position.x+=(p.x-g.position.x)*alpha;g.position.y+=(p.y-g.position.y)*alpha;g.position.z+=(p.z-g.position.z)*alpha;
    const angle=Number.isFinite(m.rotation)?m.rotation:0;g.rotation.y+=Math.atan2(Math.sin(angle-g.rotation.y),Math.cos(angle-g.rotation.y))*alpha;
    const duration=HanmaumAvatar.duration(m.gesture),gesture=m.gestureUntil>now?{kind:m.gesture,time:Math.max(0,duration-(m.gestureUntil-now)/1000),duration}:null;
-   HanmaumAvatar.poseRig(g.userData.rig,HanmaumAvatar.pose(gesture));
+   const rig=g.userData.rig,moving=Math.hypot(m.velocity?.x||0,m.velocity?.z||0)>.1,walk=moving?Math.sin(now/1000*9)*.38:0;
+   if(rig?.legs){rig.legs[0].rotation.x=walk;rig.legs[1].rotation.x=-walk;}
+   HanmaumAvatar.poseRig(rig,HanmaumAvatar.pose(gesture),walk);
   }
   this.ctx.world.updateSpeech?.();
  }
@@ -7166,9 +7169,9 @@ function createActor(state={},label=false){
 }
 // Two-bone arm solution: elbow stays below the wrist; palms meet at the chest.
 function poseRig(rig,value,walk=0){
- if(!rig)return;const gather=clamp(value.gather||0,0,1);rig.torso.rotation.x=value.bend||0;
+ if(!rig)return;if(rig.authored&&window.HanmaumYouthModel)return window.HanmaumYouthModel.poseRig(rig,value,walk);const gather=clamp(value.gather||0,0,1);rig.torso.rotation.x=value.bend||0;
  for(let i=0;i<2;i++){
-  const sign=i===0?-1:1,s=new T.Vector3(sign*.45,.57,0),idle=new T.Vector3(sign*.47,-.16,Math.sin(walk*sign)*.26),prayer=new T.Vector3(sign*.053,.52,.48),w=idle.lerp(prayer,gather),d=w.clone().sub(s),dist=clamp(d.length(),.05,.759);d.normalize();
+  const sign=i===0?-1:1,s=rig.arms[i].position.clone(),idle=new T.Vector3(s.x+sign*.02,s.y-.75,Math.sin(walk*sign)*.26),prayer=new T.Vector3(sign*.053,.52,.48),w=idle.lerp(prayer,gather),d=w.clone().sub(s),dist=clamp(d.length(),.05,.759);d.normalize();
   const hint=new T.Vector3(sign*.3,-1,.08);hint.addScaledVector(d,-hint.dot(d)).normalize();const e=s.clone().addScaledVector(d,dist/2).addScaledVector(hint,Math.sqrt(.38*.38-dist*dist/4));
   const shoulder=rig.arms[i],elbow=rig.elbows[i],wrist=rig.wrists[i],down=new T.Vector3(0,-1,0),upper=e.clone().sub(s).normalize(),lower=w.clone().sub(e).normalize();
   shoulder.quaternion.setFromUnitVectors(down,upper);const worldLower=new T.Quaternion().setFromUnitVectors(down,lower);elbow.quaternion.copy(shoulder.quaternion).invert().multiply(worldLower);
@@ -7269,6 +7272,7 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
 <script src="/v8-space-evidence.js"></script>
 <link rel="stylesheet" href="/v8-craft-view.css">
 <link rel="stylesheet" href="/v8-director.css">
+<link rel="stylesheet" href="/v8-overview.css">
 <link rel="stylesheet" href="/v8-pilgrimage.css">
 <link rel="stylesheet" href="/v8-quiet-ui.css">
 <script src="/v8-craft-view.js"></script>
@@ -7510,13 +7514,13 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
       }
       function showFinish(){
         const average=Math.round(draft.scores.reduce((n,s)=>n+(s||0),0)/5);
-        const pilgrimageCraft=!isGrand&&window.HanmaumPilgrimageRuntime?.state?.stage==='craft';
+        const pilgrimageCraft=!isGrand&&!!window.HanmaumPilgrimageRuntime;
         const xp=(isGrand?40:55)+Math.round(average*(isGrand ? .7 : .9)),coins=(isGrand?18:25)+Math.floor(average*(isGrand ? .24 : .3));
         tools.insertAdjacentHTML('beforeend',`<div class="activity-hero"><h3>${isGrand?'네 공정의 손길을 보탰어요':'골조부터 채색까지 등을 완성했어요'}</h3>${isGrand?'<p class="activity-note">이번에는 장엄등의 한 부분을 작업했습니다.<br>전체 장엄등은 계속 만들어지는 과정입니다.</p>':'<div class="workshop-preview">'+lantern(draft.shape,draft.color)+'</div>'}</div><div class="workshop-results">${draft.scores.map((score,i)=>`<div>${names[i]}<b>${score}점</b></div>`).join('')}</div><div class="workshop-total"><strong>${average}</strong><span> / 100점</span><p>완료 보상 · 경험치 +${xp} · 마음잎 +${coins}</p></div>${isGrand?'':`<label class="activity-label" for="activity-lantern-name">등 이름</label><input class="activity-field" id="activity-lantern-name" maxlength="18" value="${escape(draft.name||shapeList.find(s=>s.id===draft.shape)?.label||'나의 발원등')}" autocomplete="off"><label class="activity-label" for="activity-lantern-vow">함께 밝히고 싶은 발원</label><textarea class="activity-field" id="activity-lantern-vow" maxlength="100" placeholder="예: 오늘 만나는 이들에게 따뜻한 마음을 전하겠습니다.">${escape(draft.vow)}</textarea><div class="activity-counter"><span data-chars>${draft.vow.length}</span> / 100</div>`}${btn(isGrand?'작업 기여 기록하고 보상 받기':'발원등 전시하고 보상 받기','finish','wide')}<p class="paper-hint">${isGrand?'이 기기의 장엄등 작업 기록에 기여가 저장됩니다.':'완성한 등은 등불사장 전시장에서 하나씩 볼 수 있어요.'}</p>`);
         if(pilgrimageCraft){
           const nameField=q('#activity-lantern-name'),vowField=q('#activity-lantern-vow');
           nameField?.previousElementSibling?.remove();vowField?.previousElementSibling?.remove();nameField?.remove();vowField?.remove();q('.activity-counter')?.remove();
-          tools.querySelector('.workshop-total')?.insertAdjacentHTML('afterend','<p class="paper-hint">이름과 발원은 탑돌이와 삼배를 마친 뒤, 등을 걸 때 처음 적습니다.</p>');
+          tools.querySelector('.workshop-total')?.insertAdjacentHTML('afterend','<p class="paper-hint">완성한 등을 등걸이대로 가져가 이름과 발원을 적고 걸어요.</p>');
         }
         if(!isGrand&&!pilgrimageCraft){
           on(q('#activity-lantern-name'),'input',()=>{draft.name=q('#activity-lantern-name').value;persist();});
@@ -7530,7 +7534,7 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
             if(pilgrimageCraft){draft.name='나의 발원등';draft.vow='';persist();}
             else{draft.name=q('#activity-lantern-name').value.trim()||'나의 발원등';draft.vow=q('#activity-lantern-vow').value.trim();persist();
             if(draft.vow.length<2){toast('발원을 두 글자 이상 적어주세요.');q('#activity-lantern-vow').focus();return;}}
-            data.lantern={id:draft.id,shape:draft.shape,color:draft.color,name:draft.name,vow:draft.vow,createdAt:new Date().toISOString(),pattern:'dancheong'};
+            data.lantern={id:draft.id,shape:draft.shape,color:draft.color,name:draft.name,vow:draft.vow,createdAt:new Date().toISOString(),pattern:'dancheong',pendingHang:pilgrimageCraft};
           }
           q('[data-action="finish"]').disabled=true;
           done({kind,xp,coins,stats:isGrand?{craft:2,harmony:2,care:1}:{craft:3,focus:1,care:1},message:isGrand?'장엄등의 한 부분에 네 공정의 손길을 보탰어요. 전체는 계속 제작 중입니다.':'골조부터 채색까지 완성한 발원등을 전시장에 걸었어요.',data});
@@ -8909,6 +8913,9 @@ window.HanmaumAvatar={FACE,appearance,portrait,createActor,poseRig,pose,duration
 <script src="/v8-view.js"></script>
 <script src="/v8-ui.js"></script>
 <script src="/v8-director.js"></script>
+<script src="/models/youth-meshes.js"></script>
+<script src="/v8-youth-model.js"></script>
+<script src="/v8-chat-panel.js"></script>
 <script src="/v8-workshop-photo.js"></script>
 <script src="/v8-hall-photo.js"></script>
 <script src="/v8-ambience.js"></script>
@@ -9060,7 +9067,7 @@ function routeTo(scene,hotspot){
  if(!step||!portal||!world.walkTo(portal.id)){cancelTravel();toast('이 길로는 이동하기 어려워요. 도량 지도에서 장소를 선택하면 바로 이동할 수 있어요.');return;}
  window.HanmaumTravel.routeStatus(scene);
 }
-function showMap(){cancelTravel();const b=openModal('map','어디로 이동할까요?','아홉 장소를 한눈에 보고 바로 이동합니다.');b.innerHTML=window.HanmaumDestinationMap.render(sceneId,{icon,actButton});}
+function showMap(){cancelTravel();const b=openModal('map','도량 전체 지도','조감도에서 장소를 누르면 바로 이동합니다.');b.innerHTML=window.HanmaumDestinationMap.render(sceneId,{icon,actButton});}
 function showElevator(){const b=openModal('floors','본원 층 이동','어느 층으로 가시겠어요?','narrow');b.innerHTML=`<div class="floor-list">${[['temple1','1F','무진향','염주, 법문집, 초, 공양미, 향 · 정문'],['lobby2','2F','2층 로비','2층 바깥마당으로 나가는 길'],['lobby3','3F','3층 로비','구정탑 광장으로 나가는 길'],['hall5','5F','대법당','공양 올리기, 예경, 호흡']].map(([id,f,title,sub])=>`<button class="floor-card" data-ui="enter" data-value="${id}"><span class="floor-number">${f}</span><span><strong>${title}${sceneId===id?' <span class="badge">현재</span>':''}</strong><small>${sub}</small></span>${icon('arrow')}</button>`).join('')}</div>`;}
 function showCharacter(){const v=store.view(),b=openModal('character','나의 도량 동행','함께 다닐 캐릭터와 옷차림을 고릅니다.');b.innerHTML=`<div class="char-layout solo"><div class="char-hero"><span class="char-level">Lv. ${v.level} · ${v.level===99?'한마음의 빛':'작은 빛을 모으는 중'}</span><div class="char-portrait">${charSVG(v.character,v.outfit)}</div><h3>${esc(v.name)}</h3><p>${v.characterInfo.role}</p><div class="char-select">${Object.values(Store.CHARACTERS).map(c=>`<button data-ui="character" data-value="${c.id}" class="${c.id===v.character?'selected':''}" aria-label="${c.name} 선택">${charSVG(c.id,'basic',true)}${c.name}</button>`).join('')}</div></div></div><div class="row wrap" style="margin:20px 0">${actButton('이름 · 성별 · 외관 바꾸기','profile','','primary')}${actButton('무진향 의상 보기','mujinhyang','','secondary')}</div><h3 class="section-title">구매한 옷차림</h3><div class="outfit-grid">${Object.values(Store.OUTFITS).map(o=>`<button class="outfit-card ${v.outfit===o.id?'selected':''} ${v.level<o.level||!v.ownedOutfits.includes(o.id)?'locked':''}" data-ui="outfit" data-value="${o.id}" aria-label="${o.name}, 레벨 ${o.level}"><span class="swatch" style="display:block;background:${o.id==='basic'?v.characterInfo.color:o.color}"></span><strong>${o.name}</strong><small>${v.outfit===o.id?'착용 중':v.level<o.level?'Lv. '+o.level+'에 열려요':!v.ownedOutfits.includes(o.id)?'무진향에서 구매':'입어보기'}</small></button>`).join('')}</div><div class="row" style="margin-top:24px"><div class="spacer"><label class="form-label" for="playerNameInput" style="margin:0 0 8px">도량에서 불릴 이름</label><input id="playerNameInput" class="text-input" maxlength="12" value="${esc(v.name)}" autocomplete="off"></div>${actButton('이름 저장','rename','','secondary small','style="align-self:flex-end;margin-bottom:3px"')}</div><h3 class="section-title">1부터 99까지, 다음 걸음</h3><div class="unlock-list">${Store.UNLOCKS.map(u=>`<div class="unlock-row ${v.level>=u.level?'unlocked':''}"><span>Lv. ${u.level}</span><div><b>${u.title}</b><p>${u.description}</p></div>${icon(v.level>=u.level?'check':'lock')}</div>`).join('')}</div>`;}
 function showShop(){if(features)return features.showShop();const b=openModal('shop','무진향 상점','활동으로 모은 마음잎으로 공양물을 준비하고, 염주와 법문집을 소장할 수 있어요.');b.innerHTML=`<div class="shop-balance">${icon('leaf')}<span>나의 마음잎</span><b>${store.data.coins.toLocaleString()}</b><small>게임 안에서 활동으로 모으는 재화입니다.</small></div><div class="shop-grid">${Object.values(Store.ITEMS).map(it=>{const n=store.data.inventory[it.id],owned=!it.consumable&&n>0;return `<article class="shop-item"><div class="item-art">${icon(it.icon)}</div><h3>${it.name}</h3><p>${it.description}</p><div class="row"><span class="price">${icon('leaf')}${Store.priceFor(it.id,store.data.level)}</span><span class="spacer"></span><span>소지 ${n}</span></div>${actButton(owned?'소장 중':'구매하기','buy',it.id,owned?'secondary':'primary',owned||store.data.coins<it.price?'disabled':'')}</article>`;}).join('')}</div><div class="modal-footer">${actButton('내 소지품 보기','bag','','secondary')}${actButton('5층에 공양하러 가기 '+icon('arrow'),'offerRoute','','primary')}</div>`;}
@@ -9125,7 +9132,7 @@ function shareNewLantern(l){
 window.HanmaumShareLantern=shareNewLantern;
 
 function galleryRows(){
- const mine=store.data.lanterns||[];
+ const mine=(store.data.lanterns||[]).filter(l=>!l.pendingHang);
  if(!lanternShare.ready||!lanternShare.rows.length)return mine.map(l=>({...l,mine:true}));
  const seen=new Set(),rows=[];
  for(const l of mine){if(l&&l.sharedId)seen.add(l.sharedId);rows.push({...l,mine:true});}
@@ -9135,6 +9142,8 @@ function galleryRows(){
 }
 /* 전시벽(world 블록)은 스코프가 달라 window 를 거쳐야 이 목록을 봅니다. */
 window.HanmaumGalleryRows=galleryRows;
+const viewGallery=showGallery;
+showGallery=function(page=0){if(window.HanmaumPilgrimageRuntime?.openRack?.())return;return viewGallery(page);};
 function refreshExhibitWall(){try{world&&world.refreshExhibit&&world.refreshExhibit();}catch(_){}}
 let galleryAllSlots=false;
 let galleryDetailIndex=0;
@@ -9153,7 +9162,7 @@ function renderEnvironmentStatus(){const el=$('environmentStatus');if(!el)return
 function startScenic(id=sceneId){if(id!==sceneId){routeTo(id);return;}exploration?.stop(false);scenicOrigin=sceneId;closeModal();scenic=true;$('scenicOverview').textContent='다른 방향에서 보기';world?.setPaused(false);world?.setScenic(true);$('app').classList.add('scenic');$('scenicHud').hidden=false;updateHUD();dismissGuide();}
 function scenicOverview(){if(!scenic)return;if(world?.isFallback||world?.ctx)world.yaw+=Math.PI/2;else if(world)world.cameraAngle+=Math.PI/2;world?.updateCamera?.(0,true);updateHUD();}
 function leaveScenic(){scenic=false;world?.setScenic(false);$('app').classList.remove('scenic');$('scenicHud').hidden=true;setNear(world?.getNearby()||null);updateHUD();}
-function showSettings(){const s=store.data.settings,b=openModal('settings','나의 여정 설정','진행 기록은 이 브라우저에 자동 저장됩니다. 기록 파일로 다른 기기에 옮길 수 있어요.','narrow');b.innerHTML=`<div class="save-status ${store.storageAvailable?'':'warning'}">${store.storageAvailable?'자동 저장 중 · 이 브라우저에서 이어서 플레이할 수 있어요.':esc(store.lastSaveError||'자동 저장을 사용할 수 없습니다. 기록 내보내기를 이용해 주세요.')}</div><div class="settings-row"><div><b>효과음</b><p>제작과 활동을 마칠 때 작은 소리가 납니다.</p></div><button class="toggle ${s.sound?'on':''}" data-ui="toggleSound" role="switch" aria-checked="${s.sound}" aria-label="효과음"><i></i></button></div><div class="settings-row"><div><b>움직임 줄이기</b><p>자동 카메라 회전과 장식 움직임을 줄입니다.</p></div><button class="toggle ${s.reducedMotion?'on':''}" data-ui="reduceMotion" role="switch" aria-checked="${s.reducedMotion}" aria-label="움직임 줄이기"><i></i></button></div><div class="setting-group"><h3>화면 품질</h3><div class="segmented">${[['auto','자동'],['low','가볍게'],['high','선명하게']].map(([id,name])=>`<button data-ui="quality" data-value="${id}" class="${s.quality===id?'selected':''}">${name}</button>`).join('')}</div></div><h3 class="section-title">기록 보관과 이동</h3><div class="row wrap">${actButton(icon('download')+'기록 내보내기','export','','primary')}${actButton(icon('upload')+'기록 가져오기','import','','secondary')}</div><p class="section-note">브라우저 데이터를 지우거나 파일을 다른 위치에서 열면 기록을 찾지 못할 수 있습니다. 중요한 여정은 JSON 기록 파일로 보관해 주세요. 기존 게임 기록이 같은 브라우저에서 확인되면 발원등을 자동으로 가져옵니다.</p><hr class="rule"><div class="row">${actButton('플레이 방법 보기','help','','ghost small')}${actButton('현재 풍경 보기','scenery','','ghost small')}</div><p class="section-note">한마음 도량여행 · 도량 동행판 v7<br>파일 단독 실행과 선택적인 온라인 만남을 지원합니다. 제작 기여와 발원등은 각 기기에 저장됩니다.</p>`;}
+function showSettings(){const s=store.data.settings,b=openModal('settings','나의 여정 설정','진행 기록은 이 브라우저에 자동 저장됩니다. 기록 파일로 다른 기기에 옮길 수 있어요.','narrow');b.innerHTML=`<div class="save-status ${store.storageAvailable?'':'warning'}">${store.storageAvailable?'자동 저장 중 · 이 브라우저에서 이어서 플레이할 수 있어요.':esc(store.lastSaveError||'자동 저장을 사용할 수 없습니다. 기록 내보내기를 이용해 주세요.')}</div><div class="settings-row"><div><b>효과음</b><p>제작과 활동을 마칠 때 작은 소리가 납니다.</p></div><button class="toggle ${s.sound?'on':''}" data-ui="toggleSound" role="switch" aria-checked="${s.sound}" aria-label="효과음"><i></i></button></div><div class="settings-row"><div><b>움직임 줄이기</b><p>자동 카메라 회전과 장식 움직임을 줄입니다.</p></div><button class="toggle ${s.reducedMotion?'on':''}" data-ui="reduceMotion" role="switch" aria-checked="${s.reducedMotion}" aria-label="움직임 줄이기"><i></i></button></div><div class="setting-group"><h3>화면 품질</h3><div class="segmented">${[['auto','자동'],['low','가볍게'],['high','선명하게']].map(([id,name])=>`<button data-ui="quality" data-value="${id}" class="${s.quality===id?'selected':''}">${name}</button>`).join('')}</div></div><h3 class="section-title">함께 접속</h3><div class="row">${actButton('다시 접속','onlineConnect','','secondary')}${actButton('접속 나가기','onlineDisconnect','','ghost')}</div><p class="section-note">대화는 이번 접속 중에만 표시됩니다.</p><h3 class="section-title">기록 보관과 이동</h3><div class="row wrap">${actButton(icon('download')+'기록 내보내기','export','','primary')}${actButton(icon('upload')+'기록 가져오기','import','','secondary')}</div><p class="section-note">브라우저 데이터를 지우거나 파일을 다른 위치에서 열면 기록을 찾지 못할 수 있습니다. 중요한 여정은 JSON 기록 파일로 보관해 주세요. 기존 게임 기록이 같은 브라우저에서 확인되면 발원등을 자동으로 가져옵니다.</p><hr class="rule"><div class="row">${actButton('플레이 방법 보기','help','','ghost small')}${actButton('현재 풍경 보기','scenery','','ghost small')}</div><p class="section-note">한마음 도량여행 · 도량 동행판 v7<br>파일 단독 실행과 선택적인 온라인 만남을 지원합니다. 제작 기여와 발원등은 각 기기에 저장됩니다.</p>`;}
 function showHelp(){const b=openModal('help','도량여행을 시작하는 법','작은 활동을 이어가며 나만의 도량 기록을 만들어 보세요.');b.innerHTML=`<div class="help-grid">${[
 ['map','캐릭터로 걷기','PC에서는 방향키 또는 WASD, 휴대폰에서는 왼쪽 조이스틱으로 이동합니다. 바닥을 누르면 그곳까지 걸어가고, 건물의 이름표를 누르면 입구까지 찾아갑니다.'],
 ['hand','도착한 뒤 활동하기','가까운 장소가 화면 아래에 표시됩니다. 작업·입장 버튼 또는 E 키를 누르면 활동이 시작됩니다. 오른쪽 ‘이곳의 활동’ 메뉴로 작업대를 찾을 수도 있어요.'],
@@ -9222,7 +9231,7 @@ if(quickForm&&quickInput){
  if(vv)vv.addEventListener('resize',()=>{
   if(quickForm.hidden)return;
   const lift=Math.max(0,innerHeight-vv.height-vv.offsetTop);
-  quickForm.style.setProperty('--kb',lift+'px');
+  document.getElementById('talkPanel')?.style.setProperty('--talk-keyboard',lift+'px');quickForm.style.setProperty('--kb',lift+'px');
   quickForm.style.bottom=lift?`calc(${lift}px + 14px)`:'';
  });
 }$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});

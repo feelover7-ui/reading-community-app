@@ -33,7 +33,7 @@ test('quiet UI exposes one contextual action and a direct returning visitor stat
 
 test('quiet UI stylesheet hides game HUD and keeps essential controls touch sized and safe-area aware', () => {
   const css = fs.readFileSync('public/v8-quiet-ui.css', 'utf8')
-  for (const selector of ['#profileCard', '#currencyPill', '#dailyPeek', '#bottomNav', '#socialActions', '.chat-stream', '.quick-chat']) {
+  for (const selector of ['#profileCard', '#currencyPill', '#dailyPeek', '#bottomNav', '#socialActions']) {
     assert.match(css, new RegExp(selector.replace(/[.#]/g, '\\$&') + '[^}]*display:\s*none', 's'))
   }
   assert.match(css, /#brandHome[^}]*min-height:\s*44px/s)

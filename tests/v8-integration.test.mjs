@@ -87,3 +87,18 @@ test('오래 숨은 탭은 연결을 놓고, 돌아오면 다시 붙는다 (사�
  doc.hidden=false;off.chat.autoAt=0;off.chat.autoConnect()
  assert.equal(off.chat.network.state,'offline')
 })
+
+test('chat burst limit preserves the sixth draft and refills without an automatic resend',async()=>{
+ const {chat,input,received,toasts}=setup();chat.network.send=async()=>true
+ for(let i=0;i<5;i++){input.value='인사 '+i;await chat.send()}
+ input.value='보존할 여섯째';await chat.send()
+ assert.equal(received.length,5);assert.equal(input.value,'보존할 여섯째');assert.ok(toasts.at(-1).includes('잠시'))
+ chat.chatBudgetAt=Date.now()-1500;await chat.send();assert.equal(received.length,6)
+})
+
+test('crowd rendering selects nearby participants without deleting online presence',()=>{
+ const {chat}=setup();chat.ctx.getScene=()=> 'campus';chat.ctx.world={getPosition:()=>({x:0,y:0,z:0})}
+ chat.peers=new Map(Array.from({length:80},(_,i)=>['p'+i,{id:'p'+i,scene:'campus',position:{x:i/3,y:0,z:0}}]))
+ assert.equal(typeof chat.visiblePeerIds,'function')
+ const selected=chat.visiblePeerIds();assert.ok(selected.size<=24);assert.ok(selected.has('p0'));assert.ok(!selected.has('p79'));assert.equal(chat.peers.size,80)
+})

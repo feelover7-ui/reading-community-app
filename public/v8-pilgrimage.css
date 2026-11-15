@@ -43,7 +43,7 @@ body.pilgrimage-first:not(.has-modal) #dailyPeek,body.pilgrimage-first:not(.has-
 #pilgrimageReturnHUD{position:fixed;z-index:34;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;gap:6px;padding:7px;border:1px solid rgba(255,255,255,.65);border-radius:18px;background:rgba(250,248,237,.9);box-shadow:0 10px 36px #0a281e2b;backdrop-filter:blur(12px)}
 #pilgrimageReturnHUD button{min-height:44px;border:0;border-radius:12px;background:transparent;padding:0 15px;color:#315849;font-size:12px;font-weight:800;cursor:pointer}
 #pilgrimageReturnHUD button:first-child{background:#285b49;color:#fff}
-body.pilgrimage-returning #dailyPeek,body.pilgrimage-returning #currencyPill,body.pilgrimage-returning #sceneTools,body.pilgrimage-returning #firstGuide,body.pilgrimage-returning #onlineBtn,body.pilgrimage-returning #socialActions,body.pilgrimage-returning #quickChat{display:none!important}
+body.pilgrimage-returning #dailyPeek,body.pilgrimage-returning #currencyPill,body.pilgrimage-returning #sceneTools,body.pilgrimage-returning #firstGuide,body.pilgrimage-returning #onlineBtn,body.pilgrimage-returning #socialActions{display:none!important}
 .pilgrimage-participant-groups{display:grid;gap:10px;margin:18px 0;max-height:min(46vh,380px);overflow:auto}
 .pilgrimage-participant-groups section{padding:13px;border:1px solid #dfe4d7;border-radius:15px;background:#f5f6ee}
 .pilgrimage-participant-groups section>strong{display:block;margin-bottom:7px;color:#9a6939;font-size:11px}
