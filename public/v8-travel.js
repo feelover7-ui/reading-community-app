@@ -64,7 +64,7 @@
       }
       // The upper hill exit marker used to be outside the navigable bounds.
       const x=Math.max(w.bounds.minX+.45,Math.min(w.bounds.maxX-.45,h.x)),z=Math.max(w.bounds.minZ+.45,Math.min(w.bounds.maxZ-.45,h.z));
-      return {id:h.id,to:h.targetScene,x,z,nx,nz,width:h.kind==='stairs'?1.1:1.05,y:w.groundHeight(x,z),hotspot:h};
+      return {id:h.id,to:h.targetScene,x,z,nx,nz,width:Number.isFinite(h.doorHalfWidth)&&h.doorHalfWidth>0?h.doorHalfWidth:(h.kind==='stairs'?1.1:1.05),y:w.groundHeight(x,z),hotspot:h};
     });
   }
   function routeStatus(target) {

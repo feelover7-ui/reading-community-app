@@ -1210,3 +1210,9 @@ https://goal-windows-codex-mvp-node-js-2.vercel.app/deungbul.html
 - 제작→발원·걸기→점등→선택 참배 순서다. pendingHang 등은 전시/공유에서 제외한다. 오래된 tower/hall/hang 체크포인트는 걸기 단계를 잃지 않도록 이전한다. 중복 걸기는 controller.hangInFlight로 막는다.
 - 대화는 상시 패널에 최근60개를 세션 동안 유지하며 다른 장소의 메시지에 장소를 표시한다. 영구 채팅 저장은 아니다. 기존 transport/DB/Worker는 수정하지 않는다.
 - 실제 iPhone과 운영 DB 쓰기 시험은 자동 브라우저·mock 시험과 구분한다. 상세 기록은 docs/V8_INTEGRATED_RELEASE_2026-11-15.md.
+
+## 2026-11-15 v8 출입문·카메라 계산
+
+- 문화회관/등불사장 내부의 보이는 출입문은 기존 backCampus 자동 통과 좌표에 둔다. `doorHalfWidth`는 문 개구부에 맞추되 다른 출입문의 기본 폭은 유지한다.
+- 카메라 충돌은 `cameraHits()`로 후보를 먼저 거른다. 스킨 캐릭터까지 intersectObjects 재귀 검사한 뒤 결과만 필터링하면 캐릭터당 수십 ms의 낭비가 생길 수 있다. 실내·실외 카메라 모두 같은 경로를 사용한다.
+- 성능 진단의 격리 CPU 시간은 기기 FPS 보장으로 표현하지 않는다. 기록은 docs/V8_DOOR_MOTION_FIX_2026-11-15.md.

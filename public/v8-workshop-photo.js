@@ -86,6 +86,36 @@
         for (const x of [-1.4, 1.4]) this.box(.09, 1.5, .09, steel, x, .75, 0, rack)
         for (const x of [-1.25, 1.25]) for (const zz of [-.42, .42]) this.cyl(.11, .11, .08, '#454b47', x, .1, zz, rack, 10)
       }
+      // This is the existing automatic exit, not a new route or room.
+      const exit = this.hotspots.find(item => item.id === 'backCampus')
+      if (exit) {
+        const entrance = this.group(exit.x, 0, exit.z, root)
+        entrance.name = 'workshop-entrance'
+        this.workshopEntrance = entrance
+        const frame = this.mat('#586b63', {roughness: .72})
+        const glass = this.mat('#9fbbb1', {transparent: true, opacity: .48, roughness: .2})
+        const part = (name, w, h, d, material, x, y, z) => {
+          const object = this.box(w, h, d, material, x, y, z, entrance)
+          object.name = name; object.userData.hotspot = 'backCampus'
+          return object
+        }
+        for (const sign of [-1, 1]) {
+          part('workshop-door-jamb', .24, 4.4, .32, frame, sign * 2.7, 2.2, 0)
+          // Leaves are parked to each side, leaving the middle visibly open.
+          part('workshop-door-open-leaf', 2.4, 3.9, .09, glass, sign * 4.05, 2, 0)
+          part('workshop-door-handle', .09, .72, .12, frame, sign * 3.05, 1.65, -.10)
+          this.obstacle?.(exit.x + sign * 2.7, exit.z, .24, .32)
+        }
+        part('workshop-door-header', 5.64, .25, .34, frame, 0, 4.3, 0)
+        part('workshop-door-threshold', 5.2, .035, 1.1, '#c2bda9', 0, .075, 0)
+        const insideSign = this.plaque('출입문 · 도량으로', 4.2, 0, 4.95, -.12, entrance)
+        if (insideSign.rotation) insideSign.rotation.y = Math.PI
+        this.plaque('불교문화회관', 4.2, 0, 4.95, .12, entrance)
+        exit.anchor?.set?.(exit.x, 4.7, exit.z)
+        exit.doorHalfWidth = 2.3
+        exit.sub = '열린 문으로 걸어가면 도량으로 나갑니다'
+      }
+
       this.workshopDimensions = {...(this.workshopDimensions || {}), height: PLAN.height}
       this.roomTarget?.set?.(0, 4.1, -3.2)
       this.roomWidth = 56

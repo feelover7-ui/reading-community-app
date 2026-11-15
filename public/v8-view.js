@@ -131,7 +131,7 @@
       if (len < .4) return false;
       dir.multiplyScalar(1 / len);
       ray.set(cam.position, dir); ray.near = .05; ray.far = len - .35; ray.camera = cam;
-      const hits = ray.intersectObjects(world.content.children, true);
+      const hits = world.cameraHits(ray);
       for (const h of hits) {
         const o = h.object;
         if (o.isSprite || o.userData.cameraIgnore || world.isAvatarPart(o)) continue;
