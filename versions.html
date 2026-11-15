@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>v8 · v9 대조표</title>
+<style>
+  :root{--ink:#2b211a;--paper:#fdf7ea;--line:#e0d3b8}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px 16px 64px;background:#f4ece0;color:var(--ink);
+    font:16px/1.7 "Gowun Batang",serif}
+  main{max-width:900px;margin:0 auto}
+  h1{font-size:24px;margin:0 0 4px}
+  .asof{color:#7a6a55;font-size:14px;margin:0 0 20px}
+  #who{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 24px}
+  .who{flex:1 1 220px;min-height:50px;padding:14px 16px;border-radius:14px;text-decoration:none;
+    background:var(--paper);border:1px solid var(--line);color:var(--ink);display:block}
+  .who b{font-size:20px;display:block}
+  .who .by{color:#7a6a55;font-size:14px;margin-right:8px}
+  .who .go{color:#8a5a1e;font-size:14px}
+  table{width:100%;border-collapse:collapse;background:var(--paper);border-radius:14px;overflow:hidden}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+  th{background:#efe3cd;font-size:14px}
+  .c{text-align:center;width:62px;font-size:18px}
+  .s-있음{color:#2f6b3a}.s-고침{color:#9a6b12}.s-없음{color:#bdb3a0}
+  td b{font-weight:600}
+  .why{display:block;color:#7a6a55;font-size:13px}
+  .memo{font-size:13px;color:#5d5243;max-width:300px;overflow-wrap:anywhere}
+  .memo .m{display:block;margin-bottom:4px}
+  #sum{display:grid;gap:12px;margin:24px 0}
+  .sum-box{padding:14px 16px;border-radius:14px;background:var(--paper);border:1px solid var(--line)}
+  .sum-box h3{margin:0 0 6px;font-size:15px}
+  .sum-box p{margin:0}
+  .from8 h3{color:#8a5a1e}.from9 h3{color:#2f6b3a}.none h3{color:#7a6a55}
+  .rule{padding:14px 16px;border-radius:14px;background:#fff;border:1px dashed var(--line);font-size:14px}
+  code{background:#efe3cd;padding:1px 5px;border-radius:5px;font-size:13px}
+  @media(max-width:620px){.memo{display:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>v8 · v9 대조표</h1>
+  <p class="asof">기준일 <span id="asof"></span> · ● 있음 · ◐ 덧대어 있음 · · 없음</p>
+  <div id="who"></div>
+  <div id="board"></div>
+  <div id="sum"></div>
+  <p class="rule" id="rule"></p>
+  <p class="rule">확인: <code>node scripts/version-compare.mjs</code> — 표의 근거를 저장소 파일에서 하나씩 확인하고, 어긋나면 종료 코드 1 입니다. <code>tests/version-compare.test.mjs</code> 가 같은 검사를 시험으로 돌립니다.</p>
+</main>
+<script type="module" src="/src/v9/versions.js"></script>
+</body>
+</html>

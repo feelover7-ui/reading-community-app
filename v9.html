@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>한마음 도량 v9</title>
+<meta name="description" content="한마음선원 안양 본원 도량을 걸어 보는 화면입니다. 게임용 시안이며 실측 지도가 아닙니다.">
+<link rel="stylesheet" href="/src/v9/v9.css">
+</head>
+<body>
+<main>
+  <canvas id="game" aria-label="도량 마당"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+  <p id="hint">↑↓ 앞뒤로 걷기 · ←→ 시점 돌리기</p>
+  <button id="act" type="button" hidden></button>
+  <div id="joy" aria-hidden="true"><i></i></div>
+</main>
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+  <div>
+    <h2 id="modalTitle"></h2>
+    <p id="modalText"></p>
+    <button id="modalClose" type="button">닫기</button>
+  </div>
+</div>
+<script type="module" src="/src/v9/main.js"></script>
+</body>
+</html>

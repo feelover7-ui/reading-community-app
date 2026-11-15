@@ -28,6 +28,9 @@ export default defineConfig({
         sitePreview: fileURLToPath(new URL('./site-preview.html', import.meta.url)),
         siteCompare: fileURLToPath(new URL('./site-compare.html', import.meta.url)),
         original: fileURLToPath(new URL('./original.html', import.meta.url)),
+        // v9: 코덱스가 쓰는 v8 과 겹치지 않는 별도 진입점. src/v9/ 만 씁니다.
+        v9: fileURLToPath(new URL('./v9.html', import.meta.url)),
+        versions: fileURLToPath(new URL('./versions.html', import.meta.url)),
       },
     },
   },

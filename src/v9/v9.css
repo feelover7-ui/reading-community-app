@@ -1,0 +1,50 @@
+:root { --ink:#2b211a; --paper:#fdf7ea; }
+* { box-sizing: border-box }
+html, body { margin:0; height:100%; overflow:hidden; overscroll-behavior:none; background:#0b1026;
+  font:16px/1.6 "Gowun Batang", serif; color:var(--ink); -webkit-text-size-adjust:100% }
+#game { display:block; width:100vw; height:100vh; touch-action:none; outline:none }
+
+/* 화면 위 글자. 3D 판으로 세우면 건물에 가려 잘린다. */
+#labels { position:fixed; inset:0; pointer-events:none; z-index:3 }
+#labels .place { position:absolute; transform:translate(-50%,-100%);
+  padding:3px 10px; border-radius:999px; white-space:nowrap; font-size:13px;
+  background:rgba(23,18,13,.52); color:#f6e9cd; opacity:.62; transition:opacity .2s }
+#labels .place.near { opacity:1; background:rgba(120,78,24,.86); color:#fff6e0 }
+
+/* 상시로 남기는 것은 두 줄뿐. */
+#hint { position:fixed; left:50%; transform:translateX(-50%);
+  bottom:calc(18px + env(safe-area-inset-bottom)); z-index:4;
+  padding:9px 18px; border-radius:999px; font-size:14px;
+  background:rgba(23,18,13,.58); color:#f3e6ca; pointer-events:none }
+#act { position:fixed; right:calc(18px + env(safe-area-inset-right));
+  bottom:calc(96px + env(safe-area-inset-bottom)); z-index:5;
+  min-height:52px; padding:0 22px; border:0; border-radius:16px; cursor:pointer;
+  font:600 16px/1 "Gowun Batang", serif; color:#2b211a; touch-action:none;
+  background:linear-gradient(#ffe6a8,#e9bd64); box-shadow:0 6px 18px rgba(0,0,0,.3) }
+#act[hidden] { display:none }
+
+/* 조이스틱. 손잡이에도 따로 touch-action 을 건다 (상속되지 않는다). */
+#joy { position:fixed; left:calc(20px + env(safe-area-inset-left));
+  bottom:calc(24px + env(safe-area-inset-bottom)); z-index:5;
+  width:116px; height:116px; border-radius:50%; touch-action:none;
+  background:rgba(20,16,12,.3); border:1px solid rgba(255,245,220,.22); display:none }
+#joy i { position:absolute; left:50%; top:50%; width:46px; height:46px; margin:-23px 0 0 -23px;
+  border-radius:50%; background:rgba(255,240,205,.8); touch-action:none }
+/* 휴대폰에서는 조이스틱이 왼쪽 아래를 차지한다. 안내 줄을 그 위로 올린다. */
+@media (hover:none) and (pointer:coarse) {
+  #joy { display:block }
+  #hint { font-size:13px; bottom:calc(152px + env(safe-area-inset-bottom)); max-width:calc(100vw - 32px) }
+  #act { bottom:calc(168px + env(safe-area-inset-bottom)) }
+}
+
+/* 안내창 하나. 배경은 inert, 제목과 연결한다. */
+#modal { position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center;
+  padding:20px; background:rgba(12,9,6,.56) }
+#modal[hidden] { display:none }
+#modal > div { max-width:420px; width:100%; padding:24px; border-radius:20px;
+  background:var(--paper); box-shadow:0 20px 50px rgba(0,0,0,.4) }
+#modal h2 { margin:0 0 10px; font-size:21px }
+#modal p { margin:0 0 18px }
+#modalClose { min-height:48px; width:100%; border:0; border-radius:12px; cursor:pointer;
+  font:600 16px/1 "Gowun Batang", serif; color:#2b211a; background:#e9d3a1 }
+@media (prefers-reduced-motion:reduce) { #labels .place { transition:none } }
