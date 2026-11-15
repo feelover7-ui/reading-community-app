@@ -1,26 +1,30 @@
-#talkPanel{position:fixed;z-index:35;left:16px;bottom:calc(160px + env(safe-area-inset-bottom));width:310px;max-width:calc(100vw - 32px);background:#f8f7edee;border:1px solid #d0dbcc;border-radius:15px;box-shadow:0 5px 22px #18352620;color:#254536;overflow:hidden;font:12px/1.5 sans-serif}
-#talkPanel header{display:flex;align-items:center;padding:3px 8px;gap:5px}#talkStatus{flex:1;font-size:11px;font-weight:700}
-#talkPanel header button{min-width:44px;min-height:44px;border:0;background:transparent;color:#315945;font-weight:700;cursor:pointer}
-#talkMessages{max-height:180px;overflow:auto;overscroll-behavior:contain;padding:0 8px;display:flex;flex-direction:column;gap:5px;scrollbar-width:thin}
-#talkMessages .stream-line{box-shadow:none;margin:0;background:#e5ebdf;color:#213f31;border:0}#talkMessages .stream-line b{color:#4f6b48}#talkMessages .mine{background:#d2e2cc}
-#talkNotice{display:block;font-size:9px;color:#63745d;padding:5px 10px}.talk-empty{font-size:11px;color:#63745d;margin:4px 0}
-#talkPanel .quick-chat{display:flex!important;position:static;transform:none;width:100%;max-width:none;padding:6px;border:0;border-radius:0;background:transparent;box-shadow:none;gap:4px}
-#talkPanel .quick-chat[hidden]{display:none!important}#talkPanel .quick-chat input{width:100%;min-width:0;min-height:44px;font-size:16px;padding:6px}#talkPanel .quick-chat button{min-height:44px;padding:6px;font-size:11px}
-#talkPanel.collapsed #talkMessages,#talkPanel.collapsed #talkNotice,#talkPanel.collapsed .quick-chat{display:none!important}
-body.has-modal #talkPanel,body.pilgrimage-arrival-open #talkPanel{display:none!important}
-
-@media(max-width:600px){#talkPanel{left:12px;bottom:calc(252px + env(safe-area-inset-bottom));width:260px;max-width:calc(100vw - 24px)}#talkMessages{max-height:106px}#talkPanel.writing{bottom:calc(var(--talk-keyboard,0px) + 12px);width:calc(100vw - 24px)}#talkPanel.writing #talkMessages{max-height:80px}}
-@media(max-height:550px){#talkPanel{bottom:150px}#talkMessages{max-height:65px}#talkNotice{display:none}}
-/* Read recent lines without covering movement controls; tap the chat button to write. */
-@media(max-width:600px){
- #talkPanel:not(.writing){bottom:calc(160px + env(safe-area-inset-bottom));width:min(290px,calc(100vw - 92px));background:transparent;border:0;box-shadow:none;border-radius:0;pointer-events:none}
- #talkPanel:not(.writing):not(.has-messages){display:none}
- #talkPanel:not(.writing) header,#talkPanel:not(.writing) #talkNotice{display:none}
- #talkPanel:not(.writing) #talkMessages{max-height:84px;overflow:hidden;padding:0;gap:3px;pointer-events:none}
- #talkPanel:not(.writing) .stream-line:nth-last-child(n+4){display:none}
- #talkPanel:not(.writing) .stream-line{background:transparent;color:#fffdf1;text-shadow:0 1px 3px #142d20,0 0 4px #142d20;padding:2px 0;font-size:11px;line-height:1.4;border-radius:0}
- #talkPanel:not(.writing) .stream-line b{color:#f9d99b;font-size:10px}
- #talkPanel:not(.writing) .stream-line span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Recent speech floats over the world; only explicit input/history is interactive. */
+#talkFeed{position:fixed;z-index:33;left:18px;top:110px;width:min(430px,calc(100vw - 100px));pointer-events:none;font:14px/1.5 sans-serif;color:#fffdf2;text-shadow:0 1px 3px #102d20,0 0 4px #102d20}
+#talkFeed *{pointer-events:none}#talkFeed .talk-line{margin:0 0 5px;transition:opacity 1s linear;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+#talkFeed .talk-line.fading{opacity:0}.talk-line b{color:#f5d997;font-size:.9em;margin-right:7px}.talk-line span{white-space:pre-wrap}
+#talkPanel{position:fixed;z-index:35;left:16px;bottom:calc(90px + env(safe-area-inset-bottom));width:min(580px,calc(100vw - 32px));font:12px/1.5 sans-serif;pointer-events:auto}
+#talkPanel:not(.writing){display:none}
+#talkNotice{display:block;width:max-content;max-width:100%;padding:3px 8px;border-radius:7px;background:#143c2be6;color:#fff5da;margin-bottom:4px;font-size:11px}
+#talkPanel .quick-chat{display:flex!important;position:static;transform:none;width:100%;max-width:none;padding:5px;border:1px solid #d0dbcc;border-radius:12px;background:#fcfbf4f5;box-shadow:0 3px 16px #173a3022;gap:4px}
+#talkPanel .quick-chat[hidden]{display:none!important}#talkPanel .quick-chat input{flex:1;width:0;min-width:0;min-height:44px;font-size:16px;padding:7px}
+#talkPanel .quick-chat button{flex:none;min-width:44px;min-height:44px;padding:6px;border-radius:8px;font-size:12px}
+#talkHistoryButton{background:#e7ecdf;border:0;color:#244c3b;font-weight:700}
+#talkWrite{position:fixed;z-index:30;left:16px;bottom:calc(96px + env(safe-area-inset-bottom));min-height:44px;border:1px solid #d9e2d2;border-radius:999px;background:#fffdf1e8;color:#244c3b;padding:8px 16px;cursor:pointer;font-weight:700}
+#talkHistory{position:fixed;z-index:35;left:16px;bottom:calc(90px + env(safe-area-inset-bottom));width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 160px);display:flex;flex-direction:column;padding:10px;border:1px solid #d0dbcc;border-radius:16px;background:#fcfbf4f5;color:#244c3b;box-shadow:0 5px 24px #193a3033;font:13px/1.5 sans-serif}
+#talkHistory header{display:flex;align-items:center;gap:6px}#talkHistory header strong{flex:1}#talkHistory button{min-height:44px;min-width:44px;border:0;background:#e8eddf;border-radius:8px;color:#244c3b;padding:6px 10px;font-weight:700}
+#talkHistory>small{color:#64775f;font-size:11px;margin:2px 0 8px}
+#talkMessages{max-height:340px;min-height:44px;overflow:auto;overscroll-behavior:contain;overflow-anchor:none;scrollbar-width:thin;padding:4px;outline-offset:-2px}
+#talkMessages .talk-line{padding:7px 8px;margin-bottom:5px;background:#eef1e7;border-radius:8px;overflow-wrap:anywhere}#talkMessages .talk-line b{color:#597348;display:block;margin:0 0 2px}#talkMessages .talk-line span{color:#213f31}
+#talkNewMessages{margin-top:6px}#talkHistory[hidden],#talkFeed[hidden],#talkWrite[hidden],#talkNotice[hidden],#talkNewMessages[hidden]{display:none!important}
+body.has-modal :is(#talkPanel,#talkFeed,#talkHistory,#talkWrite),body.pilgrimage-arrival-open :is(#talkPanel,#talkFeed,#talkHistory,#talkWrite),body:has(#mSheet:not([hidden])) :is(#talkPanel,#talkFeed,#talkHistory,#talkWrite){display:none!important}
+@media(max-width:600px),(pointer:coarse){
+ #talkWrite{display:none}#talkFeed{left:12px;top:152px;width:calc(100vw - 90px);font-size:12px;line-height:1.45}
+ #talkPanel{left:8px;bottom:calc(var(--talk-keyboard,0px) + max(8px,env(safe-area-inset-bottom)));width:calc(100vw - 16px)}
+ #talkHistory{left:8px;bottom:calc(12px + env(safe-area-inset-bottom));width:calc(100vw - 16px);max-height:calc(100dvh - 150px)}
+ body:is(.chat-composing,.chat-reading) :is(#pilgrimageReturnHUD,.pilgrimage-objective,.m-social,.m-act,.m-stick,#joystick,#interaction,#lookControls){visibility:hidden!important}
 }
+@media(max-height:500px){#talkFeed{max-height:100px;overflow:hidden}#talkHistory{top:65px;bottom:8px;max-height:none}#talkMessages{min-height:0;flex:1}}
+@media(prefers-reduced-motion:reduce){#talkFeed .talk-line{transition:none}}
 
-@media(max-width:600px){body:has(#talkPanel.writing) #pilgrimageReturnHUD,body:has(#talkPanel.writing) .pilgrimage-objective{visibility:hidden}}
+body.chat-composing #toast{bottom:170px}
+@media(max-width:600px),(pointer:coarse){body.chat-composing #toast{bottom:calc(var(--chat-keyboard,0px) + 92px + env(safe-area-inset-bottom))}}

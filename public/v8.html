@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta name="hanmaum-release" content="2026-11-15-exit-avatar-v11">
+<meta name="hanmaum-release" content="2026-11-15-transient-chat-v12">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#244c3b">
@@ -7111,7 +7111,7 @@ class HanmaumLocalChat{
   }
   this.ctx.world.updateSpeech?.();
  }
- dispose(){if(this.disposed)return;this.channel?.postMessage({type:'leave',id:this.id});this.channel?.close();this.network.disconnect();clearInterval(this.timer);cancelAnimationFrame(this.frame);this.disposed=true;this.clearPeers();}
+ dispose(){if(this.disposed)return;this.channel?.postMessage({type:'leave',id:this.id});this.channel?.close();this.network.disconnect();clearInterval(this.timer);cancelAnimationFrame(this.frame);this.disposed=true;window.HanmaumChatPanel?.dispose?.(this);this.clearPeers();}
 }
 window.HanmaumFeatures=HanmaumFeatures;window.HanmaumPortrait=portrait;window.HANMAUM_TEACHINGS=QUOTES;
 })();
@@ -9241,18 +9241,8 @@ case'help':showHelp();break;case'scenery':showScenery();break;
 function wireUI(){for(const [id,ic]of [['brandMark','lantern'],['leafIcon','leaf'],['helpBtn','help'],['settingsBtn','settings'],['backMap','back'],['dailySymbol','flag'],['sceneToolsIcon','map'],['sceneToolsArrow','down'],['modalClose','close']])$(id).innerHTML=icon(ic);const NAV={map:['map','도량'],daily:['book','일지'],character:['person','캐릭터'],bag:['bag','배낭'],scenery:['scenery','둘러보기']};document.querySelectorAll('[data-nav]').forEach(b=>{const [ic,name]=NAV[b.dataset.nav];b.innerHTML=icon(ic)+`<span>${name}</span>`;b.addEventListener('click',()=>{sound();({map:showMap,daily:showDaily,character:showCharacter,bag:showBag,scenery:showScenery})[b.dataset.nav]();});});
 const clicks={brandHome:showMap,weatherPill:showScenery,helpBtn:showHelp,settingsBtn:showSettings,profileCard:showCharacter,currencyPill:showBag,dailyPeekBtn:showDaily,backMap:()=>routeTo('campus'),interactBtn:handleInteraction,modalClose:closeModal,guideClose:dismissGuide,guideWalk:()=>{dismissGuide();world?.walkTo('enterWorkshop');},leaveScenic,scenicOverview,scenicOptions:showScenery,soundBtn:()=>onUIClick('toggleSound'),sceneToolsToggle:()=>$('sceneTools').classList.toggle('collapsed')};Object.entries(clicks).forEach(([id,fn])=>$(id).addEventListener('click',fn));
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ui]');if(!b||b.disabled)return;sound();onUIClick(b.dataset.ui,b.dataset.value||'',b);});
-/* Composer key/IME handling is bound once by HanmaumChatPanel.mount. */
-const quickForm=$('quickChat'),quickInput=$('quickChatInput');
-if(quickForm&&quickInput){
- /* 휴대폰 키보드가 올라오면 입력칸이 가려집니다. 키보드 높이만큼 올립니다. */
- const vv=window.visualViewport;
- if(vv)vv.addEventListener('resize',()=>{
-  if(quickForm.hidden)return;
-  const lift=Math.max(0,innerHeight-vv.height-vv.offsetTop);
-  document.getElementById('talkPanel')?.style.setProperty('--talk-keyboard',lift+'px');quickForm.style.setProperty('--kb',lift+'px');
-  quickForm.style.bottom=lift?`calc(${lift}px + 14px)`:'';
- });
-}$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
+/* ChatPanel owns composer keys and virtual-keyboard positioning. */
+$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
 document.addEventListener('keydown',e=>{if(e.defaultPrevented)return;if(window.HanmaumMenuKeys&&window.HanmaumMenuKeys(e))return;if(e.key==='Escape'){if(modalKey){e.preventDefault();closeModal();}else if(scenic)leaveScenic();return;}if(e.key==='Tab'&&modalKey){const all=[...document.querySelector('.modal-card').querySelectorAll('button:not(:disabled),input:not(:disabled),select,textarea,[tabindex="0"]')].filter(x=>x.offsetParent!==null);if(!all.length)return;const a=all[0],b=all[all.length-1];if(e.shiftKey&&document.activeElement===a){e.preventDefault();b.focus();}else if(!e.shiftKey&&document.activeElement===b){e.preventDefault();a.focus();}return;}if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.repeat||modalKey)return;
  // Enter 로 한 줄 입력을 엽니다. 650px 모달이 아니라서 세계가 멈추지 않습니다.
  // 메뉴나 단추에 초점이 있으면 그 단추를 누르는 키라서 넘깁니다.

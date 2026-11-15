@@ -1,0 +1,14 @@
+const{chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('fs');
+(async()=>{const browser=await chromium.launch({executablePath:'/usr/bin/chromium',args:['--no-sandbox']});let failed=false;try{
+ const page=await browser.newPage({viewport:{width:590,height:900}});
+ await page.setContent('<div id="app"><canvas id="world" tabindex="0"></canvas><div id="chatStream"></div><form id="quickChat" hidden><input id="quickChatInput"><button type="submit">보내기</button><button type="button" id="quickChatClose">닫기</button></form></div>');
+ await page.addScriptTag({content:fs.readFileSync('public/v8-chat-panel.js','utf8')});
+ await page.evaluate(()=>{window.chat={messages:Array.from({length:5},(_,i)=>({name:'법우',text:String(i),scene:'campus'})),ctx:{getScene:()=> 'campus',world:{clearInput(){},resize(){}}},network:{state:'online'},quickOpen:()=>!quickChat.hidden,openQuick(){quickChat.hidden=false;HanmaumChatPanel.render(this)},closeQuick(){quickChat.hidden=true;HanmaumChatPanel.render(this)}};HanmaumChatPanel.render(chat)});
+ const feed=()=>page.locator('#talkFeed .talk-line span').allTextContents();assert.deepEqual(await feed(),['2','3','4']);
+ await page.setViewportSize({width:1280,height:900});await page.waitForFunction(()=>talkFeed.children.length===5);try{assert.deepEqual(await feed(),['0','1','2','3','4']);console.log('resize chronology passed')}catch(e){failed=true;console.error('resize chronology:',e.message)}
+ await page.setViewportSize({width:590,height:900});await page.waitForFunction(()=>talkFeed.children.length===3);assert.deepEqual(await feed(),['2','3','4']);
+ const cancelled=await page.evaluate(()=>{chat._talkUI.historyOpen=true;chat._talkUI.history.hidden=false;HanmaumChatPanel.render(chat);const event=new KeyboardEvent('keydown',{key:'c',code:'KeyC',ctrlKey:true,bubbles:true,cancelable:true});talkMessages.dispatchEvent(event);return event.defaultPrevented});
+ try{assert.equal(cancelled,false);console.log('history native copy shortcut passed')}catch(e){failed=true;console.error('history native copy shortcut:',e.message)}
+ await page.evaluate(()=>{chat._talkUI.historyOpen=false;for(const m of chat.messages)chat._talkUI.seen.set(m,Date.now()-9000);HanmaumChatPanel.render(chat)});assert.deepEqual(await feed(),[]);await page.setViewportSize({width:1280,height:900});assert.deepEqual(await feed(),[]);
+ await page.evaluate(()=>HanmaumChatPanel.dispose(chat));assert.equal(await page.locator('#talkPanel').count(),0);console.log('expiry and dispose passed');
+ }finally{await browser.close()}if(failed)process.exitCode=1})().catch(e=>{console.error(e);process.exitCode=1});
