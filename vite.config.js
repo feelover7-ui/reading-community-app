@@ -29,7 +29,11 @@ const v9Standalone = {
     })
   },
   writeBundle () {
-    if (existsSync(V9_DIR)) cpSync(V9_DIR, fileURLToPath(new URL('./dist/v9/', import.meta.url)), { recursive: true })
+    // 시험과 설명 문서는 배포본에 올리지 않는다
+    if (existsSync(V9_DIR)) cpSync(V9_DIR, fileURLToPath(new URL('./dist/v9/', import.meta.url)), {
+      recursive: true,
+      filter: src => !/[\\/]tests([\\/]|$)/.test(src) && !src.endsWith('.md'),
+    })
   },
 }
 
