@@ -328,7 +328,8 @@ function makePreview(size){const c=document.createElement('canvas');const r=Math
 const hud=document.getElementById('hud'),questEl=document.getElementById('quest'),hudfoot=document.getElementById('hudfoot');
 document.getElementById('hudh').onclick=()=>{hud.classList.toggle('collapsed');document.querySelector('#hudh small').textContent=hud.classList.contains('collapsed')?'펼치기':'접기';document.getElementById('hudh').setAttribute('aria-expanded',String(!hud.classList.contains('collapsed')));};
 document.getElementById('hudh').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();e.currentTarget.click();}});
-if(vw<640){hud.classList.add('collapsed');document.querySelector('#hudh small').textContent='펼치기';document.getElementById('hudh').setAttribute('aria-expanded','false');}
+// 좁은 화면뿐 아니라 눕힌 화면(낮은 화면)에서도 접어 둔다. 안 접으면 조이스틱까지 덮는다.
+if(vw<640||vh<520){hud.classList.add('collapsed');document.querySelector('#hudh small').textContent='펼치기';document.getElementById('hudh').setAttribute('aria-expanded','false');}
 function questItems(){const s=state.stage,h=state.hasHung;return[['반장 법우에게 인사하기',state.talked],['골조 작업대 · 철사 뼈대 엮기',s>=1||h],['한지 작업대 · 한지 바르기',s>=2||h],['채색 작업대 · 무늬 넣기',s>=3||h],['전기 작업대 · 불 넣고 소원 적기',s>=4||h],['마당 걸이대에 소원등 걸기',h],['장엄등 점등하기',state.litOnce]];}
 function updateHUD(){const items=questItems();let cur=items.findIndex(i=>!i[1]);questEl.innerHTML='';items.forEach(([t,d],i)=>{const li=el('li',d?'done':(i===cur?'cur':''));li.append(el('b',null,d?'✓':(i===cur?'▸':'·')),el('span',null,t));questEl.append(li);});const total=shared?Math.max(hungTotal,state.lanterns.length):state.lanterns.length;const n=SEEDS.length+total,mc=myCount();const over=shared&&total>MAX_HUNG;hudfoot.textContent=`마당에 걸린 소원등 ${n}개`+(over?` (줄에는 최근 ${MAX_HUNG}개)`:'')+(mc?` · 내 등 ${mc}개`:'')+(state.stage>0&&state.hasHung?' · 새 등 만드는 중':'')+(shared?' · 함께 보는 마당':' · 이 브라우저에만 저장');}
 function changed(){updateHUD();save();}

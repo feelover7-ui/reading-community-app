@@ -91,6 +91,25 @@ test('등불사장 한 마당뿐 — 나가는 문이 없다', () => {
   assert.ok(game.includes('for(let x=1;x<=34;x++){setWall(x,1);'), '위쪽 벽이 뚫려 있다')
   // 살펴볼 곳 목록에도 없어야 한다
   assert.equal(game.includes('본원 도량으로 나가기'), false)
+  // 화면 안내에도 없는 문을 적어 두지 않는다 (drawGate 안의 간판 글자는 죽은 코드라 뺀다)
+  const page = read('v7.html')
+  assert.equal(/문으로 나가|도량으로 나가|본원 도량/.test(page), false,
+    'v7.html 안내에 없어진 문이 남아 있다')
+})
+
+test('휴대폰에서 소임 상자가 위 단추 줄·조이스틱과 겹치지 않는다', () => {
+  const page = read('v7.html')
+  // 좁거나 낮은 화면에서는 상자를 단추 줄 아래로 내린다.
+  // 안 내리면 `펼치기` 가 💬 에 덮여, 누르면 대화창이 열린다.
+  assert.ok(/@media\(max-width:680px\),\(max-height:520px\)\{\s*#hud\{top:calc\(max\(12px,env\(safe-area-inset-top\)\) \+ 52px\)/.test(page),
+    '소임 상자를 위 단추 줄 아래로 내리는 규칙이 없다')
+  // 눕힌 화면에서는 조이스틱 자리까지 내려오지 않게 높이를 막는다
+  assert.ok(/@media\(max-height:520px\)\{\s*#hud\{max-height:calc\(100dvh - 230px\)\}/.test(page),
+    '눕힌 화면에서 소임 상자 높이를 막는 규칙이 없다')
+  // 접는 판정이 가로폭만 보면 눕혔을 때 안 접힌다
+  const game = readFileSync(join(V7, 'game.js'), 'utf8')
+  assert.ok(game.includes('if(vw<640||vh<520){hud.classList.add(\'collapsed\')'),
+    '눕힌 화면에서 소임 상자를 접지 않는다')
 })
 
 test('2D 로 그린다 — three 를 쓰지 않는다', () => {

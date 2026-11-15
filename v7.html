@@ -191,6 +191,15 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
   .opt{font-size:12px}
   #title .welcome-entry{padding:22px 20px}
 }
+/* 휴대폰: 위 단추 줄(💬 🔊 🎵 ?)이 소임 상자의 `펼치기` 를 덮고 있었다.
+   그 자리를 누르면 소임이 펼쳐지는 대신 대화창이 열린다. 상자를 단추 줄 아래로 내린다. */
+@media(max-width:680px),(max-height:520px){
+  #hud{top:calc(max(12px,env(safe-area-inset-top)) + 52px);max-height:calc(100dvh - 88px)}
+}
+/* 눕힌 화면에서는 상자가 왼쪽을 위아래로 다 덮어 조이스틱 자리까지 내려온다. */
+@media(max-height:520px){
+  #hud{max-height:calc(100dvh - 230px)}
+}
 @media(pointer:coarse){#modal{align-items:flex-start;padding-top:max(12px,env(safe-area-inset-top))}}
 @media(max-height:560px){
   #title{padding:12px}
@@ -259,7 +268,7 @@ body.touch #yardmenub{bottom:max(144px,calc(env(safe-area-inset-bottom) + 128px)
         <div id="namehint" aria-live="polite">법우들에게 이 이름과 모습으로 보여요</div>
       </div>
       <button id="startb">마당에 들어가기</button>
-      <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업 Space<br>이야기 Enter · 위쪽 문으로 나가면 본원 도량</div>
+      <div class="ctl" id="ctlhint">이동 방향키 · WASD &nbsp;|&nbsp; 작업 Space<br>이야기 Enter · 휴대폰은 왼쪽 아래 손잡이로 걷습니다</div>
     </section>
   </div>
 </div>
