@@ -24,3 +24,15 @@ test('visible walls still stop chase camera while hidden and camera-ignored bran
  wall.visible=true;const ignored=new THREE.Group();ignored.userData.cameraIgnore=true;w.content.add(ignored);ignored.add(wall);w.content.updateMatrixWorld(true)
  w.updateCamera(1/60,true);assert.equal(w.eyeCamera.position.z,9.5)
 })
+
+test('outdoor exit keeps the avatar visible after the final camera has safe clearance',()=>{
+ const patched={THREE,HanmaumWorld:class extends window.HanmaumWorld{}}
+ vm.runInNewContext(fs.readFileSync('public/v8-view.js','utf8'),{window:patched})
+ const w=world();Object.setPrototypeOf(w,patched.HanmaumWorld.prototype)
+ Object.assign(w,{indoor:false,currentScene:'campus',lookPitch:.06,isAvatarPart:()=>false})
+ box(w.content,3.5);w.content.updateMatrixWorld(true);w.updateCamera(0,true)
+ assert.ok(w.eyeCamera.position.distanceTo(new THREE.Vector3(0,1.22,0))>2,'the exit camera has room to show the character')
+ assert.equal(w.player.visible,true,'a safe final chase camera must not retain the earlier hidden flag')
+ w.viewMode='immersive';w.player.visible=false;w._v=new THREE.Vector3();w.updateCamera(0,true)
+ assert.equal(w.player.visible,false,'explicit first-person view must keep hiding the local avatar')
+})
