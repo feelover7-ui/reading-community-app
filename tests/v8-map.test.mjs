@@ -64,3 +64,11 @@ test('arrow selection follows visible directions, stays at edges, and reaches al
   assert.equal(seen.size,9,'all destinations must be reachable with arrow keys')
  }
 })
+
+test('map names the activity and immediate travel for every destination', () => {
+  const map = loadMap(), markup = map.render('campus')
+  for (const place of map.destinations) {
+    assert.match(markup, new RegExp(`aria-label="${place.title} · ${place.short} · 바로 이동"`))
+    assert.match(markup, new RegExp(`<span class="destination-map-activity">${place.short}</span>`))
+  }
+})

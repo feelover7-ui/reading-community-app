@@ -284,3 +284,14 @@ test('모르는 사람이 움직임만으로 오면 전체 명단을 달라고 �
   assert.equal(got.filter(m => m.type === 'presence').at(-1).id, 'p9')
   assert.equal(c.peerCount, 1)
 })
+
+test('attendance metadata separates the welcome roster from newly observed participants',()=>{
+ const {c,got,ws}=client();ws().openNow();c.send(presence())
+ ws().deliver({t:'welcome',participantId:'p1',resumeToken:'r',snapshot:{t:'snapshot',serverSeq:1,full:true,records:[record()],removed:[]}})
+ assert.equal(got.find(m=>m.type==='join'&&m.id==='p2').initial,true)
+ ws().deliver({t:'snapshot',serverSeq:2,full:false,records:[record({id:'p3'})],removed:[]})
+ assert.equal(got.find(m=>m.type==='join'&&m.id==='p3').initial,false)
+ ws().deliver({t:'snapshot',serverSeq:3,full:true,records:[record(),record({id:'p3'})],removed:[]})
+ assert.equal(got.filter(m=>m.type==='join').length,2)
+ c.disconnect()
+})

@@ -1,0 +1,80 @@
+/* One entry per global action; controls stay in their screen zones. */
+body.quiet-pilgrimage #brandHome,
+#pilgrimageReturnHUD [data-return="map"],
+#pilgrimageReturnHUD [data-return="settings"],
+#mSheet .m-sheet-card>section:has(#mSheetNav),
+#mSheetLv{display:none!important}
+#pilgrimageReturnHUD{width:auto;max-width:calc(100% - 28px)}
+#pilgrimageReturnHUD button{font-size:14px;min-width:100px;padding:0 16px}
+body.m-simple #mBack{width:44px;height:44px;flex-shrink:0}
+body.m-simple #mGoal{display:none!important}
+body.m-simple #mPlace{max-width:calc(100% - 140px);padding:4px 10px 4px 4px}
+body.m-simple #mPlace b{font-size:14px;max-width:100%}
+body.m-simple #travelMapButton .map-key-hint{display:none!important}
+body.m-simple #mSocial button{font-size:14px;min-width:48px;min-height:48px}
+body.m-simple #mActLabel{font-size:14px;color:#234737}
+#mSheet .m-item{font-size:14px;min-height:48px}
+/* The one-time movement coach must not hide its dismissal hint behind the HUD. */
+body.m-simple #mCoach p{bottom:auto;top:calc(50% + 68px);font-size:14px;color:#fff}
+
+/* Activity names remain visible instead of generic 'go' captions. */
+.overview-map .destination-map-copy>.destination-map-activity{display:block!important;font-size:12px;line-height:1.35;color:#3c604c;font-weight:500}
+.overview-map .destination-map-copy strong{font-size:14px;line-height:1.35;color:#244737}
+.overview-map .destination-map-copy em{font-size:11px;color:#375a44}
+.overview-map .destination-map-place:not(.is-current) em{display:none}
+.overview-map .destination-map-place{min-height:66px;padding:7px 8px}
+.destination-map-help{font-size:14px;color:#3c604c}
+.destination-map-help b{display:none}
+.destination-map-help .map-key-hint{color:#3c604c}
+.destination-map-note{font-size:13px!important;color:#486350!important}
+/* Give primary explanations readable contrast, without enlarging dense decorations. */
+.pilgrimage-arrival-card>p,.pilgrimage-sheet-card>p,
+.pilgrimage-guestbook-list article p{font-size:14px!important;line-height:1.6;color:#405d4c}
+.pilgrimage-guestbook-state,.pilgrimage-guestbook-list article time{font-size:12px!important;color:#4d6354}
+.pilgrimage-guestbook form label,.pilgrimage-participant-groups section>div{font-size:14px}
+#walkHint{font-size:12px;color:#345742}
+
+@media(max-width:600px){
+ .modal-card:has(.overview-map) .modal-head{padding:16px}
+ .modal-card:has(.overview-map) .modal-body{padding:12px}
+ .destination-map-help{display:none!important}
+ .destination-map-board.overview-map{height:calc(100dvh - 190px);max-height:550px;min-height:400px}
+ .overview-map .destination-map-place{width:clamp(88px,26vw,112px);min-height:64px;padding:6px 3px}
+ .overview-map .destination-map-copy strong{font-size:13px}
+ .overview-map .destination-map-copy>.destination-map-activity{font-size:12px}
+ .overview-map [data-value=terrace3],.overview-map [data-value=terrace2],.overview-map [data-value=lobby2]{left:16%}
+ .overview-map [data-value=seosan],.overview-map [data-value=workshop],.overview-map [data-value=campus]{left:84%}
+ .overview-map [data-value=campus]{top:89%}
+}
+@media(max-height:500px) and (orientation:landscape){
+ /* Mobile controls use the bottom-right row, safely below the map/menu column. */
+ body.m-simple #mSocial{flex-direction:row;right:max(12px,env(safe-area-inset-right));bottom:12px;gap:8px}
+ body.m-simple #mAct{right:max(12px,env(safe-area-inset-right));bottom:72px;gap:4px}
+ body.m-simple #mActBtn{width:52px;height:52px;font-size:14px}
+ body.m-simple #mActLabel{max-width:160px;font-size:13px}
+ body.m-simple #mPlace{top:10px;left:50%;max-width:calc(100% - 300px)}
+ body.m-simple #travelMapButton{top:66px;min-height:54px;padding:6px}
+ body.m-simple #pilgrimageReturnHUD{left:12px;transform:none;bottom:12px}
+ .modal-card:has(.overview-map){height:calc(100dvh - 16px);max-height:calc(100dvh - 16px)}
+ .modal-card:has(.overview-map) .modal-head{padding:8px 16px;min-height:54px}
+ .modal-card:has(.overview-map) .modal-head h2{font-size:20px}
+ .modal-card:has(.overview-map) .modal-head .eyebrow,
+ .modal-card:has(.overview-map) .modal-head p,
+ .destination-map-help,.destination-map-note{display:none!important}
+ .modal-card:has(.overview-map) .modal-body{padding:8px 14px;display:flex;flex:1;min-height:0;overflow:auto}
+ .destination-map-board.overview-map{height:auto;min-height:236px;flex:1}
+ .overview-map>img{position:absolute;opacity:.65;object-fit:cover}
+ .overview-map-pins{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px;height:100%}
+ .overview-map .destination-map-place{position:static;transform:none;width:100%;min-height:64px;padding:5px;left:auto;top:auto}
+ .overview-map .destination-map-place>svg{display:none}
+ .overview-map .destination-map-copy strong{font-size:14px}
+}
+body.pilgrimage-ritual-active #walkHint{display:none!important}
+@media(max-height:500px) and (orientation:landscape){
+ #walkHint{display:none!important}
+ body.quiet-pilgrimage #roomInfo{left:14px;top:12px;transform:none;max-width:calc(50% - 28px)}
+ body.m-simple #mPlace{left:12px;transform:none;max-width:calc(50% - 24px)}
+}
+/* Keep the social menu clear of the nearby circular activity button. */
+body.m-simple #pilgrimageReturnHUD{left:14px;transform:none;max-width:calc(100% - 124px)}
+body.m-simple #pilgrimageReturnHUD button{min-width:0;padding:0 12px}

@@ -46,7 +46,7 @@
     document.body.dataset.quietScene = current.scene
     const dock = ensureContextDock()
     if (dock) {
-      dock.hidden = !current.context
+      dock.hidden = typeof current.context?.onSelect !== 'function'
       dock.textContent = current.context?.label || ''
       dock.onclick = typeof current.context?.onSelect === 'function' ? current.context.onSelect : null
     }
@@ -64,7 +64,8 @@
     return render()
   }
 
-  function hideContext () {
+  function hideContext (id) {
+    if (id && current.context?.id !== id) return render()
     current = model(current, null)
     return render()
   }

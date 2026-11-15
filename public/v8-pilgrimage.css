@@ -76,3 +76,48 @@ body.pilgrimage-returning #dailyPeek,body.pilgrimage-returning #currencyPill,bod
  #pilgrimageReturnHUD button{flex:1;padding:0 5px}
 }
 @media(prefers-reduced-motion:reduce){.pilgrimage-arrival,.pilgrimage-arrival-card{animation:none!important;transition:none!important}}
+
+/* One objective region owns ritual progress and its cancellation controls. */
+.pilgrimage-objective[hidden],.pilgrimage-journey-options[hidden]{display:none!important}
+.pilgrimage-objective{max-height:calc(100dvh - 150px);overflow:auto}
+.pilgrimage-objective p{font-size:14px}
+.pilgrimage-objective small{font-size:10px}
+.pilgrimage-journey-options{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.pilgrimage-journey-options button{flex:1;min-height:44px;padding:8px 10px;border:1px solid #c6d3c4;border-radius:12px;background:#edf1e7;color:#315849;font:inherit;font-size:14px;font-weight:700}
+body.pilgrimage-ritual-active #spaceActivity{display:none!important}
+body.has-modal .pilgrimage-objective{display:none!important}
+body.pilgrimage-objective-active:not(.pilgrimage-exploring) #pilgrimageReturnHUD{display:none!important}
+body.quiet-pilgrimage.pilgrimage-exploring .pilgrimage-objective{bottom:88px;padding:10px 14px}
+.pilgrimage-objective.is-exploring p,.pilgrimage-objective.is-exploring small{display:none}
+.pilgrimage-objective.is-exploring{grid-template-columns:1fr auto}
+.pilgrimage-objective.is-exploring .btn{grid-column:2;grid-row:1;margin:0;width:auto}
+.pilgrimage-objective.is-exploring strong{font-size:13px;word-break:keep-all}
+.pilgrimage-sheet-card,.pilgrimage-finale>div,.pilgrimage-arrival-card{max-height:calc(100dvh - 40px);overflow:auto;overscroll-behavior:contain}
+.pilgrimage-sheet-card .btn+.btn{margin-top:8px}
+@media(max-width:600px){
+ .pilgrimage-objective{width:calc(100% - 28px);padding:12px 14px}
+ .pilgrimage-objective strong{font-size:14px}
+ .pilgrimage-objective .btn{margin-top:5px}
+ .pilgrimage-journey-options{margin-top:5px;gap:6px}
+ .pilgrimage-arrival-card,.pilgrimage-sheet-card,.pilgrimage-finale>div{max-height:calc(100dvh - 28px)}
+}
+@media(max-height:500px) and (orientation:landscape){
+ .pilgrimage-objective{width:min(480px,calc(100% - 270px));padding:10px 12px;max-height:calc(100dvh - 110px)}
+ .pilgrimage-objective strong{font-size:14px}
+ .pilgrimage-objective p{font-size:14px}
+ .pilgrimage-journey-options{margin-top:5px}
+ .pilgrimage-arrival{padding:12px;align-items:center;justify-content:center}
+ .pilgrimage-arrival-card{width:min(600px,100%);padding:20px}
+}
+
+body.pilgrimage-objective-active:not(.pilgrimage-exploring) #mAct{display:none!important}
+body.m-simple.quiet-pilgrimage.pilgrimage-exploring .pilgrimage-objective{left:14px;transform:none;width:calc(100% - 140px);bottom:88px}
+body.m-simple.pilgrimage-exploring #mActLabel{max-width:96px}
+@media(max-height:500px) and (orientation:landscape){
+ body.m-simple.quiet-pilgrimage.pilgrimage-exploring .pilgrimage-objective{left:12px;width:min(440px,calc(100% - 270px));bottom:88px}
+ .pilgrimage-objective p,.pilgrimage-journey-options button{font-size:13px}
+}
+@media(max-width:600px){
+ body.m-simple.quiet-pilgrimage.pilgrimage-objective-active:not(.pilgrimage-exploring) .pilgrimage-objective{left:14px;transform:none;width:calc(100% - 92px)}
+}
+.pilgrimage-journey-options button{word-break:keep-all;line-height:1.4}
