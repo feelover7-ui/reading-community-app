@@ -53,3 +53,14 @@ test('the responsive board keeps seven touch targets visible in a desktop or mob
   assert.match(css, /\.destination-map-group\.main-building\s*\{[^}]*grid-template-columns:\s*repeat\(3,/)
   assert.match(css, /@media\(max-width:600px\)[\s\S]*\.destination-map-group\s*\{[^}]*display:\s*contents/)
 })
+
+test('arrow selection follows visible directions, stays at edges, and reaches all nine map pins',()=>{
+ const map=loadMap(),points=[{x:78,y:86},{x:79,y:64},{x:49,y:72},{x:22,y:65},{x:48,y:32},{x:22,y:46},{x:30,y:29},{x:50,y:52},{x:80,y:44}]
+ assert.equal(map.directionalIndex(points,0,'ArrowUp'),1)
+ assert.equal(map.directionalIndex(points,0,'ArrowLeft'),2)
+ assert.equal(map.directionalIndex(points,0,'ArrowDown'),0)
+ for(let start=0;start<points.length;start++){
+  const seen=new Set([start]),todo=[start];while(todo.length){const at=todo.shift();for(const key of ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight']){const next=map.directionalIndex(points,at,key);if(!seen.has(next)){seen.add(next);todo.push(next)}}}
+  assert.equal(seen.size,9,'all destinations must be reachable with arrow keys')
+ }
+})

@@ -49,3 +49,9 @@ body:has(#pilgrimageReturnHUD) .quiet-context-action{bottom:calc(88px + env(safe
  .overview-map [data-value=workshop]{left:82%;top:64%}
  .overview-map [data-value=campus]{left:82%;top:88%}
 }
+
+.overview-map .destination-map-place:focus{outline:3px solid #b97524;outline-offset:3px;background:#fff3d4;box-shadow:0 0 0 6px #fff8e6cc}
+.destination-map-help .map-key-hint{display:block;font-size:12px;margin-top:4px}
+#travelMapButton kbd{font:700 10px sans-serif;border:1px solid #c8d5c3;border-radius:4px;padding:0 3px}
+@media(min-width:601px){#brandHome{display:none!important}#topbar .top-actions{margin-left:auto}}
+@media(max-width:600px){.map-key-hint{display:none!important}}
